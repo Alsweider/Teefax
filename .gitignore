@@ -16,9 +16,11 @@
 
 # Debugger Files
 *.pdb
+*.dwo
 
 # Compiled Dynamic libraries
 *.so
+*.so.*
 *.dylib
 *.dll
 
@@ -36,21 +38,6 @@
 *.exe
 *.out
 *.app
-
-# debug information files
-*.dwo
-
-# C++ objects and libs
-*.slo
-*.lo
-*.o
-*.a
-*.la
-*.lai
-*.so
-*.so.*
-*.dll
-*.dylib
 
 # Qt-es
 object_script.*.Release
