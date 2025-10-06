@@ -1,10 +1,17 @@
 # Teefax
 Teefax ist ein Küchenwecker, der über die Kommandozeile bedient wird. Als Parameter erwartet er die gewünschte Wartezeit in Sekunden. Nach Ablauf der Zeit ertönt ein Signal. 
-Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Tee zu kochen. Der Nachteil daran ist, dass man die Zeit jedes Mal neu einstellen muss, man benötigt mindestens zwei Klicks. Mit Teefax kann man einfach den Befehl "teefax 180" verwenden, um sofort 3 Minuten abzuzählen. Über eine Verknüpfung ist das sogar mit einem einzigen Klick möglich.
+Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Tee zu kochen. Das Programm wurde seit 2006 nicht mehr aktualisiert, aber funktioniert unverändert. Ein Nachteil daran ist, dass man die Zeit jedes Mal neu einstellen muss. Auch wenn Timerle schon im Hintergrund aktiv ist, benötigt man mindestens zwei Klicks, um den Zähler zu starten. Mit Teefax dagegen kann man einfach den Befehl "teefax 180" verwenden, um sofort 3 Minuten abzuzählen. Über eine Verknüpfung sogar mit nur einem einzigen Klick.
 
 Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/latest)
 
 ![2025-10-04 18_09_45-C__WINDOWS_system32_cmd exe - teefax  20](https://github.com/user-attachments/assets/7c9150eb-46fd-4215-84a9-9675a0c8333a)
+
+Vorteile:
+* Timer mit einem Klick starten
+* Programmgröße < 20 KB
+* Größe im Arbeitsspeicher: ~0,4 MB (~7 MB mit conhost.exe)
+* Zugriff über Kommandozeile
+* genaue Zeitmessung ohne systemlastbedingte Schwankungen
 
 # Nutzung
 
@@ -19,3 +26,5 @@ Es gibt mehrere Möglichkeiten, das Programm zu nutzen. Hier ein paar Beispiele:
 
 Teefax misst zunächst den aktuellen Startzeitpunkt mit der hochpräzisen Klasse [chrono::steady_clock](https://cplusplus.com/reference/chrono/steady_clock/) aus der C++-Standardbibliothek, die speziell dafür gedacht ist, genaue physikalische Zeitintervalle zu messen. Sie läuft monoton, die Zeitpunkte können niemals rückwärts laufen und sie ist unabhängig von der Systemzeit des Betriebssystems sowie der Systemauslastung. Als nächstes wird in einer for-Schleife die Dauer bis zur jeweils nächsten Sekunde mit `chrono::seconds()` aus der Startzeit und der gewünschten Sekundenzahl errechnet. Mit `this_thread::sleep_until()` wird das Programm dann angehalten, bis dieser Zeitpunkt (die nächste Sekunde) erreicht ist.
 Diese Vorgehensweise hat den Vorteil, dass sie präzise bleibt und immer bis zum errechneten Zielzeitpunkt wartet. Bei einem einfachen Sleep()-Befehl hingegen würde etwa die Systemauslastung zu Abweichungen von mehreren Millisekunden pro Sekunde führen, die sich bei vielen Durchläufen aufsummieren und die gemessene Zeit deutlich verfälschen.
+
+
