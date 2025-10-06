@@ -1,6 +1,6 @@
 # Teefax
 Teefax ist ein Küchenwecker, der über die Kommandozeile bedient wird. Als Parameter erwartet er die gewünschte Wartezeit in Sekunden. Nach Ablauf der Zeit ertönt ein Signal. 
-Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Tee zu kochen. Der Nachteil daran ist, dass man die Zeit jedes Mal neu einstellen muss. Mit Teefax kann man einfach den Befehl "teefax 180" eingeben, um sofort 3 Minuten abzuzählen.
+Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Tee zu kochen. Der Nachteil daran ist, dass man die Zeit jedes Mal neu einstellen muss, man benötigt mindestens zwei Klicks. Mit Teefax kann man einfach den Befehl "teefax 180" verwenden, um sofort 3 Minuten abzuzählen. Über eine Verknüpfung ist das sogar mit einem einzigen Klick möglich.
 
 Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/latest)
 
