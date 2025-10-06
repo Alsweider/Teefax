@@ -7,7 +7,7 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 
 ![2025-10-04 18_09_45-C__WINDOWS_system32_cmd exe - teefax  20](https://github.com/user-attachments/assets/7c9150eb-46fd-4215-84a9-9675a0c8333a)
 
-Vorteile:
+**Vorteile**
 * Timer mit einem Klick starten
 * Programmgröße < 20 KB
 * Größe im Arbeitsspeicher: ~0,4 MB (~7 MB mit conhost.exe)
