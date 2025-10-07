@@ -7,6 +7,7 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 
 ![2025-10-04 18_09_45-C__WINDOWS_system32_cmd exe - teefax  20](https://github.com/user-attachments/assets/7c9150eb-46fd-4215-84a9-9675a0c8333a)
 
+
 **Vorteile**
 * Zähler mit einem Klick starten
 * Programmgröße < 150 KB
@@ -36,6 +37,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Jahre: `y`
 - Schleife: `--loop` (z. B.: `teefax 3m --loop`). Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne.
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`). Es wird kein Weckton abgespielt.
+- Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` 
 
