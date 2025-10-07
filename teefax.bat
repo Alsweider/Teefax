@@ -1,1 +1,1 @@
-@start "" "teefax.exe" 180
+@start "" "teefax.exe" 3m
