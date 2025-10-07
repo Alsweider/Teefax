@@ -5,8 +5,7 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Te
 
 Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/latest)
 
-![2025-10-07 13_52_26-C__WINDOWS_system32_cmd exe - teefax  3m30s --mute --loop](https://github.com/user-attachments/assets/320f8c2f-5fab-4548-ab6f-697d81b6a469)
-
+![teefax2](https://github.com/user-attachments/assets/483485f4-56c8-460e-9e22-f52c0f00ced4)
 
 **Vorteile**
 * Zähler mit einem Klick starten
