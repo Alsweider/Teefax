@@ -41,8 +41,6 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` 
 
-_ 
-
 # Funktionsweise & Technik
 
 Teefax misst zunächst den aktuellen Startzeitpunkt mit der hochpräzisen Klasse [chrono::steady_clock](https://cplusplus.com/reference/chrono/steady_clock/) aus der C++-Standardbibliothek ([2011](https://www.heise.de/blog/Zeit-in-C-20-Einfuehrung-in-die-Chrono-Terminologie-9642462.html) mit dem C++11-Standard eingeführt), die speziell dafür gedacht ist, genaue physikalische Zeitintervalle zu messen. Sie läuft monoton, die Zeitpunkte können niemals rückwärts laufen und sie ist unabhängig von der Systemzeit des Betriebssystems sowie der Systemauslastung. Als nächstes wird in einer for-Schleife die Dauer bis zur jeweils nächsten Sekunde mit [chrono::seconds()](https://cplusplus.com/reference/chrono/seconds/) aus der Startzeit und der gewünschten Sekundenzahl errechnet. Mit [this_thread::sleep_until()](https://cplusplus.com/reference/thread/this_thread/sleep_until/) wird das Programm dann angehalten, bis dieser Zeitpunkt (die nächste Sekunde) erreicht ist.
