@@ -3,7 +3,9 @@ CONFIG += console c++17
 CONFIG -= app_bundle
 CONFIG -= qt
 
-VERSION = 0.0.2
+LIBS += -lwinmm
+
+VERSION = 0.1.0
 
 SOURCES += \
         main.cpp
