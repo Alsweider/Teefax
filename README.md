@@ -25,8 +25,9 @@ Es gibt mehrere Möglichkeiten, das Programm zu nutzen. Hier ein paar Beispiele:
 
 # Parameter
 
-Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte. Der Begriff `teefax` startet das Programm, aber ohne Daten kann es nichts tun. Deshalb ist mindestens die Sekundenzahl nötig. Teefax versteht aber noch weitere Einheiten und Anweisungen. Die Abkürzung für die Einheit steht immer nach der entsprechenden Zahl:
+Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte. Der Begriff `teefax` startet das Programm, aber ohne Daten kann es nichts tun. Deshalb ist mindestens die Sekundenzahl nötig. Teefax versteht aber noch weitere Einheiten und Anweisungen. Die Abkürzung für die Einheit steht immer direkt nach der entsprechenden Zahl (ohne Leerzeichen dazwischen):
 
+- Millisekunden: `ms`
 - Sekunden: `teefax 30` oder `teefax 30s`
 - Minuten: `m` (z. B.: `teefax 5m`)
 - Stunden: `h`
