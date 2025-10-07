@@ -9,8 +9,8 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 
 **Vorteile**
 * Zähler mit einem Klick starten
-* Programmgröße < 20 KB
-* Größe im Arbeitsspeicher: ~0,4 MB (~7 MB mit conhost.exe)
+* Programmgröße < 150 KB
+* Größe im Arbeitsspeicher: ~0,5 MB (~7 MB mit conhost.exe)
 * Zugriff über Kommandozeile
 * genaue Zeitmessung ohne systemlastbedingte Schwankungen
 
