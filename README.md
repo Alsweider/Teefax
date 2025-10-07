@@ -33,8 +33,8 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Stunden: `h`
 - Tage: `d`
 - Wochen: `w`
-- Monate (30 Tage genormt): `mo`
-- Jahre: `y`
+- Monate (auf 30 Tage genormt): `mo`
+- Jahre (auf 365 Tage genormt): `y`
 - Schleife: `--loop` (z. B.: `teefax 3m --loop`). Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne.
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`). Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
