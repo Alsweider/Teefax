@@ -5,7 +5,7 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Te
 
 Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/latest)
 
-![2025-10-04 18_09_45-C__WINDOWS_system32_cmd exe - teefax  20](https://github.com/user-attachments/assets/7c9150eb-46fd-4215-84a9-9675a0c8333a)
+![2025-10-07 13_52_26-C__WINDOWS_system32_cmd exe - teefax  3m30s --mute --loop](https://github.com/user-attachments/assets/320f8c2f-5fab-4548-ab6f-697d81b6a469)
 
 
 **Vorteile**
