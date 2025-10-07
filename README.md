@@ -39,7 +39,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`). Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
 
-Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` 
+Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
 # Funktionsweise & Technik
 
