@@ -9,10 +9,14 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 
 **Vorteile**
 * Zähler mit einem Klick starten
-* Programmgröße < 150 KB
+* Beliebigen Weckton definieren (.WAV-Format)
+* Wecken nach Dauer oder Uhrzeit
+* Programmgröße < 200 KB
 * Größe im Arbeitsspeicher: ~0,5 MB (~7 MB mit conhost.exe)
 * Zugriff über Kommandozeile
+* Wiederholfunktionen
 * genaue Zeitmessung ohne systemlastbedingte Schwankungen
+
 
 # Nutzung
 
