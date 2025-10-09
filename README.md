@@ -26,7 +26,9 @@ Es gibt mehrere Möglichkeiten, das Programm zu nutzen. Hier ein paar Beispiele:
 1. Die komplizierteste Variante: In der Kommandozeile (cmd.exe) manuell in den Programmordner navigieren und das Programm mit einem Parameter ansprechen, z. B.: `cd C:\Tools\Teefax\` und dann `teefax 180`.
 2. Eine Stapelverarbeitungs-Datei (.bat) anlegen, die das Programm mit der gewünschten Zeit in Sekunden anspricht: `@start "" "teefax.exe" 180`. Falls die Datei nicht im gleichen Ordner wie das Programm liegen sollte, muss vor "teefax.exe" der vollständige Pfad angegeben werden: `@start "" "C:\Tools\teefax.exe" 180`
 3. Anlegen einer Verknüpfung per Rechtsklick auf Teefax.exe. Damit das Programm immer die gewünschte Zeit abzählt, muss die Verknüpfung um die Sekundenzahl oder weitere gewünschte Parameter erweitert werden. Dazu klickt man mit der rechten Maustaste auf die Verknüpfung und öffnet die Eigenschaften. Dort ergänzt man im Ziel-Pfad am Ende eine Zahl: `C:\Tools\Teefax\Teefax.exe 180`. Diese Verknüpfung lässt sich auch einfach in der Taskleiste plazieren.
-4. Den Programmordner in den Systemeigenschaften als Systemumgebungsvariable definieren. Dazu ergänzt man den Pfad zum Ordner, in dem das Programm liegt, als neuen Path-Eintrag in den Systemvariablen. Das führt dazu, dass das Programm als Befehl in der Kommandozeile sowie im Ausführen-Dialog (Win+R) direkt verfügbar wird, ohne dass man erst zum Ordner navigieren muss. 
+4. Den Programmordner in den Systemeigenschaften als Systemumgebungsvariable definieren. Dazu ergänzt man den Pfad zum Ordner, in dem das Programm liegt, als neuen Path-Eintrag in den Systemvariablen. Das führt dazu, dass das Programm als Befehl in der Kommandozeile sowie im Ausführen-Dialog (Win+R) direkt verfügbar wird, ohne dass man erst zum Ordner navigieren muss.
+
+Gestoppt wird das Programm durch Schließen des Konsolenfensters bzw. die Tastenkombination [Strg]+[C].
 
 # Parameter
 
