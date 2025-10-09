@@ -3,8 +3,10 @@
 #include <thread>
 #include <string>
 #include <regex>
-#include <windows.h> //Beep
-#include <mmsystem.h> //PlaySound / .WAV-Ausgabe
+#include <iomanip>
+#include <ctime>
+#include <windows.h>
+#include <mmsystem.h>
 #pragma comment(lib, "winmm.lib")
 
 using namespace std;
@@ -42,22 +44,6 @@ long long parseTime(const string& arg) {
     return totalMs;
 }
 
-//Millisekunden hübsch formatiert ausgeben
-string formatTime(long long ms) {
-    long long totalSeconds = ms / 1000;
-    long long days    = totalSeconds / 86400; totalSeconds %= 86400;
-    long long hours   = totalSeconds / 3600;  totalSeconds %= 3600;
-    long long minutes = totalSeconds / 60;    totalSeconds %= 60;
-    long long seconds = totalSeconds;
-
-    ostringstream oss;
-    if (days)    oss << days << "d ";
-    if (hours)   oss << hours << "h ";
-    if (minutes) oss << minutes << "m ";
-    oss << seconds << "s";
-    return oss.str();
-}
-
 //Hilfsfunktion: std::string -> std::wstring
 wstring toWide(const string& str) {
     int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
@@ -66,70 +52,157 @@ wstring toWide(const string& str) {
     return wstr;
 }
 
+//Berechnet Millisekunden bis zur nächsten angegebenen Uhrzeit (HH:MM:SS)
+long long millisecondsUntilTime(int hour, int minute, int second = 0) {
+    using namespace chrono;
+    auto now = system_clock::now();
+    time_t tnow = system_clock::to_time_t(now);
+    tm local = *localtime(&tnow);
+
+    local.tm_hour = hour;
+    local.tm_min  = minute;
+    local.tm_sec  = second;
+
+    auto target = system_clock::from_time_t(mktime(&local));
+    if (target <= now) target += hours(24); //nächste Uhrzeit morgen
+
+    return duration_cast<milliseconds>(target - now).count();
+}
+
 int main(int argc, char* argv[])
 {
     if (argc < 2) {
         cout << "Verwendung:\n"
-             << "  teefax <Zeit> [Sounddatei] [--mute] [--loop]\n\n"
+             << "  teefax [<Zeit>] [Sounddatei] [--mute] [--loop [Anzahl]] [--alarm-repeat <Anzahl>] [--alarm-interval <Sekunden>] [--at HH:MM[:SS]]\n\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
-             << "  teefax 1h30m\n"
-             << "  teefax 2d12h \"C:\\Klang\\gong.wav\" --loop\n"
-             << "  teefax 1mo15d --mute\n"
-             << "  teefax 1y\n";
-        return 1;
-    }
-
-    string zeitArg = argv[1];
-    long long ms = parseTime(zeitArg);
-
-    if (ms <= 0) {
-        cout << "Bitte eine gültige Zeitangabe machen.\n";
+             << "  teefax --loop 5 3s\n"
+             << "  teefax --at 07:30\n"
+             << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n";
         return 1;
     }
 
     string soundFile;
     bool mute = false;
     bool loop = false;
+    int maxLoops = -1; //-1 = unendlich
+    int alarmRepeat = 1;
+    int alarmInterval = 2;
+    bool useAtTime = false;
+    int atHour = 0, atMinute = 0, atSecond = 0;
+    long long ms = 0; //Zaehlerdauer in Millisekunden
 
-    for (int i = 2; i < argc; ++i) {
+    //Argumente parsen
+    for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
         if (arg == "--mute" || arg == "-mute") mute = true;
-        else if (arg == "--loop" || arg == "-loop") loop = true;
+        else if (arg == "--loop" || arg == "-loop") {
+            loop = true;
+            if (i + 1 < argc) {
+                try {
+                    int possibleCount = stoi(argv[i + 1]);
+                    if (possibleCount > 0) {
+                        maxLoops = possibleCount;
+                        ++i;
+                    }
+                } catch (...) {}
+            }
+        }
+        else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) alarmRepeat = stoi(argv[++i]);
+        else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < argc) alarmInterval = stoi(argv[++i]);
+        else if ((arg == "--at") && i + 1 < argc) {
+            string timeStr = argv[++i];
+            int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &atHour, &atMinute, &atSecond);
+            if (parsed < 2) {
+                cout << "Ungueltiges Zeitformat fuer --at. Erwartet HH:MM[:SS]\n";
+                return 1;
+            }
+            if (parsed == 2) atSecond = 0;
+            useAtTime = true;
+            ms = millisecondsUntilTime(atHour, atMinute, atSecond);
+        }
+        else if (ms == 0 && !useAtTime) {
+            ms = parseTime(arg);
+            if (ms <= 0) {
+                cout << "Ungueltige Zeitangabe: " << arg << "\n";
+                return 1;
+            }
+        }
         else soundFile = arg;
     }
 
-    cout << "Teefax gestartet: " << zeitArg
-         << " (Gesamtdauer: " << formatTime(ms) << ")\n";
+    if (!useAtTime && ms <= 0) {
+        cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
+        return 1;
+    }
+
+    cout << "Teefax gestartet";
+    if (useAtTime) cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
+             << setw(2) << atMinute << ":" << setw(2) << atSecond;
+    else cout << " mit Zaehler: " << ms/1000 << " Sekunden";
+    cout << "\n";
+
+    const int barWidth = 30;
+    int loopCount = 0;
 
     do {
+        if (loop) ++loopCount;
         auto start = chrono::steady_clock::now();
         auto end = start + chrono::milliseconds(ms);
 
         while (chrono::steady_clock::now() < end) {
-            auto verbleibendMs = chrono::duration_cast<chrono::milliseconds>(end - chrono::steady_clock::now()).count();
-            cout << "\rVerbleibend: " << formatTime(verbleibendMs) << "   " << flush;
+            auto nowTime = chrono::steady_clock::now();
+            auto verbleibendMs = chrono::duration_cast<chrono::milliseconds>(end - nowTime).count();
+            long long verbleibendSec = (verbleibendMs + 999) / 1000;
 
-            //präziser Schlaf bis zur nächsten Sekunde
-            auto nextTick = chrono::steady_clock::now() + chrono::seconds(1);
+            int totalSec = static_cast<int>(ms / 1000);
+            int elapsedSec = totalSec - static_cast<int>(verbleibendSec);
+
+            int filled = static_cast<int>((static_cast<double>(elapsedSec) / totalSec) * barWidth);
+            if (filled > barWidth) filled = barWidth;
+
+            int minutes = verbleibendSec / 60;
+            int seconds = verbleibendSec % 60;
+
+            cout << "\r";
+            if (loop) cout << "Durchlauf " << loopCount << " | ";
+            cout << "Verbleibend: " << setfill('0') << setw(2) << minutes << ":"
+                 << setw(2) << seconds << " [";
+            for (int i = 0; i < barWidth; ++i)
+                cout << (i < filled ? '#' : '-');
+            cout << "]   " << flush;
+
+            auto nextTick = chrono::steady_clock::now() + chrono::milliseconds(500);
             this_thread::sleep_until(nextTick);
         }
 
-        cout << "\rZeit abgelaufen!            \n";
+        //Countdown bei 0
+        cout << "\r";
+        if (loop) cout << "Durchlauf " << loopCount << " | ";
+        cout << "Verbleibend: 00:00 [";
+        for (int i = 0; i < barWidth; ++i) cout << '#';
+        cout << "]   " << flush;
 
+        //Weckton
         if (!mute) {
-            if (!soundFile.empty()) {
-                wstring widePath = toWide(soundFile);
-                PlaySoundW(widePath.c_str(), NULL, SND_FILENAME | SND_SYNC);
-            } else {
-                Beep(880, 300);
-                Beep(988, 300);
-                Beep(1047, 500);
+            for (int r = 0; r < alarmRepeat; ++r) {
+                if (!soundFile.empty()) {
+                    wstring widePath = toWide(soundFile);
+                    PlaySoundW(widePath.c_str(), NULL, SND_FILENAME | SND_SYNC);
+                } else {
+                    Beep(880, 300);
+                    Beep(988, 300);
+                    Beep(1047, 500);
+                }
+                if (r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
             }
         }
 
-    } while (loop);
+        if (useAtTime) ms = millisecondsUntilTime(atHour, atMinute, atSecond);
 
+    } while (loop && (maxLoops == -1 || loopCount < maxLoops));
+
+    cout << "\nZaehler beendet.\n";
     return 0;
 }
