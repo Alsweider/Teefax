@@ -12,7 +12,7 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 * Zähler mit einem Klick starten
 * Beliebigen Weckton definieren (.WAV-Format)
 * Wecken nach Dauer oder Uhrzeit
-* Programmgröße < 200 KB
+* Programmgröße < 100 KB
 * Größe im Arbeitsspeicher: ~0,5 MB (~7 MB mit conhost.exe)
 * Zugriff über Kommandozeile
 * Wiederholfunktionen
@@ -35,19 +35,20 @@ Gestoppt wird das Programm durch Schließen des Konsolenfensters bzw. die Tasten
 Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte. Der Begriff `teefax` startet das Programm, aber ohne Daten kann es nichts tun. Deshalb ist mindestens die Sekundenzahl nötig. Teefax versteht aber noch weitere Einheiten und Anweisungen. Die Abkürzung für die Einheit steht immer direkt nach der entsprechenden Zahl (ohne Leerzeichen dazwischen):
 
 - Millisekunden: `ms`
-- Sekunden: `teefax 30` oder `teefax 30s`
-- Minuten: `m` (z. B.: `teefax 5m`)
-- Stunden: `h`
-- Tage: `d`
-- Wochen: `w`
-- Monate (auf 30 Tage genormt): `mo`
-- Jahre (auf 365 Tage genormt): `y`
-- Schleife: `--loop [Anzahl]` (z. B.: `teefax 3m --loop` oder `teefax 5s --loop 3` ) Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne.
-- Stummschalten: `--mute` (z. B. `teefax 20s --mute`). Es wird kein Weckton abgespielt.
+- Sekunden: `teefax 30` oder `teefax 30s` oder `teefax 30sec`
+- Minuten: `m` (z. B.: `teefax 5m`) oder `min`
+- Stunden: `h` oder `hr`
+- Tage: `d` oder `day`
+- Wochen: `w` oder `wk` oder  `week`
+- Monate (auf 30 Tage genormt): `mo` oder `mon` oder `month`
+- Jahre (auf 365 Tage genormt): `y` oder `yr` oder `year`
+- Schleife: `--loop [Anzahl]` oder `-l` (z. B.: `teefax 3m --loop` oder `teefax 5s --loop 3` ). Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne. Anzahl der Wiederholungen optional, sonst unendlich.
+- Stummschalten: `--mute` (z. B. `teefax 20s --mute`) oder `-m`. Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
-- Uhrzeit (basierend auf Systemzeit): `--at HH:MM[:SS]`
+- Uhrzeit (basierend auf Systemzeit): `--at HH:MM[:SS]` zählt bis zur angegebenen Uhrzeit.
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
-- Alarm-Intervall, Abstand zwischen den wiederholten Alarmen: `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Abstand)
+- Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
+- Weiterzählen während Alarm (Blockierung durch Weckton umgehen): `--async` oder `-as`
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
