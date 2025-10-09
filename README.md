@@ -49,7 +49,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
 - Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
 - Weiterzählen während Alarm (Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen): `--async` oder `-as`
-- Datei oder Programm nach Ablauf der Zeit öffnen: `-o [Dateipfad]` oder `--open [Dateipfad]`, z. B.: `teefax 5m "C:\Notizen\erledigen.txt"`
+- Datei oder Programm nach Ablauf der Zeit öffnen: `-o [Dateipfad]` oder `--open [Dateipfad]`, z. B.: `teefax 5m --open "C:\Notizen\erledigen.txt"`
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
