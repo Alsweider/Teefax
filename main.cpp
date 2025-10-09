@@ -176,6 +176,30 @@ long long millisecondsUntilTime(int hour, int minute, int second = 0) {
     return clampMs(static_cast<long double>(diff));
 }
 
+void openFileAfterTimer(const string& filePath) {
+    try {
+        fs::path p(filePath);
+        if (!fs::exists(p)) {
+            cout << "\nDatei nicht gefunden: " << filePath << "\n";
+            return;
+        }
+        wstring wfile = toWide(filePath);
+        if (wfile.empty()) {
+            cout << "\nFehler bei der Pfad-Konvertierung: " << filePath << "\n";
+            return;
+        }
+        HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
+        if ((INT_PTR)res <= 32) {
+            cout << "\nFehler beim Öffnen der Datei (Code " << (INT_PTR)res << "): " << filePath << "\n";
+        } else {
+            cout << "\nDatei geöffnet: " << filePath << "\n";
+        }
+    } catch (const fs::filesystem_error& e) {
+        cout << "\nDateisystem-Fehler beim Öffnen: " << e.what() << "\n";
+    }
+}
+
+
 // Hauptprogramm
 int main(int argc, char* argv[])
 {
@@ -191,7 +215,8 @@ int main(int argc, char* argv[])
              << "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
              << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
              << "       --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
-             << "       --async, -as           Spielt den Ton asynchron (Blockierung umgehen)\n\n"
+             << "       --async, -as           Spielt den Ton asynchron (Blockierung umgehen)\n"
+             << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
@@ -212,6 +237,7 @@ int main(int argc, char* argv[])
     int atHour = 0, atMinute = 0, atSecond = 0;
     long long ms = 0;
     bool asyncSound = false;
+    string openFile;
 
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
@@ -250,6 +276,9 @@ int main(int argc, char* argv[])
                 cout << "Fehler bei der Berechnung der Zielzeit fuer --at.\n";
                 return 1;
             }
+        }
+        else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
+            openFile = argv[++i];
         }
         else if (!useAtTime) {
             long long possible = parseTime(arg);
@@ -361,6 +390,10 @@ int main(int argc, char* argv[])
                 }
                 if (r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
             }
+        }
+
+        if (!openFile.empty()) {
+            openFileAfterTimer(openFile);
         }
 
         if (useAtTime) {
