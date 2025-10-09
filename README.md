@@ -1,5 +1,5 @@
 # Teefax
-Teefax ist ein Küchenwecker, der über die Konsole (Eingabeaufforderung) bedient wird. Als Parameter erwartet er die gewünschte Wartezeit in Sekunden. Nach Ablauf der Zeit ertönt ein Signal.
+Teefax ist ein Küchenwecker, der über die Konsole (Eingabeaufforderung) bedient wird. Als Parameter erwartet er die gewünschte Wartezeit oder Uhrzeit. Nach Ablauf der Zeit ertönt ein Signal.
 
 Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) verwendet, um Tee zu kochen. Das Programm wurde seit 2006 nicht mehr aktualisiert, aber funktioniert unverändert. Ein Nachteil daran ist, dass man die Zeit jedes Mal neu einstellen muss. Auch wenn Timerle schon im Hintergrund aktiv ist, benötigt man mindestens zwei Klicks, um den Zähler zu starten. Mit Teefax dagegen kann man einfach den Befehl "teefax 180" verwenden, um sofort 3 Minuten abzuzählen. Über eine Verknüpfung sogar mit nur einem einzigen Klick.
 
@@ -35,9 +35,12 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Wochen: `w`
 - Monate (auf 30 Tage genormt): `mo`
 - Jahre (auf 365 Tage genormt): `y`
-- Schleife: `--loop` (z. B.: `teefax 3m --loop`) Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne.
+- Schleife: `--loop [Anzahl]` (z. B.: `teefax 3m --loop` oder `teefax 5s --loop 3` ) Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne.
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`). Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
+- Uhrzeit (basierend auf Systemzeit): `--at HH:MM[:SS]`
+- Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
+- Alarm-Intervall, Abstand zwischen den wiederholten Alarmen: `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Abstand)
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
