@@ -16,6 +16,7 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 * Größe im Arbeitsspeicher: ~0,5 MB (~7 MB mit conhost.exe)
 * Zugriff über Kommandozeile
 * Wiederholfunktionen
+* Datei nach einer bestimmten Zeit öffnen
 * genaue Zeitmessung ohne systemlastbedingte Schwankungen
 
 
