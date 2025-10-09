@@ -48,7 +48,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Uhrzeit (basierend auf Systemzeit): `--at HH:MM[:SS]` zählt bis zur angegebenen Uhrzeit.
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
 - Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
-- Weiterzählen während Alarm (Blockierung durch Weckton umgehen): `--async` oder `-as`
+- Weiterzählen während Alarm (Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen): `--async` oder `-as`
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
