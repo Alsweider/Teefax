@@ -199,6 +199,49 @@ void openFileAfterTimer(const string& filePath) {
     }
 }
 
+void runConsoleCommand(const string& command) {
+    if (command.empty()) {
+        cout << "\nKein Konsolenbefehl angegeben.\n";
+        return;
+    }
+
+    // UTF-8 → UTF-16 (notwendig für Windows CreateProcessW)
+    wstring wcommand = toWide(command);
+    if (wcommand.empty()) {
+        cout << "\nFehler bei der Befehls-Konvertierung: " << command << "\n";
+        return;
+    }
+
+    STARTUPINFOW si{};
+    PROCESS_INFORMATION pi{};
+    si.cb = sizeof(si);
+
+    // /C bewirkt, dass die Eingabe nach Ausführung geschlossen wird
+    wstring fullCmd = L"cmd.exe /C " + wcommand;
+
+    BOOL success = CreateProcessW(
+        NULL,
+        &fullCmd[0],
+        NULL, NULL,
+        FALSE,
+        CREATE_NO_WINDOW, // kein Konsolenfenster anzeigen
+        NULL, NULL,
+        &si, &pi
+        );
+
+    if (!success) {
+        DWORD err = GetLastError();
+        cout << "\nFehler beim Ausfuehren des Befehls (" << err << "): " << command << "\n";
+        return;
+    }
+
+    // Warten, bis der Befehl beendet ist (optional)
+    WaitForSingleObject(pi.hProcess, INFINITE);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    cout << "\nBefehl ausgefuehrt: " << command << "\n";
+}
 
 // Hauptprogramm
 int main(int argc, char* argv[])
@@ -217,13 +260,16 @@ int main(int argc, char* argv[])
              << "       --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
              << "       --async, -as           Spielt den Ton asynchron (Blockierung umgehen)\n"
              << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n\n"
+             << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
              << "  teefax --loop 5 3s\n"
              << "  teefax --at 07:30\n"
              << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n"
-             << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n";
+             << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
+             << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
+             << "  teefax 5m -c \"start notepad.exe\"\n";
         return 1;
     }
 
@@ -279,6 +325,11 @@ int main(int argc, char* argv[])
         }
         else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
             openFile = argv[++i];
+        }
+        else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
+            openFile = ""; // sicherstellen, dass nur eine Aktion aktiv ist
+            string cmdArg = argv[++i];
+            openFile = "[CMD]" + cmdArg; // Markierung, damit später erkannt wird
         }
         else if (!useAtTime) {
             long long possible = parseTime(arg);
@@ -392,8 +443,14 @@ int main(int argc, char* argv[])
             }
         }
 
+        //Datei öffnen oder Konsolenbefehl ausführen
         if (!openFile.empty()) {
-            openFileAfterTimer(openFile);
+            if (openFile.rfind("[CMD]", 0) == 0) {
+                string command = openFile.substr(5);
+                runConsoleCommand(command);
+            } else {
+                openFileAfterTimer(openFile);
+            }
         }
 
         if (useAtTime) {
