@@ -34,7 +34,7 @@ Gestoppt wird das Programm durch Schließen des Konsolenfensters bzw. die Tasten
 
 # Parameter
 
-Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte. Der Begriff `teefax` startet das Programm, aber ohne Daten kann es nichts tun. Deshalb ist mindestens die Sekundenzahl nötig. Teefax versteht aber noch weitere Einheiten und Anweisungen. Die Abkürzung für die Einheit steht immer direkt nach der entsprechenden Zahl (ohne Leerzeichen dazwischen):
+Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte. Der Begriff `teefax` startet das Programm, aber ohne Daten kann es nichts tun. Deshalb ist mindestens die Sekundenzahl nötig. Teefax versteht aber noch weitere Einheiten und Anweisungen. Die Abkürzung für die Einheit steht immer direkt nach der entsprechenden Zahl. Zwischen Zahl und Einheit (`5m`) sowie zwischen kombinierten Einheiten (`5m30s`) werden keine Leerzeichen gesetzt.
 
 - Millisekunden: `ms`
 - Sekunden: `teefax 30` oder `teefax 30s` oder `teefax 30sec`
