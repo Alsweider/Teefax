@@ -53,6 +53,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Weiterzählen während Alarm (Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen): `--async` oder `-as`
 - Datei oder Programm nach Ablauf der Zeit öffnen: `-o [Dateipfad]` oder `--open [Dateipfad]`, z. B.: `teefax 5m -o "C:\Notizen\erledigen.txt"`
 - Konsolenbefehl in der Kommandozeile ausführen: `-c [Befehl]` oder `--cmd [Befehl]`, z. B.: `teefax 20s --cmd "shutdown -s -f -t 180"` startet nach 20 Sekunden einen 180-Sekunden-Countdown zum Herunterfahren des Systems. Rekursiv: `teefax 5s -c "start teefax 20s"` startet nach Ablauf der 5 Sekunden einen neuen Zähler mit 20 Sekunden.
+- Benachrichtigungsfenster (Popup) nach Ablauf des Zählers unterdrücken: `--nomsg`
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
