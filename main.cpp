@@ -14,7 +14,8 @@
 
 #pragma comment(lib, "winmm.lib")
 
-                                                                                                                                                                                                                    using namespace std;
+using namespace std;
+
 namespace fs = std::filesystem;
 
 // Globale Markierung, ob timeBeginPeriod(1) gesetzt wurde (für Ctrl-C Handler)
@@ -205,7 +206,7 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
-    // UTF-8 → UTF-16 (notwendig für Windows CreateProcessW)
+    // UTF-8 -> UTF-16 (notwendig für Windows CreateProcessW)
     wstring wcommand = toWide(command);
     if (wcommand.empty()) {
         cout << "\nFehler bei der Befehls-Konvertierung: " << command << "\n";
@@ -241,6 +242,11 @@ void runConsoleCommand(const string& command) {
     CloseHandle(pi.hThread);
 
     cout << "\nBefehl ausgefuehrt: " << command << "\n";
+}
+
+//Benachrichtigung / MessageBox
+void showNotification(const std::wstring& title, const std::wstring& message) {
+    MessageBoxW(nullptr, message.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION);
 }
 
 // Hauptprogramm
@@ -284,6 +290,7 @@ int main(int argc, char* argv[])
     long long ms = 0;
     bool asyncSound = false;
     string openFile;
+    bool showMessage = true; // Standard: MessageBox ist aktiv
 
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
@@ -298,6 +305,9 @@ int main(int argc, char* argv[])
                     ++i;
                 }
             }
+        }
+        else if (arg == "--nomsg") {
+            showMessage = false;
         }
         else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) {
             alarmRepeat = safeStoi(argv[++i], 1);
@@ -451,6 +461,11 @@ int main(int argc, char* argv[])
             } else {
                 openFileAfterTimer(openFile);
             }
+        }
+
+        //Benachrichtigung, Zeit abgelaufen
+        if (showMessage) {
+            showNotification(L"Teefax", L"Die Zeit ist verstrichen!");
         }
 
         if (useAtTime) {
