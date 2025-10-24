@@ -217,15 +217,15 @@ void runConsoleCommand(const string& command) {
     PROCESS_INFORMATION pi{};
     si.cb = sizeof(si);
 
-    // /C bewirkt, dass die Eingabe nach Ausführung geschlossen wird
+    // /C bewirkt, dass die Eingabe nach Ausführung geschlossen wird. Bei /K bleibt sie offen.
     wstring fullCmd = L"cmd.exe /C " + wcommand;
 
     BOOL success = CreateProcessW(
         NULL,
         &fullCmd[0],
         NULL, NULL,
-        FALSE,
-        CREATE_NO_WINDOW, // kein Konsolenfenster anzeigen
+        TRUE,//vorher "FALSE,", wir nehmen mal TRUE, um die Ausgabe von --cmd "dir" zu sehen (bInheritHandles / Handle-Vererbung)
+        0, //CREATE_NO_WINDOW, // kein Konsolenfenster anzeigen // 0, eben doch!
         NULL, NULL,
         &si, &pi
         );
@@ -244,10 +244,50 @@ void runConsoleCommand(const string& command) {
     cout << "\nBefehl ausgefuehrt: " << command << "\n";
 }
 
-//Benachrichtigung / MessageBox
-void showNotification(const std::wstring& title, const std::wstring& message) {
-    MessageBoxW(nullptr, message.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION);
+// Benachrichtigung / MessageBox
+void showNotification(const std::wstring& title, const std::wstring& message)
+{
+    // Attrappenfenster, hehehehe! Um den Fokus zu schnappen.
+    HWND hwnd = CreateWindowExW(
+        WS_EX_TOPMOST | WS_EX_TOOLWINDOW,
+        L"STATIC",
+        L"",
+        WS_POPUP,
+        CW_USEDEFAULT, CW_USEDEFAULT, 0, 0,
+        nullptr, nullptr, GetModuleHandleW(nullptr), nullptr
+        );
+
+    if (hwnd)
+    {
+        // Fenster wirklich nach oben bringen
+        ShowWindow(hwnd, SW_SHOW);
+        UpdateWindow(hwnd);
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
+
+        // Fokusanforderung
+        SetForegroundWindow(hwnd);
+        BringWindowToTop(hwnd);
+        SetActiveWindow(hwnd);
+
+        // MessageBox im Vordergrund anzeigen, mit MB_SETFOREGROUND als Rückversicherung
+        MessageBoxW(hwnd, message.c_str(), title.c_str(),
+                    MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND);
+
+        DestroyWindow(hwnd);
+    }
+    else
+    {
+        // Rückfall, wenn das Fenster nicht erzeugt wurde
+        MessageBoxW(nullptr, message.c_str(), title.c_str(),
+                    MB_OK | MB_ICONINFORMATION | MB_TOPMOST | MB_SETFOREGROUND);
+    }
 }
+
+// alt:
+// void showNotification(const std::wstring& title, const std::wstring& message) {
+//     MessageBoxW(nullptr, message.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
+// }
 
 // Hauptprogramm
 int main(int argc, char* argv[])
@@ -356,7 +396,7 @@ int main(int argc, char* argv[])
 
     if (ms > MAX_MS) ms = MAX_MS;
 
-    cout << "Teefax gestartet";
+    cout << "Teefax v" << PRG_VERSION << " gestartet";
     if (useAtTime)
         cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
              << setw(2) << atMinute << ":" << setw(2) << atSecond;
