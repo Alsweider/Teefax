@@ -11,6 +11,9 @@
 #include <cctype>
 #include <stdexcept>
 #include <atomic>
+#include "sound_array.h" // Signalton
+#include <fstream>
+
 
 #pragma comment(lib, "winmm.lib")
 
@@ -289,9 +292,75 @@ void showNotification(const std::wstring& title, const std::wstring& message)
 //     MessageBoxW(nullptr, message.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
 // }
 
+// Damit Ton im Speicher und bei Bedarf sofort hörbar ist
+void tonVorladen() {
+    // Parameter für das stille WAV
+    const uint32_t sampleRate = 44100;   // Abtastrate
+    const uint16_t bitsPerSample = 16;   // 16 Bit PCM
+    const uint16_t channels = 1;         // mono
+    const uint32_t durationMs = 20;      // Dauer der Stille in ms (kurz, reicht meist)
+
+    uint32_t bytesPerSample = (bitsPerSample / 8) * channels;
+    uint32_t numSamples = static_cast<uint32_t>((sampleRate * durationMs) / 1000);
+    uint32_t dataSize = numSamples * bytesPerSample;
+
+    // WAV-Header (PCM) aufbauen
+    std::vector<unsigned char> wav;
+    wav.reserve(44 + dataSize);
+
+    auto pushLE32 = [&](uint32_t v){
+        wav.push_back(static_cast<unsigned char>(v & 0xFF));
+        wav.push_back(static_cast<unsigned char>((v >> 8) & 0xFF));
+        wav.push_back(static_cast<unsigned char>((v >> 16) & 0xFF));
+        wav.push_back(static_cast<unsigned char>((v >> 24) & 0xFF));
+    };
+    auto pushLE16 = [&](uint16_t v){
+        wav.push_back(static_cast<unsigned char>(v & 0xFF));
+        wav.push_back(static_cast<unsigned char>((v >> 8) & 0xFF));
+    };
+
+    // "RIFF"
+    wav.insert(wav.end(), {'R','I','F','F'});
+    pushLE32(36 + dataSize);            // ChunkSize
+    wav.insert(wav.end(), {'W','A','V','E'});
+
+    // fmt chunk
+    wav.insert(wav.end(), {'f','m','t',' '});
+    pushLE32(16);                       // Subchunk1Size (PCM)
+    pushLE16(1);                        // AudioFormat = 1 (PCM)
+    pushLE16(channels);
+    pushLE32(sampleRate);
+    pushLE32(sampleRate * bytesPerSample); // ByteRate
+    pushLE16(static_cast<uint16_t>(bytesPerSample)); // BlockAlign
+    pushLE16(bitsPerSample);
+
+    // data chunk header
+    wav.insert(wav.end(), {'d','a','t','a'});
+    pushLE32(dataSize);
+
+    // data: Nullen = Stille
+    wav.insert(wav.end(), dataSize, 0x00);
+
+    // PlaySound erwartet die Datei im Speicher als LPCSTR (SND_MEMORY).
+    // Wir spielen synchron, damit der Treiber initialisiert ist, und beenden danach.
+    PlaySoundA(reinterpret_cast<LPCSTR>(wav.data()), NULL, SND_MEMORY | SND_SYNC);
+
+    // Sicherheitshalber Stopp (sinnvoll, falls SND_ASYNC verwendet würde)
+    PlaySoundA(NULL, NULL, 0);
+
+    // "wav" geht beim Verlassen der Funktion kaputt, doch da wir SND_SYNC nutzen,
+    // ist die Wiedergabe bereits abgeschlossen, bevor die Funktion zurückkehrt.
+}
+
 // Hauptprogramm
 int main(int argc, char* argv[])
 {
+    // Audio priorisieren
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+
+    // Treiber vorbereiten für pünktliche Tonausgabe
+    tonVorladen();
+
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);
     TimePeriodGuard timeGuard;
 
@@ -479,14 +548,25 @@ int main(int argc, char* argv[])
                 } else {
                     if (asyncSound) {
                         thread([](){
-                            Beep(880, 300);
-                            Beep(988, 300);
-                            Beep(1047, 500);
+                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
+                            Sleep(200);
+                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
+                            Sleep(200);
+                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
+                            //Alte System-Beeps
+                            // Beep(880, 300);
+                            // Beep(988, 300);
+                            // Beep(1047, 500);
                         }).detach();
                     } else {
-                        Beep(880, 300);
-                        Beep(988, 300);
-                        Beep(1047, 500);
+                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
+                        Sleep(200);
+                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
+                        Sleep(200);
+                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
+                        // Beep(880, 300);
+                        // Beep(988, 300);
+                        // Beep(1047, 500);
                     }
                 }
                 if (r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
