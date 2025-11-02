@@ -483,12 +483,12 @@ int main(int argc, char* argv[])
         auto end = start + chrono::milliseconds(ms);
 
         long long lastVerbleibendSec = -1;
-        const chrono::milliseconds tickInterval(500);
-        auto nextTick = chrono::steady_clock::now() + tickInterval;
+        // const chrono::milliseconds tickInterval(500);
+        // auto nextTick = chrono::steady_clock::now() + tickInterval;
 
         while (chrono::steady_clock::now() < end) {
-            auto nowTime = chrono::steady_clock::now();
-            auto verbleibendMs = chrono::duration_cast<chrono::milliseconds>(end - nowTime).count();
+            auto now = chrono::steady_clock::now();
+            auto verbleibendMs = chrono::duration_cast<chrono::milliseconds>(end - now).count();
             if (verbleibendMs < 0) verbleibendMs = 0;
             long long verbleibendSec = (verbleibendMs + 999) / 1000;
 
@@ -514,10 +514,10 @@ int main(int argc, char* argv[])
                 cout << "]   " << flush;
             }
 
-            nextTick += tickInterval;
-            auto nowForSleep = chrono::steady_clock::now();
-            if (nextTick <= nowForSleep) nextTick = nowForSleep + tickInterval;
-            this_thread::sleep_until(nextTick);
+            // nextTick += tickInterval;
+            // auto nowForSleep = chrono::steady_clock::now();
+            // if (nextTick <= nowForSleep) nextTick = nowForSleep + tickInterval;
+            this_thread::sleep_for(chrono::milliseconds(1));
         }
 
         cout << "\r";
