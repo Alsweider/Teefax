@@ -13,7 +13,7 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 * Beliebigen Weckton definieren (.WAV-Format)
 * Wecken nach Dauer oder Uhrzeit
 * Programmgröße < 100 KB
-* Größe im Arbeitsspeicher: ~0,5 MB (~7 MB mit conhost.exe)
+* Größe im Arbeitsspeicher: ~1,3 MB (~7,7 MB mit conhost.exe)
 * Zugriff über Kommandozeile
 * Wiederholfunktionen
 * Datei nach einer bestimmten Zeit öffnen
