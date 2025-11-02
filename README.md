@@ -50,7 +50,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Uhrzeit (basierend auf Systemzeit): `--at HH:MM[:SS]` zählt bis zur angegebenen Uhrzeit.
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
 - Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
-- Weiterzählen während Alarm (Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen): `--async` oder `-as`
+- Weiterzählen während Alarm. Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen. (Sinnvoll etwa bei Schleifen einsetzbar.): `--async` oder `-as`
 - Datei oder Programm nach Ablauf der Zeit öffnen: `-o [Dateipfad]` oder `--open [Dateipfad]`, z. B.: `teefax 5m -o "C:\Notizen\erledigen.txt"`
 - Konsolenbefehl in der Kommandozeile ausführen: `-c [Befehl]` oder `--cmd [Befehl]`, z. B.: `teefax 20s --cmd "shutdown -s -f -t 180"` startet nach 20 Sekunden einen 180-Sekunden-Countdown zum Herunterfahren des Systems. Rekursiv: `teefax 5s -c "start teefax 20s"` startet nach Ablauf der 5 Sekunden einen neuen Zähler mit 20 Sekunden.
 - Benachrichtigungsfenster (Popup) nach Ablauf des Zählers unterdrücken: `--nomsg`
