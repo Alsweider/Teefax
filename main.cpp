@@ -321,6 +321,7 @@ int main(int argc, char* argv[])
     string openFile;
     bool showMessage = true; // Standard: MessageBox ist aktiv
     bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
+    int preAlarmSeconds = 0; // Sekunden vor Schluss, in denen sekündlich gepiept wird
 
     // Audio priorisieren
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
@@ -340,7 +341,8 @@ int main(int argc, char* argv[])
              << "       --async, -as           Spielt den Ton asynchron (Blockierung umgehen)\n"
              << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
              << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
-             << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n\n"
+             << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
+             << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
@@ -349,10 +351,12 @@ int main(int argc, char* argv[])
              << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n"
              << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
              << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
-             << "  teefax 5m -c \"start notepad.exe\"\n";
+             << "  teefax 5m -c \"start notepad.exe\"\n"
+             << "  teefax 20s --prealarm 5";
         return 1;
     }
 
+    // Argument-Parsen
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
 
@@ -369,20 +373,17 @@ int main(int argc, char* argv[])
                     ++i;
                 }
             }
-        }
-        else if (arg == "--nomsg") {
+        } else if (arg == "--nomsg") {
             showMessage = false;
-        }
-        else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) {
+        } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) {
             alarmRepeat = safeStoi(argv[++i], 1);
             if (alarmRepeat < 1) alarmRepeat = 1;
-        }
-        else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < argc) {
+        } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < argc) {
             alarmInterval = safeStoi(argv[++i], 2);
             if (alarmInterval < 1) alarmInterval = 1;
-        }
-        else if (arg == "--async" || arg == "-as") asyncSound = true;
-        else if (arg == "--at" && i + 1 < argc) {
+        } else if (arg == "--async" || arg == "-as") {
+            asyncSound = true;
+        } else if (arg == "--at" && i + 1 < argc) {
             string timeStr = argv[++i];
             int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &atHour, &atMinute, &atSecond);
             if (parsed < 2) {
@@ -396,26 +397,26 @@ int main(int argc, char* argv[])
                 cout << "Fehler bei der Berechnung der Zielzeit fuer --at.\n";
                 return 1;
             }
-        }
-        else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
+        } else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
             openFile = argv[++i];
-        }
-        else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
+        } else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
             openFile = ""; // sicherstellen, dass nur eine Aktion aktiv ist
             string cmdArg = argv[++i];
             openFile = "[CMD]" + cmdArg; // Markierung, damit später erkannt wird
-        }
-        else if (!useAtTime) {
+        } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < argc) { // Sekündliches Piepsen vor Schluss
+            preAlarmSeconds = safeStoi(argv[++i], 0);
+            if (preAlarmSeconds < 0) preAlarmSeconds = 0;
+        } else if (arg[0] == '-') { // Falls Parameter mit einleitendem "-" falsch eingegeben wurde
+            cout << "Unbekannte Option: " << arg << "\n";
+            return 1;
+        } else if (!useAtTime) {
             long long possible = parseTime(arg);
             if (possible > 0) ms = possible;
             else if (soundFile.empty()) soundFile = arg;
-        }
-        else if (soundFile.empty()){
+        } else if (soundFile.empty()){
             soundFile = arg;
         }
     }
-
-
 
     if (!useAtTime && ms <= 0) {
         cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
@@ -458,6 +459,15 @@ int main(int argc, char* argv[])
 
             if (verbleibendSec != lastVerbleibendSec) {
                 lastVerbleibendSec = verbleibendSec;
+
+                // PRE-ALARM
+                if (preAlarmSeconds > 0 &&
+                    verbleibendSec > 0 &&
+                    verbleibendSec <= preAlarmSeconds)
+                {
+                    Beep(1200, 80);
+                }
+
                 long long totalMs = ms;
                 long long elapsedMs = totalMs - verbleibendMs;
                 if (elapsedMs < 0) elapsedMs = 0;
