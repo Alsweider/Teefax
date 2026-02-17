@@ -5,7 +5,7 @@ CONFIG -= qt
 
 LIBS += -lwinmm
 
-VERSION = 0.6.2
+VERSION = 0.7.0
 DEFINES += PRG_VERSION=\\\"$$VERSION\\\"
 
 

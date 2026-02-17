@@ -228,7 +228,7 @@ void runConsoleCommand(const string& command) {
         &fullCmd[0],
         NULL, NULL,
         TRUE,//vorher "FALSE,", wir nehmen mal TRUE, um die Ausgabe von --cmd "dir" zu sehen (bInheritHandles / Handle-Vererbung)
-        0, //CREATE_NO_WINDOW, // kein Konsolenfenster anzeigen // 0, eben doch!
+        0, //CREATE_NO_WINDOW, // "CREATE_NO_WINDOW," kein Konsolenfenster anzeigen, bei "0," eben doch!
         NULL, NULL,
         &si, &pi
         );
@@ -287,79 +287,43 @@ void showNotification(const std::wstring& title, const std::wstring& message)
     }
 }
 
-// alt:
-// void showNotification(const std::wstring& title, const std::wstring& message) {
-//     MessageBoxW(nullptr, message.c_str(), title.c_str(), MB_OK | MB_ICONINFORMATION | MB_TOPMOST);
-// }
-
-// Damit Ton im Speicher und bei Bedarf sofort hörbar ist
-void tonVorladen() {
-    // Parameter für das stille WAV
-    const uint32_t sampleRate = 44100;   // Abtastrate
-    const uint16_t bitsPerSample = 16;   // 16 Bit PCM
-    const uint16_t channels = 1;         // mono
-    const uint32_t durationMs = 20;      // Dauer der Stille in ms (kurz, reicht meist)
-
-    uint32_t bytesPerSample = (bitsPerSample / 8) * channels;
-    uint32_t numSamples = static_cast<uint32_t>((sampleRate * durationMs) / 1000);
-    uint32_t dataSize = numSamples * bytesPerSample;
-
-    // WAV-Header (PCM) aufbauen
-    std::vector<unsigned char> wav;
-    wav.reserve(44 + dataSize);
-
-    auto pushLE32 = [&](uint32_t v){
-        wav.push_back(static_cast<unsigned char>(v & 0xFF));
-        wav.push_back(static_cast<unsigned char>((v >> 8) & 0xFF));
-        wav.push_back(static_cast<unsigned char>((v >> 16) & 0xFF));
-        wav.push_back(static_cast<unsigned char>((v >> 24) & 0xFF));
-    };
-    auto pushLE16 = [&](uint16_t v){
-        wav.push_back(static_cast<unsigned char>(v & 0xFF));
-        wav.push_back(static_cast<unsigned char>((v >> 8) & 0xFF));
-    };
-
-    // "RIFF"
-    wav.insert(wav.end(), {'R','I','F','F'});
-    pushLE32(36 + dataSize);            // ChunkSize
-    wav.insert(wav.end(), {'W','A','V','E'});
-
-    // fmt chunk
-    wav.insert(wav.end(), {'f','m','t',' '});
-    pushLE32(16);                       // Subchunk1Size (PCM)
-    pushLE16(1);                        // AudioFormat = 1 (PCM)
-    pushLE16(channels);
-    pushLE32(sampleRate);
-    pushLE32(sampleRate * bytesPerSample); // ByteRate
-    pushLE16(static_cast<uint16_t>(bytesPerSample)); // BlockAlign
-    pushLE16(bitsPerSample);
-
-    // data chunk header
-    wav.insert(wav.end(), {'d','a','t','a'});
-    pushLE32(dataSize);
-
-    // data: Nullen = Stille
-    wav.insert(wav.end(), dataSize, 0x00);
-
-    // PlaySound erwartet die Datei im Speicher als LPCSTR (SND_MEMORY).
-    // Wir spielen synchron, damit der Treiber initialisiert ist, und beenden danach.
-    PlaySoundA(reinterpret_cast<LPCSTR>(wav.data()), NULL, SND_MEMORY | SND_SYNC);
-
-    // Sicherheitshalber Stopp (sinnvoll, falls SND_ASYNC verwendet würde)
-    PlaySoundA(NULL, NULL, 0);
-
-    // "wav" geht beim Verlassen der Funktion kaputt, doch da wir SND_SYNC nutzen,
-    // ist die Wiedergabe bereits abgeschlossen, bevor die Funktion zurückkehrt.
+void preventSleep(bool enable)
+{
+#ifdef _WIN32
+    if (enable)
+        SetThreadExecutionState(
+            ES_CONTINUOUS |
+            ES_SYSTEM_REQUIRED |
+            ES_DISPLAY_REQUIRED
+            );
+    else
+        SetThreadExecutionState(ES_CONTINUOUS);
+#else
+    // Platzhalter für Linux/macOS
+#endif
 }
+
 
 // Hauptprogramm
 int main(int argc, char* argv[])
 {
+    //Variablen definieren
+    string soundFile;
+    bool mute = false;
+    bool loop = false;
+    int maxLoops = -1;
+    int alarmRepeat = 1;
+    int alarmInterval = 2;
+    bool useAtTime = false;
+    int atHour = 0, atMinute = 0, atSecond = 0;
+    long long ms = 0;
+    bool asyncSound = false;
+    string openFile;
+    bool showMessage = true; // Standard: MessageBox ist aktiv
+    bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
+
     // Audio priorisieren
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-
-    // Treiber vorbereiten für pünktliche Tonausgabe
-    tonVorladen();
 
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);
     TimePeriodGuard timeGuard;
@@ -374,8 +338,9 @@ int main(int argc, char* argv[])
              << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
              << "       --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
              << "       --async, -as           Spielt den Ton asynchron (Blockierung umgehen)\n"
-             << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n\n"
+             << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
              << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
+             << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
@@ -388,24 +353,14 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    string soundFile;
-    bool mute = false;
-    bool loop = false;
-    int maxLoops = -1;
-    int alarmRepeat = 1;
-    int alarmInterval = 2;
-    bool useAtTime = false;
-    int atHour = 0, atMinute = 0, atSecond = 0;
-    long long ms = 0;
-    bool asyncSound = false;
-    string openFile;
-    bool showMessage = true; // Standard: MessageBox ist aktiv
-
     for (int i = 1; i < argc; ++i) {
         string arg = argv[i];
 
-        if (arg == "--mute" || arg == "-m") mute = true;
-        else if (arg == "--loop" || arg == "-l") {
+        if (arg == "--nosleep" || arg == "-ns") {
+            noSleep = true;
+        } else if (arg == "--mute" || arg == "-m") {
+            mute = true;
+        } else if (arg == "--loop" || arg == "-l") {
             loop = true;
             if (i + 1 < argc) {
                 int possibleCount = safeStoi(argv[i + 1], -1);
@@ -455,8 +410,12 @@ int main(int argc, char* argv[])
             if (possible > 0) ms = possible;
             else if (soundFile.empty()) soundFile = arg;
         }
-        else if (soundFile.empty()) soundFile = arg;
+        else if (soundFile.empty()){
+            soundFile = arg;
+        }
     }
+
+
 
     if (!useAtTime && ms <= 0) {
         cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
@@ -464,6 +423,11 @@ int main(int argc, char* argv[])
     }
 
     if (ms > MAX_MS) ms = MAX_MS;
+
+    // Bildschirrmschoner erlauben bzw. unterdrücken
+    if (noSleep){
+        preventSleep(true);
+    }
 
     cout << "Teefax v" << PRG_VERSION << " gestartet";
     if (useAtTime)
@@ -553,7 +517,8 @@ int main(int argc, char* argv[])
                             PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
                             Sleep(200);
                             PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
-                            //Alte System-Beeps
+
+                            // Alte System-Beeps
                             // Beep(880, 300);
                             // Beep(988, 300);
                             // Beep(1047, 500);
@@ -564,6 +529,8 @@ int main(int argc, char* argv[])
                         PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
                         Sleep(200);
                         PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
+
+                        // Alte System-Beeps
                         // Beep(880, 300);
                         // Beep(988, 300);
                         // Beep(1047, 500);
@@ -601,5 +568,11 @@ int main(int argc, char* argv[])
     } while (loop && (maxLoops == -1 || loopCount < maxLoops));
 
     cout << "\nZaehler beendet.\n";
+
+    //Bildschirmschoner wieder erlauben
+    if (noSleep){
+        preventSleep(false);
+    }
+
     return 0;
 }
