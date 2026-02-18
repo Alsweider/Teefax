@@ -9,10 +9,10 @@
 #include <filesystem>
 #include <limits>
 #include <cctype>
-#include <stdexcept>
+//#include <stdexcept>
 #include <atomic>
 #include "sound_array.h" // Signalton
-#include <fstream>
+//#include <fstream>
 
 
 #pragma comment(lib, "winmm.lib")
@@ -304,9 +304,49 @@ void preventSleep(bool enable)
 }
 
 
+// Hilfsfunktion: Sekunden in Jahre/Monate/Tage/Stunden/Minuten/Sekunden aufteilen
+string formatVerbleibend(long long totalSec) {
+    constexpr int secPerMin  = 60;
+    constexpr int secPerHour = 60 * secPerMin;
+    constexpr int secPerDay  = 24 * secPerHour;
+    constexpr int secPerMonth = 30 * secPerDay;
+    constexpr int secPerYear = 365 * secPerDay;
+
+    long long years   = totalSec / secPerYear; totalSec %= secPerYear;
+    long long months  = totalSec / secPerMonth; totalSec %= secPerMonth;
+    long long days    = totalSec / secPerDay; totalSec %= secPerDay;
+    long long hours   = totalSec / secPerHour; totalSec %= secPerHour;
+    long long minutes = totalSec / secPerMin; totalSec %= secPerMin;
+    long long seconds = totalSec;
+
+    stringstream ss;
+    bool first = true;
+    auto append = [&](long long val, const char* unit) {
+        if (val > 0 || !first) {
+            if (!first) ss << " ";
+            ss << val << unit;
+            first = false;
+        }
+    };
+
+    append(years, "y");
+    append(months, "mo");
+    append(days, "d");
+    append(hours, "h");
+    append(minutes, "m");
+    append(seconds, "s");
+
+    return ss.str();
+}
+
+
 // Hauptprogramm
 int main(int argc, char* argv[])
 {
+    //Konsolenausgaben flüssiger machen
+    ios::sync_with_stdio(false); // Trennt C++-Streams von C-Streams, beschleunigt cin/cout
+    cout.tie(nullptr); // Löst Bindung von cout an cin, verhindert automatisches Flush vor Eingabe
+
     //Variablen definieren
     string soundFile;
     bool mute = false;
@@ -434,8 +474,11 @@ int main(int argc, char* argv[])
     if (useAtTime)
         cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
              << setw(2) << atMinute << ":" << setw(2) << atSecond;
-    else
-        cout << " mit Zaehler: " << (ms / 1000) << " Sekunden";
+    else {
+        // hier Umrechnung in passende Einheiten
+        string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
+        cout << " mit Zaehler: " << timerStr;
+    }
     if (asyncSound) cout << " (async sound)";
     cout << "\n";
 
@@ -477,13 +520,11 @@ int main(int argc, char* argv[])
                 int filled = static_cast<int>(fraction * barWidth);
                 if (filled > barWidth) filled = barWidth;
 
-                int minutes = static_cast<int>(verbleibendSec / 60);
-                int seconds = static_cast<int>(verbleibendSec % 60);
+                string verbleibendStr = formatVerbleibend(verbleibendSec);
 
                 cout << "\r";
                 if (loop) cout << "Durchlauf " << loopCount << " | ";
-                cout << "Verbleibend: " << setfill('0') << setw(2) << minutes << ":"
-                     << setw(2) << seconds << " [";
+                cout << "Verbleibend: " << verbleibendStr << " [";
                 for (int i = 0; i < barWidth; ++i) cout << (i < filled ? '#' : '-');
                 cout << "]   " << flush;
             }
