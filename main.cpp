@@ -9,10 +9,8 @@
 #include <filesystem>
 #include <limits>
 #include <cctype>
-//#include <stdexcept>
 #include <atomic>
 #include "sound_array.h" // Signalton
-//#include <fstream>
 
 
 #pragma comment(lib, "winmm.lib")
@@ -179,6 +177,40 @@ long long millisecondsUntilTime(int hour, int minute, int second = 0) {
     long long diff = duration_cast<milliseconds>(target - now).count();
     return clampMs(static_cast<long double>(diff));
 }
+
+
+// Berechnet Millisekunden bis zu einem bestimmten Datum und Uhrzeit
+long long millisecondsUntilDateTime(int year, int month, int day,
+                                    int hour, int minute, int second)
+{
+    using namespace chrono;
+
+    auto now = system_clock::now();
+
+    tm target_tm{};
+    target_tm.tm_year = year - 1900;
+    target_tm.tm_mon  = month - 1;
+    target_tm.tm_mday = day;
+    target_tm.tm_hour = hour;
+    target_tm.tm_min  = minute;
+    target_tm.tm_sec  = second;
+    target_tm.tm_isdst = -1; // Sommerzeit automatisch bestimmen
+
+    time_t target_t = mktime(&target_tm);
+    if (target_t == -1)
+        return 0;
+
+    auto target = system_clock::from_time_t(target_t);
+
+    if (target <= now)
+        return 0; // Zeitpunkt liegt in der Vergangenheit
+
+    long long diff =
+        duration_cast<milliseconds>(target - now).count();
+
+    return clampMs(static_cast<long double>(diff));
+}
+
 
 void openFileAfterTimer(const string& filePath) {
     try {
@@ -378,7 +410,9 @@ int main(int argc, char* argv[])
              << "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
              << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
              << "       --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
-             << "       --async, -as           Spielt den Ton asynchron (Blockierung umgehen)\n"
+             << "       --at YYYY-MM-DD        Bis zum angegebenen Datum zaehlen\n"
+             << "       --at YYYY-MM-DD HH:MM  Datum und Uhrzeit kombiniert\n"
+             << "  -as, --async                Spielt den Ton asynchron (Blockierung umgehen)\n"
              << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
              << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
              << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
@@ -388,6 +422,8 @@ int main(int argc, char* argv[])
              << "  teefax 10s --loop\n"
              << "  teefax --loop 5 3s\n"
              << "  teefax --at 07:30\n"
+             << "  teefax --at 2030-1-1\n"
+             << "  teefax --at 2030-1-1 20:15\n"
              << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n"
              << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
              << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
@@ -424,18 +460,78 @@ int main(int argc, char* argv[])
         } else if (arg == "--async" || arg == "-as") {
             asyncSound = true;
         } else if (arg == "--at" && i + 1 < argc) {
-            string timeStr = argv[++i];
-            int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &atHour, &atMinute, &atSecond);
-            if (parsed < 2) {
-                cout << "Ungueltiges Zeitformat fuer --at. Erwartet HH:MM[:SS]\n";
-                return 1;
+            string first = argv[++i];
+
+            int year, month, day;
+            int hour = 0, minute = 0, second = 0;
+
+            // Fall 1: Datum erkannt
+            if (sscanf(first.c_str(), "%d-%d-%d", &year, &month, &day) == 3)
+            {
+                // Prüfen, ob danach eine Uhrzeit folgt (kein weiterer Parameter oder beginnt mit '-')
+                if (i + 1 < argc && argv[i + 1][0] != '-')
+                {
+                    string timeStr = argv[i + 1];
+
+                    int parsed = sscanf(timeStr.c_str(),
+                                        "%d:%d:%d",
+                                        &hour, &minute, &second);
+
+                    if (parsed >= 2)
+                    {
+                        if (parsed == 2) second = 0;
+                        ++i;
+                    }
+                    else
+                    {
+                        // Keine gültige Uhrzeit → Mitternacht verwenden
+                        hour = 0;
+                        minute = 0;
+                        second = 0;
+                    }
+                }
+
+                atHour   = hour;
+                atMinute = minute;
+                atSecond = second;
+
+                useAtTime = true;
+
+                ms = millisecondsUntilDateTime(
+                    year, month, day,
+                    hour, minute, second);
+
+                if (ms == 0)
+                {
+                    cout << "Datum/Zeit ungueltig oder Vergangenheit.\n";
+                    return 1;
+                }
             }
-            if (parsed == 2) atSecond = 0;
-            useAtTime = true;
-            ms = millisecondsUntilTime(atHour, atMinute, atSecond);
-            if (ms == 0) {
-                cout << "Fehler bei der Berechnung der Zielzeit fuer --at.\n";
-                return 1;
+            else
+            {
+                // Fall 2: Nur Uhrzeit (wie bisher)
+                int parsed = sscanf(first.c_str(),
+                                    "%d:%d:%d",
+                                    &atHour, &atMinute, &atSecond);
+
+                if (parsed < 2)
+                {
+                    cout << "Ungueltiges Zeitformat fuer --at.\n";
+                    return 1;
+                }
+
+                if (parsed == 2) atSecond = 0;
+
+                useAtTime = true;
+
+                ms = millisecondsUntilTime(
+                    atHour, atMinute, atSecond);
+
+                if (ms == 0)
+                {
+                    cout << "Fehler bei der Berechnung der Zielzeit.\n";
+                    return 1;
+                }
             }
         } else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
             openFile = argv[++i];
