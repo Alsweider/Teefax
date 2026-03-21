@@ -409,9 +409,9 @@ int main(int argc, char* argv[])
              << "  -l,  --loop [Anzahl]        Wiederhole den Timer (Anzahl optional, sonst unendlich)\n"
              << "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
              << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
-             << "       --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
-             << "       --at YYYY-MM-DD        Bis zum angegebenen Datum zaehlen\n"
-             << "       --at YYYY-MM-DD HH:MM  Datum und Uhrzeit kombiniert\n"
+             << "  -a,  --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
+             << "  -a,  --at YYYY-MM-DD        Bis zum angegebenen Datum zaehlen\n"
+             << "  -a,  --at YYYY-MM-DD HH:MM  Datum und Uhrzeit kombiniert\n"
              << "  -as, --async                Spielt den Ton asynchron (Blockierung umgehen)\n"
              << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
              << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
@@ -459,7 +459,7 @@ int main(int argc, char* argv[])
             if (alarmInterval < 1) alarmInterval = 1;
         } else if (arg == "--async" || arg == "-as") {
             asyncSound = true;
-        } else if (arg == "--at" && i + 1 < argc) {
+        } else if ((arg == "--at" || arg == "-a") && i + 1 < argc) {
             string first = argv[++i];
 
             int year, month, day;
