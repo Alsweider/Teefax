@@ -7,6 +7,8 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 
 ![teefax3](https://github.com/user-attachments/assets/b923ca54-9185-4cb9-a3c7-5686e9508086)
 ![teefax4](https://github.com/user-attachments/assets/f7bb81db-b6c0-45da-822e-8e5a7bac5682)
+![teefaxtime](https://github.com/user-attachments/assets/8ac423dd-181c-4c67-b0b6-a614adb2bc56)
+
 
 **Vorteile**
 * Zähler mit einem Klick starten
@@ -48,8 +50,9 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`) oder `-m`. Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
 - Uhrzeit (basierend auf Systemzeit): `-a HH:MM[:SS]` oder `--at HH:MM[:SS]` zählt bis zur angegebenen Uhrzeit.
-- Datum: `--at YYYY-MM-DD`
-- Datum und Uhrzeit: `--at YYYY-MM-DD HH:MM[:SS]` Beispiel: `teefax --at 2026-12-24 20:15`
+- Alarm bei Datum: `--at YYYY-MM-DD`
+- Alarm bei Datum und Uhrzeit: `--at YYYY-MM-DD HH:MM[:SS]` Beispiel: `teefax --at 2026-12-24 20:15`
+- Mini-Uhr - Laufende Direktanzeige des aktuellen Datums und der Zeit: `-t` oder `--time` (Konsole wird geleert; Abbrechen mit Strg+C)
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
 - Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
 - Weiterzählen während Alarm. Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen. (Sinnvoll etwa mit `--loop` und `--nomsg` einsetzbar.): `--async` oder `-as`
@@ -57,7 +60,8 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Konsolenbefehl in der Kommandozeile ausführen: `-c [Befehl]` oder `--cmd [Befehl]`, z. B.: `teefax 20s --cmd "shutdown -s -f -t 180"` startet nach 20 Sekunden einen 180-Sekunden-Countdown zum Herunterfahren des Systems. Rekursiv: `teefax 5s -c "start teefax 20s"` startet nach Ablauf der 5 Sekunden einen neuen Zähler mit 20 Sekunden.
 - Benachrichtigungsfenster (Popup) nach Ablauf des Zählers unterdrücken: `--nomsg`
 - Bildschirmschoner & Ruhezustand unterdrücken: `-ns` oder `--nosleep`
-- Akustisch runterzählen bis zum Alarm: `-pa [Sekunden]` oder `--prealarm [Sekunden]`. Beispiel: `teefax 20 --prealarm 5` wird 5 Sekunden vor dem Schlussalarm beginnen, sekündlich einen Signalton auszugeben. Mögliche Einsatzzwecke sind der Start eines Wettrennens oder auch Silvester. In Verbindung mit dem rekursiven Aufruf lassen sich auch Start- und Endzähler kombinieren. Dies etwa bewirkt einen 5-sekündigen Startzähler mit Signaltönen, der nach Ablauf einen 20-sekündigen Zähler mit 5-sekündigen Endsignalen startet: `teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"` 
+- Akustisch runterzählen bis zum Alarm: `-pa [Sekunden]` oder `--prealarm [Sekunden]`. Beispiel: `teefax 20 --prealarm 5` wird 5 Sekunden vor dem Schlussalarm beginnen, sekündlich einen Signalton auszugeben. Mögliche Einsatzzwecke sind der Start eines Wettrennens oder auch Silvester. In Verbindung mit dem rekursiven Aufruf lassen sich auch Start- und Endzähler kombinieren. Dies etwa bewirkt einen 5-sekündigen Startzähler mit Signaltönen, der nach Ablauf einen 20-sekündigen Zähler mit 5-sekündigen Endsignalen startet: `teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"`
+
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
