@@ -50,7 +50,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`) oder `-m`. Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
 - Uhrzeit (basierend auf Systemzeit): `-a HH:mm[:ss]` oder `--at HH:mm[:ss]` zählt bis zur angegebenen Uhrzeit.
-- Alarm bei Datum: `--at YYYY-MM-DD`
+- Alarm bei Datum: `--at YYYY-MM-dd`
 - Alarm bei Datum und Uhrzeit: `--at YYYY-MM-dd HH:mm[:ss]` Beispiel: `teefax --at 2026-12-24 20:15`
 - Mini-Uhr - Laufende Direktanzeige des aktuellen Datums und der Zeit: `-t` oder `--time` (Konsole wird geleert; Abbrechen mit Strg+C)
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
