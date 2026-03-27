@@ -573,6 +573,19 @@ int main(int argc, char* argv[])
         preventSleep(true);
     }
 
+    // Audio vorwärmen (verhindert in der Theorie Startverzögerung beim ersten Alarm)
+    if (!mute) {
+        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_ASYNC);
+
+        // Kurzer Moment, um die Stimme zu ölen
+        auto start = chrono::high_resolution_clock::now();
+        while (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() < 5) {
+            Sleep(0);
+        }
+
+        PlaySound(NULL, NULL, 0);
+    }
+
     if (!showLiveTime){ // Wenn nur die Zeit angezeigt wird, Folgendes weglassen
         cout << "Teefax v" << PRG_VERSION << " gestartet";
 
@@ -686,28 +699,10 @@ int main(int argc, char* argv[])
                 } else {
                     if (asyncSound) {
                         thread([](){
-                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
-                            Sleep(200);
-                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
-                            Sleep(200);
-                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_ASYNC);
-
-                            // Alte System-Beeps
-                            // Beep(880, 300);
-                            // Beep(988, 300);
-                            // Beep(1047, 500);
+                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_ASYNC);
                         }).detach();
                     } else {
-                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
-                        Sleep(200);
-                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
-                        Sleep(200);
-                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data2), NULL, SND_MEMORY | SND_SYNC);
-
-                        // Alte System-Beeps
-                        // Beep(880, 300);
-                        // Beep(988, 300);
-                        // Beep(1047, 500);
+                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_SYNC);
                     }
                 }
                 if (r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
