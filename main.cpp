@@ -394,6 +394,10 @@ int main(int argc, char* argv[])
     bool showMessage = true; // Standard: MessageBox ist aktiv
     bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
     int preAlarmSeconds = 0; // Sekunden vor Schluss, in denen sekündlich gepiept wird
+    const int barWidth = 30;
+    int loopCount = 0;
+    bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
+
 
     // Audio priorisieren
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
@@ -416,7 +420,8 @@ int main(int argc, char* argv[])
              << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
              << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
              << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
-             << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n\n"
+             << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n"
+             << "  -t,  --time                 Direktanzeige Datum & Zeit. Leert vorherigen Konsoleninhalt.\n\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
@@ -542,7 +547,9 @@ int main(int argc, char* argv[])
         } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < argc) { // Sekündliches Piepsen vor Schluss
             preAlarmSeconds = safeStoi(argv[++i], 0);
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
-        } else if (arg[0] == '-') { // Falls Parameter mit einleitendem "-" falsch eingegeben wurde
+        } else if (arg == "--time" || arg == "-t") {
+            showLiveTime = true;
+        } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
             cout << "Unbekannte Option: " << arg << "\n";
             return 1;
         } else if (!useAtTime) {
@@ -554,7 +561,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (!useAtTime && ms <= 0) {
+    if (!useAtTime && !showLiveTime && ms <= 0) {
         cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
         return 1;
     }
@@ -566,7 +573,9 @@ int main(int argc, char* argv[])
         preventSleep(true);
     }
 
-    cout << "Teefax v" << PRG_VERSION << " gestartet";
+    if (!showLiveTime){ // Wenn nur die Zeit angezeigt wird, Folgendes weglassen
+        cout << "Teefax v" << PRG_VERSION << " gestartet";
+
     if (useAtTime)
         cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
              << setw(2) << atMinute << ":" << setw(2) << atSecond;
@@ -577,10 +586,28 @@ int main(int argc, char* argv[])
     }
     if (asyncSound) cout << " (async sound)";
     cout << "\n";
+    }
 
-    const int barWidth = 30;
-    int loopCount = 0;
+    // Schleife Direktanzeige von Zeit und Datum
+    if (showLiveTime) {
+        system("cls"); // Konsole bereinigen, damit nur die Zeit da steht.
+        while (true) {
+            auto now = chrono::system_clock::now();
+            time_t tnow = chrono::system_clock::to_time_t(now);
+            tm local{};
+            localtime_s(&local, &tnow);
 
+            cout << "\r" << put_time(&local, "%Y-%m-%d %H:%M:%S") << flush;
+
+            // Berechne Millisekunden bis zur nächsten Sekunde
+            auto next = chrono::time_point_cast<chrono::seconds>(now) + chrono::seconds(1);
+            this_thread::sleep_until(next);
+        }
+        return 0; // Programm wird über Strg+C beendet
+    }
+
+
+    // Die normale Timer-Schleife
     do {
         if (loop) ++loopCount;
         auto start = chrono::steady_clock::now();
