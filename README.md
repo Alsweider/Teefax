@@ -49,9 +49,9 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Schleife: `--loop [Anzahl]` oder `-l` (z. B.: `teefax 3m --loop` oder `teefax 5s --loop 3` ). Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne. Anzahl der Wiederholungen optional, sonst unendlich.
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`) oder `-m`. Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
-- Uhrzeit (basierend auf Systemzeit): `-a HH:MM[:SS]` oder `--at HH:MM[:SS]` zählt bis zur angegebenen Uhrzeit.
+- Uhrzeit (basierend auf Systemzeit): `-a HH:mm[:ss]` oder `--at HH:mm[:ss]` zählt bis zur angegebenen Uhrzeit.
 - Alarm bei Datum: `--at YYYY-MM-DD`
-- Alarm bei Datum und Uhrzeit: `--at YYYY-MM-DD HH:MM[:SS]` Beispiel: `teefax --at 2026-12-24 20:15`
+- Alarm bei Datum und Uhrzeit: `--at YYYY-MM-dd HH:mm[:ss]` Beispiel: `teefax --at 2026-12-24 20:15`
 - Mini-Uhr - Laufende Direktanzeige des aktuellen Datums und der Zeit: `-t` oder `--time` (Konsole wird geleert; Abbrechen mit Strg+C)
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
 - Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
