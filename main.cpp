@@ -11,6 +11,7 @@
 #include <cctype>
 #include <atomic>
 #include "sound_array.h" // Signalton
+#include <vector> // Für täglichen Alarm
 
 
 #pragma comment(lib, "winmm.lib")
@@ -372,6 +373,45 @@ string formatVerbleibend(long long totalSec) {
 }
 
 
+// Zum Messen bis zum nächsten täglichen Alarm
+long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times) {
+    using namespace chrono;
+
+    auto now = system_clock::now();
+    time_t tnow = system_clock::to_time_t(now);
+
+    tm local{};
+    localtime_s(&local, &tnow);
+
+    long long bestMs = MAX_MS;
+
+    for (const auto& t : times) {
+        int h, m, s;
+        tie(h, m, s) = t;
+
+        tm candidate = local;
+        candidate.tm_hour = h;
+        candidate.tm_min  = m;
+        candidate.tm_sec  = s;
+
+        time_t tt = mktime(&candidate);
+        if (tt == -1) continue;
+
+        auto target = system_clock::from_time_t(tt);
+
+        if (target <= now)
+            target += hours(24);
+
+        long long diff = duration_cast<milliseconds>(target - now).count();
+
+        if (diff > 0 && diff < bestMs)
+            bestMs = diff;
+    }
+
+    return bestMs == MAX_MS ? 0 : bestMs;
+}
+
+
 // Hauptprogramm
 int main(int argc, char* argv[])
 {
@@ -397,6 +437,8 @@ int main(int argc, char* argv[])
     const int barWidth = 30;
     int loopCount = 0;
     bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
+    vector<tuple<int,int,int>> dailyTimes;
+    bool useDailyTimes = false;
 
 
     // Audio priorisieren
@@ -421,7 +463,8 @@ int main(int argc, char* argv[])
              << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
              << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
              << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n"
-             << "  -t,  --time                 Direktanzeige Datum & Zeit. Leert vorherigen Konsoleninhalt.\n\n"
+             << "  -t,  --time                 Direktanzeige Datum & Zeit. Leert vorherigen Konsoleninhalt.\n"
+             << "  -d,  --daily HH:mm[:ss]     Taeglicher Alarm zu bestimmten Uhrzeiten. Mehrere Zeiten moeglich.\n\n"
              << "Beispiele:\n"
              << "  teefax 5m\n"
              << "  teefax 10s --loop\n"
@@ -433,7 +476,8 @@ int main(int argc, char* argv[])
              << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
              << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
              << "  teefax 5m -c \"start notepad.exe\"\n"
-             << "  teefax 20s --prealarm 5";
+             << "  teefax 20s --prealarm 5\n"
+             << "  teefax --daily 4:00 10:00 16:00 22:00\n";
         return 1;
     }
 
@@ -549,6 +593,36 @@ int main(int argc, char* argv[])
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
         } else if (arg == "--time" || arg == "-t") {
             showLiveTime = true;
+        } else if (arg == "--daily" || arg == "-d") {
+            useDailyTimes = true;
+
+            while (i + 1 < argc && argv[i + 1][0] != '-') {
+                string t = argv[++i];
+
+                int h = 0, m = 0, s = 0;
+                int parsed = sscanf(t.c_str(), "%d:%d:%d", &h, &m, &s);
+
+                if (parsed < 2) {
+                    cout << "Ungueltige Uhrzeit: " << t << "\n";
+                    return 1;
+                }
+
+                if (parsed == 2) s = 0;
+
+                dailyTimes.emplace_back(h, m, s);
+            }
+
+            if (dailyTimes.empty()) {
+                cout << "Keine Uhrzeiten fuer --daily angegeben.\n";
+                return 1;
+            }
+
+            ms = millisecondsUntilNextDailyTime(dailyTimes);
+            if (ms <= 0) ms = 1000;
+
+            loop = true;
+            maxLoops = -1; // I seek eternal fire
+
         } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
             cout << "Unbekannte Option: " << arg << "\n";
             return 1;
@@ -561,7 +635,8 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (!useAtTime && !showLiveTime && ms <= 0) {
+    // if (!useAtTime && !showLiveTime && ms <= 0) {
+    if (!useAtTime && !useDailyTimes && !showLiveTime && ms <= 0) {
         cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
         return 1;
     }
@@ -587,7 +662,7 @@ int main(int argc, char* argv[])
     }
 
     if (!showLiveTime){ // Wenn nur die Zeit angezeigt wird, Folgendes weglassen
-        cout << "Teefax v" << PRG_VERSION << " gestartet";
+        cout << "Teefax [v" << PRG_VERSION << "] gestartet";
 
     if (useAtTime)
         cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
@@ -595,7 +670,12 @@ int main(int argc, char* argv[])
     else {
         // hier Umrechnung in passende Einheiten
         string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
+
+        if (!useDailyTimes){
         cout << " mit Zaehler: " << timerStr;
+        } else {
+            cout << " mit taeglichem Alarm.";
+        }
     }
     if (asyncSound) cout << " (async sound)";
     cout << "\n";
@@ -724,7 +804,14 @@ int main(int argc, char* argv[])
             showNotification(L"Teefax", L"Die Zeit ist verstrichen!");
         }
 
-        if (useAtTime) {
+        if (useDailyTimes) {
+
+            long long nextMs = millisecondsUntilNextDailyTime(dailyTimes);
+            if (nextMs <= 0) {
+                nextMs = 1000; // 1 Sekunde als Fallback
+            }
+            ms = nextMs;
+        } else if (useAtTime) {
             long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
             if (nextMs == 0) {
                 cout << "\nFehler bei der Berechnung der naechsten Uhrzeit.\n";
