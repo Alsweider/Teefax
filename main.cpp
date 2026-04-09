@@ -648,19 +648,6 @@ int main(int argc, char* argv[])
         preventSleep(true);
     }
 
-    // Audio vorwärmen (verhindert in der Theorie Startverzögerung beim ersten Alarm)
-    if (!mute) {
-        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_ASYNC);
-
-        // Kurzer Moment, um die Stimme zu ölen
-        auto start = chrono::high_resolution_clock::now();
-        while (chrono::duration_cast<chrono::milliseconds>(chrono::high_resolution_clock::now() - start).count() < 5) {
-            Sleep(0);
-        }
-
-        PlaySound(NULL, NULL, 0);
-    }
-
     if (!showLiveTime){ // Wenn nur die Zeit angezeigt wird, Folgendes weglassen
         cout << "Teefax [v" << PRG_VERSION << "] gestartet";
 
