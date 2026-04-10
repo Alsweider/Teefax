@@ -169,6 +169,7 @@ long long millisecondsUntilTime(int hour, int minute, int second = 0) {
     local.tm_hour = hour;
     local.tm_min  = minute;
     local.tm_sec  = second;
+    local.tm_isdst = -1; // Zeitumstellung
 
     time_t target_t = mktime(&local);
     if (target_t == -1) return 0;
@@ -393,6 +394,7 @@ long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times
         candidate.tm_hour = h;
         candidate.tm_min  = m;
         candidate.tm_sec  = s;
+        candidate.tm_isdst = -1; // Zeitumstellung
 
         time_t tt = mktime(&candidate);
         if (tt == -1) continue;
@@ -792,7 +794,6 @@ int main(int argc, char* argv[])
         }
 
         if (useDailyTimes) {
-
             long long nextMs = millisecondsUntilNextDailyTime(dailyTimes);
             if (nextMs <= 0) {
                 nextMs = 1000; // 1 Sekunde als Fallback
