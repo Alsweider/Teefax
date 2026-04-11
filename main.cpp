@@ -401,8 +401,14 @@ long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times
 
         auto target = system_clock::from_time_t(tt);
 
-        if (target <= now)
-            target += hours(24);
+        // if (target <= now) target += hours(24);
+        if (target <= now) {
+            candidate.tm_mday += 1;
+            candidate.tm_isdst = -1;
+            time_t tt_next = mktime(&candidate);
+            if (tt_next == -1) continue;
+            target = system_clock::from_time_t(tt_next);
+        }
 
         long long diff = duration_cast<milliseconds>(target - now).count();
 
@@ -411,6 +417,51 @@ long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times
     }
 
     return bestMs == MAX_MS ? 0 : bestMs;
+}
+
+
+chrono::system_clock::time_point nextDailyTarget(
+    const vector<tuple<int,int,int>>& times)
+{
+    using namespace chrono;
+    auto now = system_clock::now();
+    time_t tnow = system_clock::to_time_t(now);
+    tm local{};
+    localtime_s(&local, &tnow);
+
+    time_t best = -1;
+
+    for (const auto& t : times) {
+        int h, m, s;
+        tie(h, m, s) = t;
+
+        tm candidate = local;
+        candidate.tm_hour  = h;
+        candidate.tm_min   = m;
+        candidate.tm_sec   = s;
+        candidate.tm_isdst = -1;
+
+        time_t tt = mktime(&candidate);
+        if (tt == -1) continue;
+
+        auto target = system_clock::from_time_t(tt);
+        // if (target <= now) target += hours(24);
+        if (target <= now) {
+            candidate.tm_mday += 1;
+            candidate.tm_isdst = -1;
+            time_t tt_next = mktime(&candidate);
+            if (tt_next == -1) continue;
+            target = system_clock::from_time_t(tt_next);
+        }
+
+        time_t tt2 = system_clock::to_time_t(target);
+        if (best == -1 || tt2 < best)
+            best = tt2;
+    }
+
+    return best != -1
+               ? system_clock::from_time_t(best)
+               : system_clock::now() + seconds(1);
 }
 
 
@@ -692,17 +743,44 @@ int main(int argc, char* argv[])
     // Die normale Timer-Schleife
     do {
         if (loop) ++loopCount;
+
+        // Für --daily: absoluten Wanduhr-Zielzeitpunkt bestimmen
+        chrono::system_clock::time_point wallTarget;
+        if (useDailyTimes) {
+            wallTarget = nextDailyTarget(dailyTimes);
+        }
+
+        long long totalMsThisRound = useDailyTimes
+                                         ? chrono::duration_cast<chrono::milliseconds>(
+                                               wallTarget - chrono::system_clock::now()).count()
+                                         : ms;
+
         auto start = chrono::steady_clock::now();
-        auto end = start + chrono::milliseconds(ms);
+        // auto end = start + chrono::milliseconds(ms);
+        auto end = start + chrono::milliseconds(totalMsThisRound);
 
         long long lastVerbleibendSec = -1;
-        // const chrono::milliseconds tickInterval(500);
-        // auto nextTick = chrono::steady_clock::now() + tickInterval;
 
-        while (chrono::steady_clock::now() < end) {
-            auto now = chrono::steady_clock::now();
-            auto verbleibendMs = chrono::duration_cast<chrono::milliseconds>(end - now).count();
+        while (true) {
+            auto nowSteady = chrono::steady_clock::now();
+            auto nowWall   = chrono::system_clock::now();
+
+            bool done = false;
+            long long verbleibendMs = 0;
+
+            if (useDailyTimes) {
+                verbleibendMs = chrono::duration_cast<chrono::milliseconds>(
+                                    wallTarget - nowWall).count();
+                if (verbleibendMs <= 0) done = true;
+            } else {
+                verbleibendMs = chrono::duration_cast<chrono::milliseconds>(
+                                    end - nowSteady).count();
+                if (nowSteady >= end) done = true;
+            }
+
+            if (done) break;
             if (verbleibendMs < 0) verbleibendMs = 0;
+
             long long verbleibendSec = (verbleibendMs + 999) / 1000;
 
             if (verbleibendSec != lastVerbleibendSec) {
@@ -716,10 +794,18 @@ int main(int argc, char* argv[])
                     Beep(1200, 80);
                 }
 
-                long long totalMs = ms;
+                long long totalMs;
+                if (useDailyTimes) {
+                    // Gesamtdauer für Fortschrittsbalken aus ms (beim Start gesetzt)
+                    totalMs = totalMsThisRound; // vorher = ms
+                } else {
+                    totalMs = totalMsThisRound; // vorher = ms
+                }
                 long long elapsedMs = totalMs - verbleibendMs;
                 if (elapsedMs < 0) elapsedMs = 0;
-                long double fraction = (totalMs > 0) ? (static_cast<long double>(elapsedMs) / static_cast<long double>(totalMs)) : 1.0L;
+                long double fraction = (totalMs > 0)
+                                           ? (static_cast<long double>(elapsedMs) / static_cast<long double>(totalMs))
+                                           : 1.0L;
                 if (fraction < 0.0L) fraction = 0.0L;
                 if (fraction > 1.0L) fraction = 1.0L;
                 int filled = static_cast<int>(fraction * barWidth);
@@ -734,10 +820,8 @@ int main(int argc, char* argv[])
                 cout << "]   " << flush;
             }
 
-            // nextTick += tickInterval;
-            // auto nowForSleep = chrono::steady_clock::now();
-            // if (nextTick <= nowForSleep) nextTick = nowForSleep + tickInterval;
-            this_thread::sleep_for(chrono::milliseconds(1));
+            // this_thread::sleep_for(chrono::milliseconds(1));
+            this_thread::sleep_for(chrono::milliseconds(verbleibendMs > 1000 ? 50 : 5)); // Prozessor dankt
         }
 
         cout << "\r";
@@ -778,7 +862,23 @@ int main(int argc, char* argv[])
             }
         }
 
-        //Datei öffnen oder Konsolenbefehl ausführen
+        // Nächste Wartezeit berechnen
+        if (useDailyTimes) {
+            wallTarget = nextDailyTarget(dailyTimes);
+            ms = chrono::duration_cast<chrono::milliseconds>(
+                     wallTarget - chrono::system_clock::now()).count();
+            if (ms <= 0) ms = 1000;
+        } else if (useAtTime) {
+            long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
+            if (nextMs == 0) {
+                cout << "\nFehler bei der Berechnung der naechsten Uhrzeit.\n";
+                return 1;
+            }
+            ms = nextMs;
+            if (ms > MAX_MS) ms = MAX_MS;
+        }
+
+        // Datei öffnen oder Konsolenbefehl ausführen
         if (!openFile.empty()) {
             if (openFile.rfind("[CMD]", 0) == 0) {
                 string command = openFile.substr(5);
@@ -788,25 +888,9 @@ int main(int argc, char* argv[])
             }
         }
 
-        //Benachrichtigung, Zeit abgelaufen
+        // Benachrichtigung, Zeit abgelaufen
         if (showMessage) {
             showNotification(L"Teefax", L"Die Zeit ist verstrichen!");
-        }
-
-        if (useDailyTimes) {
-            long long nextMs = millisecondsUntilNextDailyTime(dailyTimes);
-            if (nextMs <= 0) {
-                nextMs = 1000; // 1 Sekunde als Fallback
-            }
-            ms = nextMs;
-        } else if (useAtTime) {
-            long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
-            if (nextMs == 0) {
-                cout << "\nFehler bei der Berechnung der naechsten Uhrzeit.\n";
-                return 1;
-            }
-            ms = nextMs;
-            if (ms > MAX_MS) ms = MAX_MS;
         }
 
     } while (loop && (maxLoops == -1 || loopCount < maxLoops));

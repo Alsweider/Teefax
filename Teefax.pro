@@ -5,9 +5,8 @@ CONFIG -= qt
 
 LIBS += -lwinmm
 
-VERSION = 0.13.2
-DEFINES += PRG_VERSION=\\\"$$VERSION\\\"
-
+VERSION = 0.13.3
+DEFINES += PRG_VERSION=\\\"$$VERSION\\\" \
 
 SOURCES += \
         main.cpp
