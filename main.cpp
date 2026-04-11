@@ -1,4 +1,5 @@
 #include <iostream>
+#include "i18n.h" // Übersetzungen
 #include <chrono>
 #include <thread>
 #include <string>
@@ -103,7 +104,10 @@ long long unitToMilliseconds(double value, const string& unitPart) {
     else if (u == "mo" || u == "mon" || u == "month") return clampMs(static_cast<long double>(value) * 30.0L * 24.0L * 60.0L * 60.0L * 1000.0L);
     else if (u == "y" || u == "yr" || u == "year") return clampMs(static_cast<long double>(value) * 365.0L * 24.0L * 60.0L * 60.0L * 1000.0L);
     else {
-        cout << "Unbekannte Einheit: " << unitPart << "\n";
+        // cout << "Unbekannte Einheit: " << unitPart << "\n";
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::ERROR_UNKNOWN_UNIT), unitPart.c_str());
+        cout << buf;
         return 0;
     }
 }
@@ -218,19 +222,27 @@ void openFileAfterTimer(const string& filePath) {
     try {
         fs::path p(filePath);
         if (!fs::exists(p)) {
-            cout << "\nDatei nicht gefunden: " << filePath << "\n";
+            // cout << "\nDatei nicht gefunden: " << filePath << "\n";
+            cout << t(Str::FILE_NOT_FOUND) << filePath << "\n";
             return;
         }
         wstring wfile = toWide(filePath);
         if (wfile.empty()) {
-            cout << "\nFehler bei der Pfad-Konvertierung: " << filePath << "\n";
+            // cout << "\nFehler bei der Pfad-Konvertierung: " << filePath << "\n";
+            cout << t(Str::ERROR_FILE_CONVERSION) << filePath << "\n";
             return;
         }
         HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
         if ((INT_PTR)res <= 32) {
-            cout << "\nFehler beim Öffnen der Datei (Code " << (INT_PTR)res << "): " << filePath << "\n";
+            // cout << "\nFehler beim Öffnen der Datei (Code " << (INT_PTR)res << "): " << filePath << "\n";
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, filePath.c_str());
+            cout << buf;
         } else {
-            cout << "\nDatei geöffnet: " << filePath << "\n";
+            // cout << "\nDatei geöffnet: " << filePath << "\n";
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), filePath.c_str());
+            cout << buf;
         }
     } catch (const fs::filesystem_error& e) {
         cout << "\nDateisystem-Fehler beim Öffnen: " << e.what() << "\n";
@@ -239,14 +251,18 @@ void openFileAfterTimer(const string& filePath) {
 
 void runConsoleCommand(const string& command) {
     if (command.empty()) {
-        cout << "\nKein Konsolenbefehl angegeben.\n";
+        // cout << "\nKein Konsolenbefehl angegeben.\n";
+        cout << t(Str::NO_COMMAND) << "\n";
         return;
     }
 
     // UTF-8 -> UTF-16 (notwendig für Windows CreateProcessW)
     wstring wcommand = toWide(command);
     if (wcommand.empty()) {
-        cout << "\nFehler bei der Befehls-Konvertierung: " << command << "\n";
+        // cout << "\nFehler bei der Befehls-Konvertierung: " << command << "\n";
+        char buf[512];
+        snprintf(buf, sizeof(buf), t(Str::ERROR_CMD_CONVERSION), command.c_str());
+        cout << buf << "\n";
         return;
     }
 
@@ -269,7 +285,10 @@ void runConsoleCommand(const string& command) {
 
     if (!success) {
         DWORD err = GetLastError();
-        cout << "\nFehler beim Ausfuehren des Befehls (" << err << "): " << command << "\n";
+        // cout << "\nFehler beim Ausfuehren des Befehls (" << err << "): " << command << "\n";
+        char buf[512];
+        snprintf(buf, sizeof(buf), t(Str::CMD_ERROR), (int)err, command.c_str());
+        cout << buf << "\n";
         return;
     }
 
@@ -278,7 +297,10 @@ void runConsoleCommand(const string& command) {
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
-    cout << "\nBefehl ausgefuehrt: " << command << "\n";
+    // cout << "\nBefehl ausgefuehrt: " << command << "\n";
+    char buf[512];
+    snprintf(buf, sizeof(buf), t(Str::CMD_EXECUTED), command.c_str());
+    cout << buf << "\n";
 }
 
 // Benachrichtigung / MessageBox
@@ -501,36 +523,37 @@ int main(int argc, char* argv[])
     TimePeriodGuard timeGuard;
 
     if (argc < 2) {
-        cout << "Verwendung:\n"
-             << "  teefax [<Zeit>] [Sounddatei] [Optionen]\n\n"
-             << "Optionen:\n"
-             << "  -m,  --mute                 Kein Weckton abspielen\n"
-             << "  -l,  --loop [Anzahl]        Wiederhole den Timer (Anzahl optional, sonst unendlich)\n"
-             << "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
-             << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
-             << "  -a,  --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
-             << "  -a,  --at YYYY-MM-DD        Bis zum angegebenen Datum zaehlen\n"
-             << "  -a,  --at YYYY-MM-DD HH:MM  Datum und Uhrzeit kombiniert\n"
-             << "  -as, --async                Spielt den Ton asynchron (Blockierung umgehen)\n"
-             << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
-             << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
-             << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
-             << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n"
-             << "  -t,  --time                 Direktanzeige Datum & Zeit. Leert vorherigen Konsoleninhalt.\n"
-             << "  -d,  --daily HH:mm[:ss]     Taeglicher Alarm zu bestimmten Uhrzeiten. Mehrere Zeiten moeglich.\n\n"
-             << "Beispiele:\n"
-             << "  teefax 5m\n"
-             << "  teefax 10s --loop\n"
-             << "  teefax --loop 5 3s\n"
-             << "  teefax --at 07:30\n"
-             << "  teefax --at 2030-1-1\n"
-             << "  teefax --at 2030-1-1 20:15\n"
-             << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n"
-             << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
-             << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
-             << "  teefax 5m -c \"start notepad.exe\"\n"
-             << "  teefax 20s --prealarm 5\n"
-             << "  teefax --daily 4:00 10:00 16:00 22:00\n";
+        cout << t(Str::USAGE_HEADER);
+        // cout << "Verwendung:\n"
+        //      << "  teefax [<Zeit>] [Sounddatei] [Optionen]\n\n"
+        //      << "Optionen:\n"
+        //      << "  -m,  --mute                 Kein Weckton abspielen\n"
+        //      << "  -l,  --loop [Anzahl]        Wiederhole den Timer (Anzahl optional, sonst unendlich)\n"
+        //      << "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
+        //      << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
+        //      << "  -a,  --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
+        //      << "  -a,  --at YYYY-MM-DD        Bis zum angegebenen Datum zaehlen\n"
+        //      << "  -a,  --at YYYY-MM-DD HH:MM  Datum und Uhrzeit kombiniert\n"
+        //      << "  -as, --async                Spielt den Ton asynchron (Blockierung umgehen)\n"
+        //      << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
+        //      << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
+        //      << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
+        //      << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n"
+        //      << "  -t,  --time                 Direktanzeige Datum & Zeit. Leert vorherigen Konsoleninhalt.\n"
+        //      << "  -d,  --daily HH:mm[:ss]     Taeglicher Alarm zu bestimmten Uhrzeiten. Mehrere Zeiten moeglich.\n\n"
+        //      << "Beispiele:\n"
+        //      << "  teefax 5m\n"
+        //      << "  teefax 10s --loop\n"
+        //      << "  teefax --loop 5 3s\n"
+        //      << "  teefax --at 07:30\n"
+        //      << "  teefax --at 2030-1-1\n"
+        //      << "  teefax --at 2030-1-1 20:15\n"
+        //      << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n"
+        //      << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
+        //      << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
+        //      << "  teefax 5m -c \"start notepad.exe\"\n"
+        //      << "  teefax 20s --prealarm 5\n"
+        //      << "  teefax --daily 4:00 10:00 16:00 22:00\n";
         return 1;
     }
 
@@ -605,7 +628,8 @@ int main(int argc, char* argv[])
 
                 if (ms == 0)
                 {
-                    cout << "Datum/Zeit ungueltig oder Vergangenheit.\n";
+                    // cout << "Datum/Zeit ungueltig oder Vergangenheit.\n";
+                    cout << t(Str::ERROR_PAST_DATETIME) << "\n";
                     return 1;
                 }
             }
@@ -618,7 +642,8 @@ int main(int argc, char* argv[])
 
                 if (parsed < 2)
                 {
-                    cout << "Ungueltiges Zeitformat fuer --at.\n";
+                    // cout << "Ungueltiges Zeitformat fuer --at.\n";
+                    cout << t(Str::ERROR_INVALID_AT) << "\n";
                     return 1;
                 }
 
@@ -631,7 +656,8 @@ int main(int argc, char* argv[])
 
                 if (ms == 0)
                 {
-                    cout << "Fehler bei der Berechnung der Zielzeit.\n";
+                    // cout << "Fehler bei der Berechnung der Zielzeit.\n";
+                    cout << t(Str::ERROR_NEXT_TIME);
                     return 1;
                 }
             }
@@ -650,19 +676,27 @@ int main(int argc, char* argv[])
             useDailyTimes = true;
 
             while (i + 1 < argc && argv[i + 1][0] != '-') {
-                string t = argv[++i];
+                // string t = argv[++i];
 
+                // int h = 0, m = 0, s = 0;
+                // int parsed = sscanf(t.c_str(), "%d:%d:%d", &h, &m, &s);
+
+                // if (parsed < 2) {
+                //     cout << "Ungueltige Uhrzeit: " << t << "\n";
+
+                string timeStr = argv[++i];
                 int h = 0, m = 0, s = 0;
-                int parsed = sscanf(t.c_str(), "%d:%d:%d", &h, &m, &s);
-
-                if (parsed < 2) {
-                    cout << "Ungueltige Uhrzeit: " << t << "\n";
+                int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
+                    if (parsed < 2) {
+                        char buf[256];
+                        snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_DAILY), timeStr.c_str());
+                        cout << buf << "\n";
                     return 1;
                 }
 
                 if (parsed == 2) s = 0;
-
                 dailyTimes.emplace_back(h, m, s);
+
             }
 
             if (dailyTimes.empty()) {
@@ -676,6 +710,8 @@ int main(int argc, char* argv[])
             loop = true;
             maxLoops = -1; // I seek eternal fire
 
+        } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
+        _putenv_s("TEEFAX_LANG", argv[++i]);
         } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
             cout << "Unbekannte Option: " << arg << "\n";
             return 1;
@@ -690,7 +726,8 @@ int main(int argc, char* argv[])
 
     // if (!useAtTime && !showLiveTime && ms <= 0) {
     if (!useAtTime && !useDailyTimes && !showLiveTime && ms <= 0) {
-        cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
+        // cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
+        cout << t(Str::ERROR_NO_TIME) << "\n";
         return 1;
     }
 
@@ -702,22 +739,38 @@ int main(int argc, char* argv[])
     }
 
     if (!showLiveTime){ // Wenn nur die Zeit angezeigt wird, Folgendes weglassen
-        cout << "Teefax [v" << PRG_VERSION << "] gestartet";
+       // cout << "Teefax [v" << PRG_VERSION << "] gestartet";
+        char buf[256];
 
-    if (useAtTime)
-        cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
-             << setw(2) << atMinute << ":" << setw(2) << atSecond;
-    else {
+        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+        cout << buf;
+
+        if (useAtTime) {
+        char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::TIMER_AT_TIME),
+                     atHour, atMinute, atSecond);
+        cout << buf;
+
+        // cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
+        //      << setw(2) << atMinute << ":" << setw(2) << atSecond;
+        } else {
         // hier Umrechnung in passende Einheiten
         string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
 
         if (!useDailyTimes){
-        cout << " mit Zaehler: " << timerStr;
+        // cout << " mit Zaehler: " << timerStr;
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
+            cout << buf;
         } else {
-            cout << " mit taeglichem Alarm.";
+            // cout << " mit taeglichem Alarm.";
+            cout << t(Str::TIMER_DAILY);
         }
     }
-    if (asyncSound) cout << " (async sound)";
+    if (asyncSound) {
+        // cout << " (async sound)";
+        cout << t(Str::ASYNC_SUFFIX);
+    }
     cout << "\n";
     }
 
@@ -814,8 +867,15 @@ int main(int argc, char* argv[])
                 string verbleibendStr = formatVerbleibend(verbleibendSec);
 
                 cout << "\r";
-                if (loop) cout << "Durchlauf " << loopCount << " | ";
-                cout << "Verbleibend: " << verbleibendStr << " [";
+                // if (loop) cout << "Durchlauf " << loopCount << " | ";
+                char buf[128];
+                if (loop) {
+                    snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
+                    cout << buf;
+                }
+                // cout << "Verbleibend: " << verbleibendStr << " [";
+                snprintf(buf, sizeof(buf), t(Str::REMAINING), verbleibendStr.c_str());
+                cout << buf << " [";
                 for (int i = 0; i < barWidth; ++i) cout << (i < filled ? '#' : '-');
                 cout << "]   " << flush;
             }
@@ -825,8 +885,15 @@ int main(int argc, char* argv[])
         }
 
         cout << "\r";
-        if (loop) cout << "Durchlauf " << loopCount << " | ";
-        cout << "Verbleibend: 00:00 [";
+        {
+            char buf[128];
+            if (loop) {
+                snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
+                cout << buf;
+            }
+            snprintf(buf, sizeof(buf), t(Str::REMAINING), "00:00");
+            cout << buf << " [";
+        }
         for (int i = 0; i < barWidth; ++i) cout << '#';
         cout << "]   " << flush;
 
@@ -836,14 +903,20 @@ int main(int argc, char* argv[])
                     try {
                         fs::path p(soundFile);
                         if (!fs::exists(p) || !fs::is_regular_file(p)) {
-                            cout << "\nAudiodatei nicht gefunden oder keine regulaere Datei: " << soundFile << "\n";
+                            // cout << "\nAudiodatei nicht gefunden oder keine regulaere Datei: " << soundFile << "\n";
+                            char buf[512];
+                            snprintf(buf, sizeof(buf), t(Str::AUDIO_NOT_FOUND), soundFile.c_str());
+                            cout << buf << "\n";
                         } else {
                             wstring widePath = toWide(soundFile);
                             if (!widePath.empty()) {
                                 UINT flags = SND_FILENAME | (asyncSound ? SND_ASYNC : SND_SYNC);
                                 PlaySoundW(widePath.c_str(), NULL, flags);
                             } else {
-                                cout << "\nFehler bei Pfad-Konvertierung fuer Audiodatei: " << soundFile << "\n";
+                                // cout << "\nFehler bei Pfad-Konvertierung fuer Audiodatei: " << soundFile << "\n";
+                                char buf[512];
+                                snprintf(buf, sizeof(buf), t(Str::AUDIO_PATH_ERROR), soundFile.c_str());
+                                cout << buf << "\n";
                             }
                         }
                     } catch (const fs::filesystem_error& e) {
@@ -871,7 +944,8 @@ int main(int argc, char* argv[])
         } else if (useAtTime) {
             long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
             if (nextMs == 0) {
-                cout << "\nFehler bei der Berechnung der naechsten Uhrzeit.\n";
+                // cout << "\nFehler bei der Berechnung der naechsten Uhrzeit.\n";
+                cout << t(Str::ERROR_NEXT_TIME);
                 return 1;
             }
             ms = nextMs;
@@ -890,12 +964,17 @@ int main(int argc, char* argv[])
 
         // Benachrichtigung, Zeit abgelaufen
         if (showMessage) {
-            showNotification(L"Teefax", L"Die Zeit ist verstrichen!");
+            // showNotification(L"Teefax", L"Die Zeit ist verstrichen!");
+            showNotification(
+                toWide(t(Str::NOTIFY_TITLE)),
+                toWide(t(Str::NOTIFY_MSG))
+                );
         }
 
     } while (loop && (maxLoops == -1 || loopCount < maxLoops));
 
-    cout << "\nZaehler beendet.\n";
+    // cout << "\nZaehler beendet.\n";
+    cout << t(Str::TIMER_ENDED);
 
     //Bildschirmschoner wieder erlauben
     if (noSleep){

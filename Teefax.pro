@@ -5,11 +5,12 @@ CONFIG -= qt
 
 LIBS += -lwinmm
 
-VERSION = 0.13.3
+VERSION = 0.14.0
 DEFINES += PRG_VERSION=\\\"$$VERSION\\\" \
 
 SOURCES += \
         main.cpp
 
 HEADERS += \
+    i18n.h \
     sound_array.h
