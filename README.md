@@ -14,13 +14,14 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 * Zähler mit einem Klick starten
 * Beliebigen Weckton definieren (.WAV-Format)
 * Wecken nach Dauer oder Uhrzeit
-* Programmgröße ~100 KB
+* Programmgröße ~150 KB
 * Größe im Arbeitsspeicher: ~0,7 MB (~7 MB mit conhost.exe)
 * Zugriff über Kommandozeile
 * Wiederholfunktionen
 * Datei nach einer bestimmten Zeit öffnen
 * Konsolenbefehl zeitgesteuert ausführen
 * genaue Zeitmessung ohne systemlastbedingte Schwankungen
+* Sprachen: 🇫🇷, 🇵🇹, 🇷🇺, 🇬🇧, 🇩🇪
 
 
 # Nutzung
@@ -62,6 +63,8 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Benachrichtigungsfenster (Popup) nach Ablauf des Zählers unterdrücken: `--nomsg`
 - Bildschirmschoner & Ruhezustand unterdrücken: `-ns` oder `--nosleep`
 - Akustisch runterzählen bis zum Alarm: `-pa [Sekunden]` oder `--prealarm [Sekunden]`. Beispiel: `teefax 20 --prealarm 5` wird 5 Sekunden vor dem Schlussalarm beginnen, sekündlich einen Signalton auszugeben. Mögliche Einsatzzwecke sind der Start eines Wettrennens oder auch Silvester. In Verbindung mit dem rekursiven Aufruf lassen sich auch Start- und Endzähler kombinieren. Dies etwa bewirkt einen 5-sekündigen Startzähler mit Signaltönen, der nach Ablauf einen 20-sekündigen Zähler mit 5-sekündigen Endsignalen startet: `teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"`
+- Sprache festlegen (de, en, fr, pt, ru): `-la [Sprache]` oder `--lang [Sprache]`. Beispiel: `teefax 20s --lang fr`
+
 
 
 Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
