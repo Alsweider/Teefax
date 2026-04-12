@@ -899,7 +899,12 @@ int main(int argc, char* argv[])
             }
 
             // this_thread::sleep_for(chrono::milliseconds(1));
-            this_thread::sleep_for(chrono::milliseconds(verbleibendMs > 1000 ? 50 : 5)); // Prozessor dankt
+            long long sleepMs = 5; // Prozessor dankt
+            if (verbleibendMs > 60000)      sleepMs = 500;  // > 1 Min -> 500ms-Schritte
+            else if (verbleibendMs > 5000)  sleepMs = 100;
+            else if (verbleibendMs > 1000)  sleepMs = 50;
+            // < 1s bleibt bei 5ms für Präzision
+            this_thread::sleep_for(chrono::milliseconds(sleepMs));
         }
 
         cout << "\r";
@@ -995,7 +1000,6 @@ int main(int argc, char* argv[])
         }
 
     } while (loop && (maxLoops == -1 || loopCount < maxLoops));
-
     // cout << "\nZaehler beendet.\n";
     cout << t(Str::TIMER_ENDED);
 
