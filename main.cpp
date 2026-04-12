@@ -506,6 +506,7 @@ int main(int argc, char* argv[])
     long long ms = 0;
     bool asyncSound = false;
     string openFile;
+    string cmdArg;
     bool showMessage = true; // Standard: MessageBox ist aktiv
     bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
     int preAlarmSeconds = 0; // Sekunden vor Schluss, in denen sekündlich gepiept wird
@@ -555,6 +556,15 @@ int main(int argc, char* argv[])
         //      << "  teefax 20s --prealarm 5\n"
         //      << "  teefax --daily 4:00 10:00 16:00 22:00\n";
         return 1;
+    }
+
+    // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird
+    for (int i = 1; i < argc - 1; ++i) {
+        string a = argv[i];
+        if (a == "--lang" || a == "-la") {
+            _putenv_s("TEEFAX_LANG", argv[i + 1]);
+            break;
+        }
     }
 
     // Argument-Parsen
@@ -664,9 +674,11 @@ int main(int argc, char* argv[])
         } else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
             openFile = argv[++i];
         } else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
-            openFile = ""; // sicherstellen, dass nur eine Aktion aktiv ist
-            string cmdArg = argv[++i];
-            openFile = "[CMD]" + cmdArg; // Markierung, damit später erkannt wird
+            // openFile = ""; // sicherstellen, dass nur eine Aktion aktiv ist
+            // string cmdArg = argv[++i];
+            // openFile = "[CMD]" + cmdArg; // Markierung, damit später erkannt wird
+            cmdArg = argv[++i];
+            openFile = ""; // sicherstellen dass --open nicht zusätzlich aktiv ist
         } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < argc) { // Sekündliches Piepsen vor Schluss
             preAlarmSeconds = safeStoi(argv[++i], 0);
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
@@ -700,7 +712,8 @@ int main(int argc, char* argv[])
             }
 
             if (dailyTimes.empty()) {
-                cout << "Keine Uhrzeiten fuer --daily angegeben.\n";
+                // cout << "Keine Uhrzeiten fuer --daily angegeben.\n";
+                cout << t(Str::ERROR_NO_DAILY_TIMES) << "\n";
                 return 1;
             }
 
@@ -711,9 +724,14 @@ int main(int argc, char* argv[])
             maxLoops = -1; // I seek eternal fire
 
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
-        _putenv_s("TEEFAX_LANG", argv[++i]);
+        // _putenv_s("TEEFAX_LANG", argv[++i]);
+        ++i; // bereits im Vor-Durchlauf verarbeitet
+
         } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
-            cout << "Unbekannte Option: " << arg << "\n";
+            // cout << "Unbekannte Option: " << arg << "\n";
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::ERROR_UNKNOWN_OPTION), arg.c_str());
+            cout << buf << "\n";
             return 1;
         } else if (!useAtTime) {
             long long possible = parseTime(arg);
@@ -953,14 +971,19 @@ int main(int argc, char* argv[])
         }
 
         // Datei öffnen oder Konsolenbefehl ausführen
-        if (!openFile.empty()) {
-            if (openFile.rfind("[CMD]", 0) == 0) {
-                string command = openFile.substr(5);
-                runConsoleCommand(command);
-            } else {
-                openFileAfterTimer(openFile);
-            }
+        if (!cmdArg.empty()) {
+            runConsoleCommand(cmdArg);
+        } else if (!openFile.empty()) {
+            openFileAfterTimer(openFile);
         }
+        // if (!openFile.empty()) {
+        //     if (openFile.rfind("[CMD]", 0) == 0) {
+        //         string command = openFile.substr(5);
+        //         runConsoleCommand(command);
+        //     } else {
+        //         openFileAfterTimer(openFile);
+        //     }
+        // }
 
         // Benachrichtigung, Zeit abgelaufen
         if (showMessage) {

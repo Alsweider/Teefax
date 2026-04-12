@@ -29,7 +29,7 @@ enum class Str {
     AUDIO_NOT_FOUND, AUDIO_PATH_ERROR,
 
     // Hilfe
-    USAGE_HEADER, USAGE_OPTIONS, USAGE_EXAMPLES,
+    USAGE_HEADER,
 
     _COUNT
 };
