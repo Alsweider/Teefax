@@ -674,11 +674,7 @@ int main(int argc, char* argv[])
         } else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
             openFile = argv[++i];
         } else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
-            // openFile = ""; // sicherstellen, dass nur eine Aktion aktiv ist
-            // string cmdArg = argv[++i];
-            // openFile = "[CMD]" + cmdArg; // Markierung, damit später erkannt wird
             cmdArg = argv[++i];
-            openFile = ""; // sicherstellen dass --open nicht zusätzlich aktiv ist
         } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < argc) { // Sekündliches Piepsen vor Schluss
             preAlarmSeconds = safeStoi(argv[++i], 0);
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
@@ -688,13 +684,6 @@ int main(int argc, char* argv[])
             useDailyTimes = true;
 
             while (i + 1 < argc && argv[i + 1][0] != '-') {
-                // string t = argv[++i];
-
-                // int h = 0, m = 0, s = 0;
-                // int parsed = sscanf(t.c_str(), "%d:%d:%d", &h, &m, &s);
-
-                // if (parsed < 2) {
-                //     cout << "Ungueltige Uhrzeit: " << t << "\n";
 
                 string timeStr = argv[++i];
                 int h = 0, m = 0, s = 0;
@@ -742,9 +731,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    // if (!useAtTime && !showLiveTime && ms <= 0) {
     if (!useAtTime && !useDailyTimes && !showLiveTime && ms <= 0) {
-        // cout << "Bitte eine gueltige Zeit oder --at angeben.\n";
         cout << t(Str::ERROR_NO_TIME) << "\n";
         return 1;
     }
@@ -769,8 +756,6 @@ int main(int argc, char* argv[])
                      atHour, atMinute, atSecond);
         cout << buf;
 
-        // cout << " fuer Uhrzeit " << setfill('0') << setw(2) << atHour << ":"
-        //      << setw(2) << atMinute << ":" << setw(2) << atSecond;
         } else {
         // hier Umrechnung in passende Einheiten
         string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
@@ -978,17 +963,10 @@ int main(int argc, char* argv[])
         // Datei öffnen oder Konsolenbefehl ausführen
         if (!cmdArg.empty()) {
             runConsoleCommand(cmdArg);
-        } else if (!openFile.empty()) {
+        }
+        if (!openFile.empty()) {
             openFileAfterTimer(openFile);
         }
-        // if (!openFile.empty()) {
-        //     if (openFile.rfind("[CMD]", 0) == 0) {
-        //         string command = openFile.substr(5);
-        //         runConsoleCommand(command);
-        //     } else {
-        //         openFileAfterTimer(openFile);
-        //     }
-        // }
 
         // Benachrichtigung, Zeit abgelaufen
         if (showMessage) {
