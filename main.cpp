@@ -889,6 +889,11 @@ int main(int argc, char* argv[])
             else if (verbleibendMs > 5000)  sleepMs = 100;
             else if (verbleibendMs > 1000)  sleepMs = 50;
             // < 1s bleibt bei 5ms für Präzision
+
+            // Nie länger schlafen als noch Zeit übrig ist
+            sleepMs = std::min(sleepMs, verbleibendMs);
+            if (sleepMs < 1) sleepMs = 1;
+
             this_thread::sleep_for(chrono::milliseconds(sleepMs));
         }
 
