@@ -219,35 +219,70 @@ long long millisecondsUntilDateTime(int year, int month, int day,
 
 
 void openFileAfterTimer(const string& filePath) {
-    try {
-        fs::path p(filePath);
-        if (!fs::exists(p)) {
-            // cout << "\nDatei nicht gefunden: " << filePath << "\n";
-            cout << t(Str::FILE_NOT_FOUND) << filePath << "\n";
+    bool isUrl = filePath.rfind("http://", 0) == 0 ||
+                 filePath.rfind("https://", 0) == 0;
+
+    if (!isUrl) {
+        try {
+            if (!fs::exists(fs::path(filePath))) {
+                cout << t(Str::FILE_NOT_FOUND) << filePath << "\n";
+                return;
+            }
+        } catch (const fs::filesystem_error& e) {
+            // cout << "\nDateisystem-Fehler beim Oeffnen: " << e.what() << "\n";
+            char buf[512];
+            snprintf(buf, sizeof(buf), t(Str::FILE_SYSTEM_ERROR), e.what());
+            cout << buf << "\n";
             return;
         }
-        wstring wfile = toWide(filePath);
-        if (wfile.empty()) {
-            // cout << "\nFehler bei der Pfad-Konvertierung: " << filePath << "\n";
-            cout << t(Str::ERROR_FILE_CONVERSION) << filePath << "\n";
-            return;
-        }
-        HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
-        if ((INT_PTR)res <= 32) {
-            // cout << "\nFehler beim Öffnen der Datei (Code " << (INT_PTR)res << "): " << filePath << "\n";
-            char buf[256];
-            snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, filePath.c_str());
-            cout << buf;
-        } else {
-            // cout << "\nDatei geöffnet: " << filePath << "\n";
-            char buf[256];
-            snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), filePath.c_str());
-            cout << buf;
-        }
-    } catch (const fs::filesystem_error& e) {
-        cout << "\nDateisystem-Fehler beim Öffnen: " << e.what() << "\n";
+    }
+
+    wstring wfile = toWide(filePath);
+    if (wfile.empty()) {
+        cout << t(Str::ERROR_FILE_CONVERSION) << filePath << "\n";
+        return;
+    }
+    HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
+    if ((INT_PTR)res <= 32) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, filePath.c_str());
+        cout << buf;
+    } else {
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), filePath.c_str());
+        cout << buf;
     }
 }
+// void openFileAfterTimer(const string& filePath) {
+//     try {
+//         fs::path p(filePath);
+//         if (!fs::exists(p)) {
+//             // cout << "\nDatei nicht gefunden: " << filePath << "\n";
+//             cout << t(Str::FILE_NOT_FOUND) << filePath << "\n";
+//             return;
+//         }
+//         wstring wfile = toWide(filePath);
+//         if (wfile.empty()) {
+//             // cout << "\nFehler bei der Pfad-Konvertierung: " << filePath << "\n";
+//             cout << t(Str::ERROR_FILE_CONVERSION) << filePath << "\n";
+//             return;
+//         }
+//         HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
+//         if ((INT_PTR)res <= 32) {
+//             // cout << "\nFehler beim Öffnen der Datei (Code " << (INT_PTR)res << "): " << filePath << "\n";
+//             char buf[256];
+//             snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, filePath.c_str());
+//             cout << buf;
+//         } else {
+//             // cout << "\nDatei geöffnet: " << filePath << "\n";
+//             char buf[256];
+//             snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), filePath.c_str());
+//             cout << buf;
+//         }
+//     } catch (const fs::filesystem_error& e) {
+//         cout << "\nDateisystem-Fehler beim Öffnen: " << e.what() << "\n";
+//     }
+// }
 
 void runConsoleCommand(const string& command) {
     if (command.empty()) {
@@ -292,8 +327,17 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
-    // Warten, bis der Befehl beendet ist (optional)
-    WaitForSingleObject(pi.hProcess, INFINITE);
+    // Warten bis der Befehl beendet ist, maximal 30 Sekunden
+    DWORD waitResult = WaitForSingleObject(pi.hProcess, 30000);
+
+    if (waitResult == WAIT_TIMEOUT) {
+        // Prozess läuft noch, laufen lassen und nicht weiter blockieren
+        cout << t(Str::CMD_TIMEOUT);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        return;
+    }
+
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 

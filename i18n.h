@@ -25,8 +25,9 @@ enum class Str {
 
     // Datei / Befehl
     FILE_NOT_FOUND, FILE_OPENED, FILE_ERROR,
-    CMD_EXECUTED, CMD_ERROR,
+    CMD_EXECUTED, CMD_ERROR, CMD_TIMEOUT,
     AUDIO_NOT_FOUND, AUDIO_PATH_ERROR,
+    FILE_SYSTEM_ERROR,
 
     // Hilfe
     USAGE_HEADER,
@@ -99,6 +100,8 @@ static const TranslationMap LANG_DE = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
+    { Str::CMD_TIMEOUT, "\nBefehl laeuft noch, Programm wird fortgesetzt..." },
+    { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
 };
 
 static const TranslationMap LANG_FR = {
@@ -163,6 +166,8 @@ static const TranslationMap LANG_FR = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
+    { Str::CMD_TIMEOUT, "\nCommande toujours en cours, on continue..." },
+    { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
     };
 
 static const TranslationMap LANG_PT = {
@@ -227,6 +232,8 @@ static const TranslationMap LANG_PT = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
+    { Str::CMD_TIMEOUT, "\nComando ainda em execucao, continuando..." },
+    { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
     };
 
 static const TranslationMap LANG_RU = {
@@ -291,6 +298,8 @@ static const TranslationMap LANG_RU = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
+    { Str::CMD_TIMEOUT, "\nKomanda eshche vypolnyaetsya, prodolzhaem..." },
+    { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     };
 
 static const TranslationMap LANG_EN = {
@@ -355,6 +364,8 @@ static const TranslationMap LANG_EN = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
+    { Str::CMD_TIMEOUT, "\nCommand still running, continuing..." },
+    { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────
