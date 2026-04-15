@@ -75,7 +75,7 @@ Combined example: `teefax 1h30m` counts down 1 hour and 30 minutes.
 | `--alarm-repeat <n>` | `-ar` | Repeat the alarm sound n times after the timer ends |
 | `--alarm-interval <s>` | `-ai` | Seconds between repeated alarms (default: 2) |
 | `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) |
-| `--open <filepath>` | `-o` | Open a file or program when the timer ends |
+| `--open <filepath>` | `-o` | Open a file, program or URL when the timer ends |
 | `--cmd <command>` | `-c` | Run a console command when the timer ends |
 | `--prealarm <s>` | `-pa` | Beep every second during the last X seconds |
 | `--time` | `-t` | Live date & time display (clock mode, exit with Ctrl+C) |
