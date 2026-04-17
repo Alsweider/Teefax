@@ -439,19 +439,34 @@ string formatVerbleibend(long long totalSec) {
     return ss.str();
 }
 
-/* Ja, das sagt dir halt, ob die Zielzeit (--at) auf den morgigen Tag fällt.
- * Genauer gesagt spuckt es true aus, wenn die Zielzeit nicht auf das aktuelle
- * Jahr, den aktuellen Monat oder den aktuellen Tag fällt.
-*/
+// Ja, das sagt dir halt, ob die Zielzeit (--at) auf den morgigen Tag fällt.
 bool isTargetTomorrow(time_t targetT) {
     time_t tnow = time(nullptr);
-    tm nowTm{}, targetTm{};
-    localtime_s(&nowTm,    &tnow);
+
+    tm nowTm{};
+    localtime_s(&nowTm, &tnow);
+
+    // heutiger Tag +1
+    nowTm.tm_mday += 1;
+    mktime(&nowTm); // normalisiert (Monats-/Jahreswechsel)
+
+    tm targetTm{};
     localtime_s(&targetTm, &targetT);
-    return (targetTm.tm_year != nowTm.tm_year ||
-            targetTm.tm_mon  != nowTm.tm_mon  ||
-            targetTm.tm_mday != nowTm.tm_mday);
+
+    return (targetTm.tm_year == nowTm.tm_year &&
+            targetTm.tm_mon  == nowTm.tm_mon  &&
+            targetTm.tm_mday == nowTm.tm_mday);
 }
+// Das prüft so nur, ob die Zielzeit an einem anderen Tag als heute auftaucht
+// bool isTargetTomorrow(time_t targetT) {
+//     time_t tnow = time(nullptr);
+//     tm nowTm{}, targetTm{};
+//     localtime_s(&nowTm,    &tnow);
+//     localtime_s(&targetTm, &targetT);
+//     return (targetTm.tm_year != nowTm.tm_year ||
+//             targetTm.tm_mon  != nowTm.tm_mon  ||
+//             targetTm.tm_mday != nowTm.tm_mday);
+// }
 
 // Zum Messen bis zum nächsten täglichen Alarm
 long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times) {
