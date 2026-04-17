@@ -32,6 +32,7 @@ enum class Str {
     // Hilfe
     USAGE_HEADER,
 
+    TOMORROW_SUFFIX,
     _COUNT
 };
 
@@ -102,6 +103,7 @@ static const TranslationMap LANG_DE = {
     },
     { Str::CMD_TIMEOUT, "\nBefehl laeuft noch, Programm wird fortgesetzt..." },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
+    { Str::TOMORROW_SUFFIX, " (morgen)" },
 };
 
 static const TranslationMap LANG_FR = {
@@ -168,6 +170,7 @@ static const TranslationMap LANG_FR = {
     },
     { Str::CMD_TIMEOUT, "\nCommande toujours en cours, on continue..." },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
+    { Str::TOMORROW_SUFFIX, " (demain)" },
     };
 
 static const TranslationMap LANG_PT = {
@@ -234,6 +237,7 @@ static const TranslationMap LANG_PT = {
     },
     { Str::CMD_TIMEOUT, "\nComando ainda em execucao, continuando..." },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
+    { Str::TOMORROW_SUFFIX, " (amanha)" },
     };
 
 static const TranslationMap LANG_RU = {
@@ -300,6 +304,7 @@ static const TranslationMap LANG_RU = {
     },
     { Str::CMD_TIMEOUT, "\nKomanda eshche vypolnyaetsya, prodolzhaem..." },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
+    { Str::TOMORROW_SUFFIX, " (zavtra)" },
     };
 
 static const TranslationMap LANG_EN = {
@@ -366,6 +371,7 @@ static const TranslationMap LANG_EN = {
     },
     { Str::CMD_TIMEOUT, "\nCommand still running, continuing..." },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
+    { Str::TOMORROW_SUFFIX, " (tomorrow)" },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────

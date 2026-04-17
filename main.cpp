@@ -439,6 +439,19 @@ string formatVerbleibend(long long totalSec) {
     return ss.str();
 }
 
+/* Ja, das sagt dir halt, ob die Zielzeit (--at) auf den morgigen Tag fällt.
+ * Genauer gesagt spuckt es true aus, wenn die Zielzeit nicht auf das aktuelle
+ * Jahr, den aktuellen Monat oder den aktuellen Tag fällt.
+*/
+bool isTargetTomorrow(time_t targetT) {
+    time_t tnow = time(nullptr);
+    tm nowTm{}, targetTm{};
+    localtime_s(&nowTm,    &tnow);
+    localtime_s(&targetTm, &targetT);
+    return (targetTm.tm_year != nowTm.tm_year ||
+            targetTm.tm_mon  != nowTm.tm_mon  ||
+            targetTm.tm_mday != nowTm.tm_mday);
+}
 
 // Zum Messen bis zum nächsten täglichen Alarm
 long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times) {
@@ -800,6 +813,13 @@ int main(int argc, char* argv[])
                      atHour, atMinute, atSecond);
         cout << buf;
 
+        // Prüfen ob Ziel morgen liegt
+        auto atWallTarget = chrono::system_clock::now()
+                            + chrono::milliseconds(ms);
+        time_t atTargetT = chrono::system_clock::to_time_t(atWallTarget);
+        if (isTargetTomorrow(atTargetT))
+            cout << t(Str::TOMORROW_SUFFIX);
+
         } else {
         // hier Umrechnung in passende Einheiten
         string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
@@ -854,6 +874,16 @@ int main(int argc, char* argv[])
                                          ? chrono::duration_cast<chrono::milliseconds>(
                                                wallTarget - chrono::system_clock::now()).count()
                                          : ms;
+
+        // Wanduhr-Ziel als time_t für Tomorrow-Anzeige
+        time_t wallTargetT = 0;
+        if (useDailyTimes) {
+            wallTargetT = chrono::system_clock::to_time_t(wallTarget);
+        } else if (useAtTime) {
+            wallTargetT = chrono::system_clock::to_time_t(
+                chrono::system_clock::now()
+                + chrono::milliseconds(totalMsThisRound));
+        }
 
         auto start = chrono::steady_clock::now();
         // auto end = start + chrono::milliseconds(ms);
@@ -922,7 +952,12 @@ int main(int argc, char* argv[])
                 }
                 // cout << "Verbleibend: " << verbleibendStr << " [";
                 snprintf(buf, sizeof(buf), t(Str::REMAINING), verbleibendStr.c_str());
-                cout << buf << " [";
+                cout << buf;
+                // Tomorrow-Suffix, verschwindet automatisch nach Mitternacht
+                if (wallTargetT != 0 && isTargetTomorrow(wallTargetT))
+                cout << t(Str::TOMORROW_SUFFIX);
+                cout << " [";
+
                 for (int i = 0; i < barWidth; ++i) cout << (i < filled ? '#' : '-');
                 cout << "]   " << flush;
             }
