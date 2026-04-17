@@ -64,24 +64,24 @@ Combined example: `teefax 1h30m` counts down 1 hour and 30 minutes.
 
 ### Options
 
-| Option | Short | Description |
-|---|---|---|
+| Option | Short | Description | Alias |
+|---|---|---|---|
 | `--mute` | `-m` | No alarm sound |
-| `--loop [count]` | `-l` | Repeat the timer (fixed count optional, otherwise infinite) |
-| `--at HH:MM[:SS]` | `-a` | Count down to a specific time of day |
-| `--at YYYY-MM-DD` | `-a` | Count down to a specific date (midnight) |
-| `--at YYYY-MM-DD HH:MM` | `-a` | Count down to a specific date and time |
-| `--daily HH:MM[:SS] ...` | `-d` | Daily recurring alarm at one or more times |
-| `--alarm-repeat <n>` | `-ar` | Repeat the alarm sound n times after the timer ends |
-| `--alarm-interval <s>` | `-ai` | Seconds between repeated alarms (default: 2) |
-| `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) |
-| `--open <filepath>` | `-o` | Open a file, program or URL when the timer ends |
-| `--cmd <command>` | `-c` | Run a console command when the timer ends |
-| `--prealarm <s>` | `-pa` | Beep every second during the last X seconds |
-| `--time` | `-t` | Live date & time display (clock mode, exit with Ctrl+C) |
-| `--nosleep` | `-ns` | Prevent screensaver and standby |
-| `--nomsg` | | Suppress the notification popup |
-| `--lang <lang>` | `-la` | Set language: `de`, `en`, `fr`, `pt`, `ru` |
+| `--loop [count]` | `-l` | Repeat the timer (fixed count optional, otherwise infinite) | |
+| `--at HH:MM[:SS]` | `-a` | Count down to a specific time of day | `--until` |
+| `--at YYYY-MM-DD` | `-a` | Count down to a specific date (midnight) | `--until` |
+| `--at YYYY-MM-DD HH:MM` | `-a` | Count down to a specific date and time | `--until` |
+| `--daily HH:MM[:SS] ...` | `-d` | Daily recurring alarm at one or more times | |
+| `--alarm-repeat <n>` | `-ar` | Repeat the alarm sound n times after the timer ends | |
+| `--alarm-interval <s>` | `-ai` | Seconds between repeated alarms (default: 2) | |
+| `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) | |
+| `--open <filepath>` | `-o` | Open a file, program or URL when the timer ends | |
+| `--cmd <command>` | `-c` | Run a console command when the timer ends | |
+| `--prealarm <s>` | `-pa` | Beep every second during the last X seconds | |
+| `--time` | `-t` | Live date & time display (clock mode, exit with Ctrl+C) | |
+| `--nosleep` | `-ns` | Prevent screensaver and standby | |
+| `--nomsg` | | Suppress the notification popup | |
+| `--lang <lang>` | `-la` | Set language: `de`, `en`, `fr`, `pt`, `ru` | |
 
 ---
 
