@@ -588,55 +588,28 @@ int main(int argc, char* argv[])
     vector<tuple<int,int,int>> dailyTimes;
     bool useDailyTimes = false;
 
-
     // Audio priorisieren
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);
     TimePeriodGuard timeGuard;
 
-    if (argc < 2) {
-        cout << t(Str::USAGE_HEADER);
-        // cout << "Verwendung:\n"
-        //      << "  teefax [<Zeit>] [Sounddatei] [Optionen]\n\n"
-        //      << "Optionen:\n"
-        //      << "  -m,  --mute                 Kein Weckton abspielen\n"
-        //      << "  -l,  --loop [Anzahl]        Wiederhole den Timer (Anzahl optional, sonst unendlich)\n"
-        //      << "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
-        //      << "  -ai, --alarm-interval <s>   Abstand zwischen Wiederholungen in Sekunden (Standard: 2)\n"
-        //      << "  -a,  --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit\n"
-        //      << "  -a,  --at YYYY-MM-DD        Bis zum angegebenen Datum zaehlen\n"
-        //      << "  -a,  --at YYYY-MM-DD HH:MM  Datum und Uhrzeit kombiniert\n"
-        //      << "  -as, --async                Spielt den Ton asynchron (Blockierung umgehen)\n"
-        //      << "  -o,  --open <Dateipfad>     Oeffnet nach Ablauf des Zaehlers die angegebene Datei\n"
-        //      << "  -c,  --cmd  <Befehl>        Fuehrt nach Ablauf einen Konsolenbefehl aus\n"
-        //      << "  -ns, --nosleep              Unterdrueckt den Bildschirmschoner\n"
-        //      << "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n"
-        //      << "  -t,  --time                 Direktanzeige Datum & Zeit. Leert vorherigen Konsoleninhalt.\n"
-        //      << "  -d,  --daily HH:mm[:ss]     Taeglicher Alarm zu bestimmten Uhrzeiten. Mehrere Zeiten moeglich.\n\n"
-        //      << "Beispiele:\n"
-        //      << "  teefax 5m\n"
-        //      << "  teefax 10s --loop\n"
-        //      << "  teefax --loop 5 3s\n"
-        //      << "  teefax --at 07:30\n"
-        //      << "  teefax --at 2030-1-1\n"
-        //      << "  teefax --at 2030-1-1 20:15\n"
-        //      << "  teefax --at 07:30:15 \"C:\\Klang\\gong.wav\"\n"
-        //      << "  teefax 3s --async \"C:\\Klang\\gong.wav\"\n"
-        //      << "  teefax 10s --cmd \"shutdown /s /t 0\"\n"
-        //      << "  teefax 5m -c \"start notepad.exe\"\n"
-        //      << "  teefax 20s --prealarm 5\n"
-        //      << "  teefax --daily 4:00 10:00 16:00 22:00\n";
-        return 1;
-    }
-
     // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird
-    for (int i = 1; i < argc - 1; ++i) {
+    for (int i = 1; i < argc; ++i) {
         string a = argv[i];
-        if (a == "--lang" || a == "-la") {
+        if ((a == "--lang" || a == "-la") && i + 1 < argc) {
             _putenv_s("TEEFAX_LANG", argv[i + 1]);
             break;
         }
+    }
+
+    if (argc < 2) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+        cout << buf;
+        cout << ".\n\n";
+        cout << t(Str::USAGE_HEADER);
+        return 1;
     }
 
     // Argument-Parsen
@@ -666,7 +639,7 @@ int main(int argc, char* argv[])
             if (alarmInterval < 1) alarmInterval = 1;
         } else if (arg == "--async" || arg == "-as") {
             asyncSound = true;
-        } else if ((arg == "--at" || arg == "-a") && i + 1 < argc) {
+        } else if ((arg == "--at" || arg == "-a" || arg == "--until") && i + 1 < argc) {
             string first = argv[++i];
 
             int year, month, day;
@@ -796,8 +769,11 @@ int main(int argc, char* argv[])
             return 1;
         } else if (!useAtTime) {
             long long possible = parseTime(arg);
-            if (possible > 0) ms = possible;
-            else if (soundFile.empty()) soundFile = arg;
+            if (possible > 0) {
+                ms = possible;
+            } else if (soundFile.empty()) {
+                soundFile = arg;
+            }
         } else if (soundFile.empty()){
             soundFile = arg;
         }
