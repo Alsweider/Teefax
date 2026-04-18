@@ -802,10 +802,15 @@ int main(int argc, char* argv[])
     do {
         if (loop) ++loopCount;
 
-        // Für --daily: absoluten Wanduhr-Zielzeitpunkt bestimmen
+        // Für --daily und --at: absoluten Wanduhr-Zielzeitpunkt frisch bestimmen
         chrono::system_clock::time_point wallTarget;
         if (useDailyTimes) {
             wallTarget = nextDailyTarget(dailyTimes);
+        } else if (useAtTime) {
+            long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
+            if (nextMs == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
+            ms = nextMs;
+            if (ms > MAX_MS) ms = MAX_MS;
         }
 
         long long totalMsThisRound = useDailyTimes
@@ -878,7 +883,6 @@ int main(int argc, char* argv[])
                 SetConsoleTitleA(("Teefax - " + verbleibendStr).c_str()); // Zeit im Fenstertitel anzeigen
 
                 cout << "\r";
-                // if (loop) cout << "Durchlauf " << loopCount << " | ";
                 char buf[128];
                 if (loop) {
                     snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
@@ -958,21 +962,27 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Nächste Wartezeit berechnen
+        // Nächste Wartezeit berechnen (nur noch für --daily nötig, --at läuft oben)
         if (useDailyTimes) {
             wallTarget = nextDailyTarget(dailyTimes);
             ms = chrono::duration_cast<chrono::milliseconds>(
                      wallTarget - chrono::system_clock::now()).count();
             if (ms <= 0) ms = 1000;
-        } else if (useAtTime) {
-            long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
-            if (nextMs == 0) {
-                cout << t(Str::ERROR_NEXT_TIME);
-                return 1;
-            }
-            ms = nextMs;
-            if (ms > MAX_MS) ms = MAX_MS;
         }
+        // if (useDailyTimes) {
+        //     wallTarget = nextDailyTarget(dailyTimes);
+        //     ms = chrono::duration_cast<chrono::milliseconds>(
+        //              wallTarget - chrono::system_clock::now()).count();
+        //     if (ms <= 0) ms = 1000;
+        // } else if (useAtTime) {
+        //     long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
+        //     if (nextMs == 0) {
+        //         cout << t(Str::ERROR_NEXT_TIME);
+        //         return 1;
+        //     }
+        //     ms = nextMs;
+        //     if (ms > MAX_MS) ms = MAX_MS;
+        // }
 
         // Datei öffnen oder Konsolenbefehl ausführen
         if (!cmdArg.empty()) {
