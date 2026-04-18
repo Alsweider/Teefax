@@ -66,7 +66,7 @@ Combined example: `teefax 1h30m` counts down 1 hour and 30 minutes.
 
 | Option | Short | Description | Alias |
 |---|---|---|---|
-| `--mute` | `-m` | No alarm sound |
+| `--mute` | `-m` | No alarm sound | |
 | `--loop [count]` | `-l` | Repeat the timer (fixed count optional, otherwise infinite) | |
 | `--at HH:MM[:SS]` | `-a` | Count down to a specific time of day | `--until` |
 | `--at YYYY-MM-DD` | `-a` | Count down to a specific date (midnight) | `--until` |
@@ -82,6 +82,7 @@ Combined example: `teefax 1h30m` counts down 1 hour and 30 minutes.
 | `--nosleep` | `-ns` | Prevent screensaver and standby | |
 | `--nomsg` | | Suppress the notification popup | |
 | `--lang <lang>` | `-la` | Set language: `de`, `en`, `fr`, `pt`, `ru` | |
+| `--help` | `-h` | Show help and exit | |
 
 ---
 
@@ -133,6 +134,9 @@ teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"
 
 # Set language explicitly
 teefax 5m --lang en
+
+# Show help
+teefax --help
 ```
 
 ---

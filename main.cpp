@@ -451,7 +451,6 @@ long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times
 
         auto target = system_clock::from_time_t(tt);
 
-        // if (target <= now) target += hours(24);
         if (target <= now) {
             candidate.tm_mday += 1;
             candidate.tm_isdst = -1;
@@ -565,7 +564,7 @@ int main(int argc, char* argv[])
         cout << buf;
         cout << ".\n\n";
         cout << t(Str::USAGE_HEADER);
-        return 1;
+        return 0;
     }
 
     // Argument-Parsen
@@ -710,9 +709,11 @@ int main(int argc, char* argv[])
             maxLoops = -1; // I seek eternal fire
 
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
-        // _putenv_s("TEEFAX_LANG", argv[++i]);
         ++i; // bereits im Vor-Durchlauf verarbeitet
 
+        } else if (arg == "--help" || arg == "-h") {
+            cout << t(Str::USAGE_HEADER);
+            return 0;
         } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
             char buf[256];
             snprintf(buf, sizeof(buf), t(Str::ERROR_UNKNOWN_OPTION), arg.c_str());
@@ -969,20 +970,6 @@ int main(int argc, char* argv[])
                      wallTarget - chrono::system_clock::now()).count();
             if (ms <= 0) ms = 1000;
         }
-        // if (useDailyTimes) {
-        //     wallTarget = nextDailyTarget(dailyTimes);
-        //     ms = chrono::duration_cast<chrono::milliseconds>(
-        //              wallTarget - chrono::system_clock::now()).count();
-        //     if (ms <= 0) ms = 1000;
-        // } else if (useAtTime) {
-        //     long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
-        //     if (nextMs == 0) {
-        //         cout << t(Str::ERROR_NEXT_TIME);
-        //         return 1;
-        //     }
-        //     ms = nextMs;
-        //     if (ms > MAX_MS) ms = MAX_MS;
-        // }
 
         // Datei öffnen oder Konsolenbefehl ausführen
         if (!cmdArg.empty()) {

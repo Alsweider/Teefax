@@ -66,6 +66,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Bildschirmschoner & Ruhezustand unterdrücken: `-ns` oder `--nosleep`
 - Akustisch runterzählen bis zum Alarm: `-pa [Sekunden]` oder `--prealarm [Sekunden]`. Beispiel: `teefax 20 --prealarm 5` wird 5 Sekunden vor dem Schlussalarm beginnen, sekündlich einen Signalton auszugeben. Mögliche Einsatzzwecke sind der Start eines Wettrennens oder auch Silvester. In Verbindung mit dem rekursiven Aufruf lassen sich auch Start- und Endzähler kombinieren. Dies etwa bewirkt einen 5-sekündigen Startzähler mit Signaltönen, der nach Ablauf einen 20-sekündigen Zähler mit 5-sekündigen Endsignalen startet: `teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"`
 - Sprache festlegen (de, en, fr, pt, ru): `-la [Sprache]` oder `--lang [Sprache]`. Beispiel: `teefax 20s --lang fr`
+- Hilfe anzeigen: `-h` oder `--help`
 
 
 
@@ -75,5 +76,3 @@ Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --
 
 Teefax misst zunächst den aktuellen Startzeitpunkt mit der hochpräzisen Klasse [chrono::steady_clock](https://cplusplus.com/reference/chrono/steady_clock/) aus der C++-Standardbibliothek ([2011](https://www.heise.de/blog/Zeit-in-C-20-Einfuehrung-in-die-Chrono-Terminologie-9642462.html) mit dem C++11-Standard eingeführt), die speziell dafür gedacht ist, genaue physikalische Zeitintervalle zu messen. Sie läuft monoton, die Zeitpunkte können niemals rückwärts laufen und sie ist unabhängig von der Systemzeit des Betriebssystems sowie der Systemauslastung. Als nächstes wird in einer for-Schleife die Dauer bis zur jeweils nächsten Sekunde mit [chrono::seconds()](https://cplusplus.com/reference/chrono/seconds/) aus der Startzeit und der gewünschten Sekundenzahl errechnet. Mit [this_thread::sleep_until()](https://cplusplus.com/reference/thread/this_thread/sleep_until/) wird das Programm dann angehalten, bis dieser Zeitpunkt (die nächste Sekunde) erreicht ist.
 Diese Vorgehensweise hat den Vorteil, dass sie präzise bleibt und immer bis zum errechneten Zielzeitpunkt wartet. Bei einem einfachen Sleep()-Befehl hingegen würde etwa die Systemauslastung zu Abweichungen von mehreren Millisekunden pro Sekunde führen, die sich bei vielen Durchläufen aufsummieren und die gemessene Zeit deutlich verfälschen.
-
-
