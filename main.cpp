@@ -814,9 +814,17 @@ int main(int argc, char* argv[])
         if (useDailyTimes) {
             wallTarget = nextDailyTarget(dailyTimes);
         } else if (useAtTime) {
-            long long nextMs = useAtDateTime
-                                   ? millisecondsUntilDateTime(atYear, atMonth, atDay, atHour, atMinute, atSecond)
-                                   : millisecondsUntilTime(atHour, atMinute, atSecond);
+            long long nextMs;
+            if (useAtDateTime && loopCount > 1) {
+                // Jedes Jahr am selben Kalenderdatum zur selben Uhrzeit wiederholen.
+                // Sonderfall 29. Feb: mktime normalisiert auf 1. März in Nicht-Schaltjahren.
+                atYear += 1;
+                nextMs = millisecondsUntilDateTime(atYear, atMonth, atDay, atHour, atMinute, atSecond);
+            } else {
+                nextMs = useAtDateTime
+                             ? millisecondsUntilDateTime(atYear, atMonth, atDay, atHour, atMinute, atSecond)
+                             : millisecondsUntilTime(atHour, atMinute, atSecond);
+            }
             if (nextMs == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
             ms = nextMs;
             if (ms > MAX_MS) ms = MAX_MS;
