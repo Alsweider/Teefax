@@ -529,6 +529,8 @@ int main(int argc, char* argv[])
     int alarmRepeat = 1;
     int alarmInterval = 2;
     bool useAtTime = false;
+    bool useAtDateTime = false; // true wenn --at ein Datum (+ Zeit) enthält
+    int atYear = 0, atMonth = 0, atDay = 0;
     int atHour = 0, atMinute = 0, atSecond = 0;
     long long ms = 0;
     bool asyncSound = false;
@@ -626,11 +628,15 @@ int main(int argc, char* argv[])
                     }
                 }
 
+                atYear   = year;
+                atMonth  = month;
+                atDay    = day;
                 atHour   = hour;
                 atMinute = minute;
                 atSecond = second;
 
-                useAtTime = true;
+                useAtTime     = true;
+                useAtDateTime = true;
 
                 ms = millisecondsUntilDateTime(
                     year, month, day,
@@ -685,10 +691,10 @@ int main(int argc, char* argv[])
                 string timeStr = argv[++i];
                 int h = 0, m = 0, s = 0;
                 int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
-                    if (parsed < 2) {
-                        char buf[256];
-                        snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_DAILY), timeStr.c_str());
-                        cout << buf << "\n";
+                if (parsed < 2) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_DAILY), timeStr.c_str());
+                    cout << buf << "\n";
                     return 1;
                 }
 
@@ -709,7 +715,7 @@ int main(int argc, char* argv[])
             maxLoops = -1; // I seek eternal fire
 
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
-        ++i; // bereits im Vor-Durchlauf verarbeitet
+            ++i; // bereits im Vor-Durchlauf verarbeitet
 
         } else if (arg == "--help" || arg == "-h") {
             cout << t(Str::USAGE_HEADER);
@@ -750,34 +756,34 @@ int main(int argc, char* argv[])
         cout << buf;
 
         if (useAtTime) {
-        char buf[256];
+            char buf[256];
             snprintf(buf, sizeof(buf), t(Str::TIMER_AT_TIME),
                      atHour, atMinute, atSecond);
-        cout << buf;
-
-        // Prüfen ob Ziel morgen liegt
-        auto atWallTarget = chrono::system_clock::now()
-                            + chrono::milliseconds(ms);
-        time_t atTargetT = chrono::system_clock::to_time_t(atWallTarget);
-        if (isTargetTomorrow(atTargetT))
-            cout << t(Str::TOMORROW_SUFFIX);
-
-        } else {
-        // hier Umrechnung in passende Einheiten
-        string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
-
-        if (!useDailyTimes){
-            char buf[256];
-            snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
             cout << buf;
+
+            // Prüfen ob Ziel morgen liegt
+            auto atWallTarget = chrono::system_clock::now()
+                                + chrono::milliseconds(ms);
+            time_t atTargetT = chrono::system_clock::to_time_t(atWallTarget);
+            if (isTargetTomorrow(atTargetT))
+                cout << t(Str::TOMORROW_SUFFIX);
+
         } else {
-            cout << t(Str::TIMER_DAILY);
+            // hier Umrechnung in passende Einheiten
+            string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
+
+            if (!useDailyTimes){
+                char buf[256];
+                snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
+                cout << buf;
+            } else {
+                cout << t(Str::TIMER_DAILY);
+            }
         }
-    }
-    if (asyncSound) {
-        cout << t(Str::ASYNC_SUFFIX);
-    }
-    cout << "\n";
+        if (asyncSound) {
+            cout << t(Str::ASYNC_SUFFIX);
+        }
+        cout << "\n";
     }
 
     // Schleife Direktanzeige von Zeit und Datum
@@ -808,7 +814,9 @@ int main(int argc, char* argv[])
         if (useDailyTimes) {
             wallTarget = nextDailyTarget(dailyTimes);
         } else if (useAtTime) {
-            long long nextMs = millisecondsUntilTime(atHour, atMinute, atSecond);
+            long long nextMs = useAtDateTime
+                                   ? millisecondsUntilDateTime(atYear, atMonth, atDay, atHour, atMinute, atSecond)
+                                   : millisecondsUntilTime(atHour, atMinute, atSecond);
             if (nextMs == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
             ms = nextMs;
             if (ms > MAX_MS) ms = MAX_MS;
@@ -893,7 +901,7 @@ int main(int argc, char* argv[])
                 cout << buf;
                 // Tomorrow-Suffix, verschwindet automatisch nach Mitternacht
                 if (wallTargetT != 0 && isTargetTomorrow(wallTargetT))
-                cout << t(Str::TOMORROW_SUFFIX);
+                    cout << t(Str::TOMORROW_SUFFIX);
                 cout << " [";
 
                 for (int i = 0; i < barWidth; ++i) cout << (i < filled ? '#' : '-');
