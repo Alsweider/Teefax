@@ -148,6 +148,23 @@ long long parseTime(const string& arg) {
     return totalMs;
 }
 
+// Prüft, ob ein Argument eine bekannte Zeiteinheit ohne vorangestellte Zahl ist
+// (Erkennt Tippfehler wie "teefax 5 min" statt "teefax 5min")
+bool isStandaloneUnit(const string& arg) {
+    string u;
+    u.reserve(arg.size());
+    for (char c : arg)
+        u += static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    static const vector<string> known = {
+        "ms", "s", "sec", "m", "min", "h", "hr", "hour",
+        "d", "day", "w", "wk", "week", "mo", "mon", "month",
+        "y", "yr", "year"
+    };
+    for (const auto& k : known)
+        if (u == k) return true;
+    return false;
+}
+
 // Hilfsfunktion: std::string -> std::wstring (mit Fehlerprüfung), weil Windows wstring für .WAV-Wiedergabe braucht
 wstring toWide(const string& str) {
     if (str.empty()) return wstring();
@@ -729,6 +746,11 @@ int main(int argc, char* argv[])
             long long possible = parseTime(arg);
             if (possible > 0) {
                 ms = possible;
+            } else if (isStandaloneUnit(arg)) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), t(Str::ERROR_DETACHED_UNIT), arg.c_str());
+                cout << buf << "\n";
+                return 1;
             } else if (soundFile.empty()) {
                 soundFile = arg;
             }
