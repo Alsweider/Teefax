@@ -757,11 +757,16 @@ int main(int argc, char* argv[])
 
         if (useAtTime) {
             char buf[256];
-            snprintf(buf, sizeof(buf), t(Str::TIMER_AT_TIME),
-                     atHour, atMinute, atSecond);
+            if (useAtDateTime) {
+                snprintf(buf, sizeof(buf), t(Str::TIMER_AT_DATETIME),
+                         atYear, atMonth, atDay, atHour, atMinute, atSecond);
+            } else {
+                snprintf(buf, sizeof(buf), t(Str::TIMER_AT_TIME),
+                         atHour, atMinute, atSecond);
+            }
             cout << buf;
 
-            // Prüfen ob Ziel morgen liegt
+            // Prüfen ob Ziel morgen liegt (prima bei reiner Uhrzeit oder nahem Datum)
             auto atWallTarget = chrono::system_clock::now()
                                 + chrono::milliseconds(ms);
             time_t atTargetT = chrono::system_clock::to_time_t(atWallTarget);

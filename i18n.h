@@ -11,7 +11,7 @@
 // ── Alle Texte als IDs ────────────────────────────────────────────────
 enum class Str {
     // Statusmeldungen
-    STARTED, TIMER_COUNTER, TIMER_AT_TIME, TIMER_DAILY,
+    STARTED, TIMER_COUNTER, TIMER_AT_TIME, TIMER_AT_DATETIME, TIMER_DAILY,
     REMAINING, LOOP_PREFIX, TIMER_ENDED,
     ASYNC_SUFFIX, ERROR_NO_TIME, ERROR_PAST_DATETIME,
     ERROR_INVALID_AT, ERROR_INVALID_DAILY, ERROR_NO_DAILY_TIMES,
@@ -43,6 +43,7 @@ static const TranslationMap LANG_DE = {
     { Str::STARTED,              "Teefax [v%s] gestartet" },
     { Str::TIMER_COUNTER,        " mit Zaehler: %s" },
     { Str::TIMER_AT_TIME,        " fuer Uhrzeit %02d:%02d:%02d" },
+    { Str::TIMER_AT_DATETIME,    " fuer Datum %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " mit taeglichem Alarm." },
     { Str::REMAINING,            "Verbleibend: %s" },
     { Str::LOOP_PREFIX,          "Durchlauf %d | " },
@@ -112,6 +113,7 @@ static const TranslationMap LANG_FR = {
     { Str::STARTED,              "Teefax [v%s] demarre" },
     { Str::TIMER_COUNTER,        " avec compteur: %s" },
     { Str::TIMER_AT_TIME,        " jusqu'a %02d:%02d:%02d" },
+    { Str::TIMER_AT_DATETIME,    " jusqu'au %04d-%02d-%02d a %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " avec alarme quotidienne." },
     { Str::REMAINING,            "Restant: %s" },
     { Str::LOOP_PREFIX,          "Boucle %d | " },
@@ -181,6 +183,7 @@ static const TranslationMap LANG_PT = {
     { Str::STARTED,              "Teefax [v%s] iniciado" },
     { Str::TIMER_COUNTER,        " com temporizador: %s" },
     { Str::TIMER_AT_TIME,        " ate as %02d:%02d:%02d" },
+    { Str::TIMER_AT_DATETIME,    " ate %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " com alarme diario." },
     { Str::REMAINING,            "Restante: %s" },
     { Str::LOOP_PREFIX,          "Ciclo %d | " },
@@ -250,6 +253,7 @@ static const TranslationMap LANG_RU = {
     { Str::STARTED,              "Teefax [v%s] zapushchen" },
     { Str::TIMER_COUNTER,        " s tajmerom: %s" },
     { Str::TIMER_AT_TIME,        " do %02d:%02d:%02d" },
+    { Str::TIMER_AT_DATETIME,    " do %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " s ezhednevnym signalom." },
     { Str::REMAINING,            "Ostalos': %s" },
     { Str::LOOP_PREFIX,          "Krug %d | " },
@@ -319,6 +323,7 @@ static const TranslationMap LANG_EN = {
     { Str::STARTED,              "Teefax [v%s] started" },
     { Str::TIMER_COUNTER,        " with timer: %s" },
     { Str::TIMER_AT_TIME,        " for time %02d:%02d:%02d" },
+    { Str::TIMER_AT_DATETIME,    " for date %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " with daily alarm." },
     { Str::REMAINING,            "Remaining: %s" },
     { Str::LOOP_PREFIX,          "Loop %d | " },
