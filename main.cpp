@@ -704,20 +704,16 @@ int main(int argc, char* argv[])
             useDailyTimes = true;
 
             while (i + 1 < argc && argv[i + 1][0] != '-') {
-
-                string timeStr = argv[++i];
+                string timeStr = argv[i + 1]; // erst schauen, noch nicht erhöhen
                 int h = 0, m = 0, s = 0;
                 int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
                 if (parsed < 2) {
-                    char buf[256];
-                    snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_DAILY), timeStr.c_str());
-                    cout << buf << "\n";
-                    return 1;
+                    break; // kein Zeitformat, äußere Schleife übernimmt es (etwa Sounddatei)
                 }
+                ++i; // jetzt erhöhen
 
                 if (parsed == 2) s = 0;
                 dailyTimes.emplace_back(h, m, s);
-
             }
 
             if (dailyTimes.empty()) {
@@ -734,6 +730,9 @@ int main(int argc, char* argv[])
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
             ++i; // bereits im Vor-Durchlauf verarbeitet
 
+        } else if (arg == "--version" || arg == "-v") {
+        cout << PRG_VERSION << "\n";
+        return 0;
         } else if (arg == "--help" || arg == "-h") {
             cout << t(Str::USAGE_HEADER);
             return 0;
