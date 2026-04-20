@@ -943,15 +943,12 @@ int main(int argc, char* argv[])
                 cout << "]   " << flush;
             }
 
-            // this_thread::sleep_for(chrono::milliseconds(1));
-            long long sleepMs = 5; // Prozessor dankt
-            if (verbleibendMs > 60000)      sleepMs = 500;  // > 1 Min -> 500ms-Schritte
-            else if (verbleibendMs > 5000)  sleepMs = 100;
-            else if (verbleibendMs > 1000)  sleepMs = 50;
-            // < 1s bleibt bei 5ms für Präzision
-
-            // Nie länger schlafen als noch Zeit übrig ist
-            sleepMs = std::min(sleepMs, verbleibendMs);
+            // Bis zur nächsten Sekundengrenze schlafen:
+            // verbleibendMs % 1000 ergibt genau die Ms, die in der aktuellen
+            // Anzeigesekunde noch verbleiben. Anzeige springt synchron zur Uhr.
+            long long sleepMs = verbleibendMs % 1000;
+            if (sleepMs == 0) sleepMs = 1000;          // exakt auf Grenze: volle Sekunde
+            if (sleepMs > verbleibendMs) sleepMs = verbleibendMs; // nicht überschießen
             if (sleepMs < 1) sleepMs = 1;
 
             this_thread::sleep_for(chrono::milliseconds(sleepMs));
