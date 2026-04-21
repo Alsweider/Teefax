@@ -2,7 +2,6 @@
 #define I18N_H
 
 // i18n.h
-#pragma once
 #include <string>
 #include <unordered_map>
 #include <cstdlib>   // getenv
@@ -25,7 +24,7 @@ enum class Str {
 
     // Datei / Befehl
     FILE_NOT_FOUND, FILE_OPENED, FILE_ERROR,
-    CMD_EXECUTED, CMD_ERROR, CMD_TIMEOUT,
+    CMD_STARTED, CMD_ERROR,
     AUDIO_NOT_FOUND, AUDIO_PATH_ERROR,
     FILE_SYSTEM_ERROR,
 
@@ -61,7 +60,7 @@ static const TranslationMap LANG_DE = {
     { Str::FILE_NOT_FOUND,       "\nDatei nicht gefunden: %s" },
     { Str::FILE_OPENED,          "\nDatei geoeffnet: %s" },
     { Str::FILE_ERROR,           "\nFehler beim Oeffnen (Code %d): %s" },
-    { Str::CMD_EXECUTED,         "\nBefehl ausgefuehrt: %s" },
+    { Str::CMD_STARTED,          "\nBefehl gestartet: %s" },
     { Str::CMD_ERROR,            "\nFehler beim Ausfuehren (%d): %s" },
     { Str::ERROR_UNKNOWN_UNIT, "Unbekannte Einheit: %s" },
     { Str::ERROR_FILE_CONVERSION, "\nFehler bei der Pfad-Konvertierung: %s" },
@@ -106,7 +105,6 @@ static const TranslationMap LANG_DE = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
-    { Str::CMD_TIMEOUT, "\nBefehl laeuft noch, Programm wird fortgesetzt..." },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
     { Str::TOMORROW_SUFFIX, " (morgen)" },
     };
@@ -138,7 +136,7 @@ static const TranslationMap LANG_FR = {
     { Str::FILE_NOT_FOUND,       "\nFichier introuvable: %s" },
     { Str::FILE_OPENED,          "\nFichier ouvert: %s" },
     { Str::FILE_ERROR,           "\nErreur a l'ouverture (code %d): %s" },
-    { Str::CMD_EXECUTED,         "\nCommande executee: %s" },
+    { Str::CMD_STARTED,          "\nCommande lancee: %s" },
     { Str::CMD_ERROR,            "\nErreur lors de l'execution (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFichier audio introuvable: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErreur de conversion du chemin audio: %s" },
@@ -178,7 +176,6 @@ static const TranslationMap LANG_FR = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
-    { Str::CMD_TIMEOUT, "\nCommande toujours en cours, on continue..." },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
     { Str::TOMORROW_SUFFIX, " (demain)" },
     };
@@ -210,7 +207,7 @@ static const TranslationMap LANG_PT = {
     { Str::FILE_NOT_FOUND,       "\nFicheiro nao encontrado: %s" },
     { Str::FILE_OPENED,          "\nFicheiro aberto: %s" },
     { Str::FILE_ERROR,           "\nErro ao abrir o ficheiro (codigo %d): %s" },
-    { Str::CMD_EXECUTED,         "\nComando executado: %s" },
+    { Str::CMD_STARTED,          "\nComando iniciado: %s" },
     { Str::CMD_ERROR,            "\nErro ao executar o comando (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFicheiro de audio nao encontrado: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErro na conversao do caminho do audio: %s" },
@@ -250,7 +247,6 @@ static const TranslationMap LANG_PT = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
-    { Str::CMD_TIMEOUT, "\nComando ainda em execucao, continuando..." },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
     { Str::TOMORROW_SUFFIX, " (amanha)" },
     };
@@ -282,7 +278,7 @@ static const TranslationMap LANG_RU = {
     { Str::FILE_NOT_FOUND,       "\nFajl ne najden: %s" },
     { Str::FILE_OPENED,          "\nFajl otkryt: %s" },
     { Str::FILE_ERROR,           "\nOshibka otkrytiya (kod %d): %s" },
-    { Str::CMD_EXECUTED,         "\nKomanda vypolnena: %s" },
+    { Str::CMD_STARTED,          "\nKomanda zapushchena: %s" },
     { Str::CMD_ERROR,            "\nOshibka vypolneniya (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nAudiofajl ne najden: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nOshibka preobrazovaniya puti audio: %s" },
@@ -322,7 +318,6 @@ static const TranslationMap LANG_RU = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
-    { Str::CMD_TIMEOUT, "\nKomanda eshche vypolnyaetsya, prodolzhaem..." },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     { Str::TOMORROW_SUFFIX, " (zavtra)" },
     };
@@ -349,7 +344,7 @@ static const TranslationMap LANG_EN = {
     { Str::FILE_NOT_FOUND,       "\nFile not found: %s" },
     { Str::FILE_OPENED,          "\nFile opened: %s" },
     { Str::FILE_ERROR,           "\nError opening file (code %d): %s" },
-    { Str::CMD_EXECUTED,         "\nCommand executed: %s" },
+    { Str::CMD_STARTED,          "\nCommand started: %s" },
     { Str::CMD_ERROR,            "\nError running command (%d): %s" },
     { Str::ERROR_UNKNOWN_UNIT, "Unknown unit: %s" },
     { Str::ERROR_FILE_CONVERSION, "\nError converting path: %s" },
@@ -394,7 +389,6 @@ static const TranslationMap LANG_EN = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
     },
-    { Str::CMD_TIMEOUT, "\nCommand still running, continuing..." },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     { Str::TOMORROW_SUFFIX, " (tomorrow)" },
     };

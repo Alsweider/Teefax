@@ -275,7 +275,6 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
-    // UTF-8 -> UTF-16 (notwendig für Windows CreateProcessW)
     wstring wcommand = toWide(command);
     if (wcommand.empty()) {
         char buf[512];
@@ -288,17 +287,12 @@ void runConsoleCommand(const string& command) {
     PROCESS_INFORMATION pi{};
     si.cb = sizeof(si);
 
-    // /C bewirkt, dass die Eingabe nach Ausführung geschlossen wird. Bei /K bleibt sie offen.
     wstring fullCmd = L"cmd.exe /C " + wcommand;
 
     BOOL success = CreateProcessW(
-        NULL,
-        &fullCmd[0],
-        NULL, NULL,
-        TRUE,//vorher "FALSE,", wir nehmen mal TRUE, um die Ausgabe von --cmd "dir" zu sehen (bInheritHandles / Handle-Vererbung)
-        0, //CREATE_NO_WINDOW, // "CREATE_NO_WINDOW," kein Konsolenfenster anzeigen, bei "0," eben doch!
-        NULL, NULL,
-        &si, &pi
+        NULL, &fullCmd[0],
+        NULL, NULL, TRUE, 0,
+        NULL, NULL, &si, &pi
         );
 
     if (!success) {
@@ -309,22 +303,11 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
-    // Warten bis der Befehl beendet ist, maximal 30 Sekunden
-    DWORD waitResult = WaitForSingleObject(pi.hProcess, 30000);
-
-    if (waitResult == WAIT_TIMEOUT) {
-        // Prozess läuft noch, laufen lassen und nicht weiter blockieren
-        cout << t(Str::CMD_TIMEOUT);
-        CloseHandle(pi.hProcess);
-        CloseHandle(pi.hThread);
-        return;
-    }
-
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
 
     char buf[512];
-    snprintf(buf, sizeof(buf), t(Str::CMD_EXECUTED), command.c_str());
+    snprintf(buf, sizeof(buf), t(Str::CMD_STARTED), command.c_str());
     cout << buf << "\n";
 }
 
