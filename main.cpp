@@ -513,6 +513,18 @@ chrono::system_clock::time_point nextDailyTarget(
                : system_clock::now() + seconds(1);
 }
 
+// Erkennt, ob Teefax aus einer bestehenden Konsole aufgerufen wurde
+// oder ob Windows selbst die Konsole erstellt hat (= Doppelklick)
+bool launchedFromExistingConsole() {
+    HWND hwnd = GetConsoleWindow();
+    if (!hwnd) return false;
+
+    DWORD consoleProc = 0;
+    GetWindowThreadProcessId(hwnd, &consoleProc);
+
+    // Wenn die Konsole einem anderen Prozess gehört, wurde sie geerbt
+    return (consoleProc != GetCurrentProcessId());
+}
 
 // Hauptprogramm
 int main(int argc, char* argv[])
@@ -563,9 +575,14 @@ int main(int argc, char* argv[])
     if (argc < 2) {
         char buf[256];
         snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
-        cout << buf;
-        cout << ".\n\n";
+        cout << buf << ".\n\n";
         cout << t(Str::USAGE_HEADER);
+
+        if (!launchedFromExistingConsole()) {
+            cout << "\n";
+            system("pause"); // oder: cout << "Druecke eine Taste..."; cin.get();
+        }
+
         return 0;
     }
 
