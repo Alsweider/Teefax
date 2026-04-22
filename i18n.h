@@ -10,7 +10,7 @@
 // ── Alle Texte als IDs ────────────────────────────────────────────────
 enum class Str {
     // Statusmeldungen
-    STARTED, TIMER_COUNTER, TIMER_AT_TIME, TIMER_AT_DATETIME, TIMER_DAILY,
+    STARTED, TIMER_COUNTER, TIMER_AT_TIME, TIMER_AT_DATETIME, TIMER_DAILY, TIMER_TARGET,
     REMAINING, LOOP_PREFIX, TIMER_ENDED,
     ASYNC_SUFFIX, ERROR_NO_TIME, ERROR_PAST_DATETIME,
     ERROR_INVALID_AT, ERROR_INVALID_DAILY, ERROR_NO_DAILY_TIMES,
@@ -44,6 +44,7 @@ static const TranslationMap LANG_DE = {
     { Str::TIMER_AT_TIME,        " fuer Uhrzeit %02d:%02d:%02d" },
     { Str::TIMER_AT_DATETIME,    " fuer Datum %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " mit taeglichem Alarm." },
+    { Str::TIMER_TARGET,         " (bis %02d:%02d:%02d)" },
     { Str::REMAINING,            "Verbleibend: %s" },
     { Str::LOOP_PREFIX,          "Durchlauf %d | " },
     { Str::TIMER_ENDED,          "\nZaehler beendet." },
@@ -115,6 +116,7 @@ static const TranslationMap LANG_FR = {
     { Str::TIMER_AT_TIME,        " jusqu'a %02d:%02d:%02d" },
     { Str::TIMER_AT_DATETIME,    " jusqu'au %04d-%02d-%02d a %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " avec alarme quotidienne." },
+    { Str::TIMER_TARGET,         " (jusqu'a %02d:%02d:%02d)" },
     { Str::REMAINING,            "Restant: %s" },
     { Str::LOOP_PREFIX,          "Boucle %d | " },
     { Str::TIMER_ENDED,          "\nCompteur termine." },
@@ -186,6 +188,7 @@ static const TranslationMap LANG_PT = {
     { Str::TIMER_AT_TIME,        " ate as %02d:%02d:%02d" },
     { Str::TIMER_AT_DATETIME,    " ate %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " com alarme diario." },
+    { Str::TIMER_TARGET,         " (ate %02d:%02d:%02d)" },
     { Str::REMAINING,            "Restante: %s" },
     { Str::LOOP_PREFIX,          "Ciclo %d | " },
     { Str::TIMER_ENDED,          "\nTemporizador terminado." },
@@ -257,6 +260,7 @@ static const TranslationMap LANG_RU = {
     { Str::TIMER_AT_TIME,        " do %02d:%02d:%02d" },
     { Str::TIMER_AT_DATETIME,    " do %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " s ezhednevnym signalom." },
+    { Str::TIMER_TARGET,         " (do %02d:%02d:%02d)" },
     { Str::REMAINING,            "Ostalos': %s" },
     { Str::LOOP_PREFIX,          "Krug %d | " },
     { Str::TIMER_ENDED,          "\nTajmer zavershyon." },
@@ -328,6 +332,7 @@ static const TranslationMap LANG_EN = {
     { Str::TIMER_AT_TIME,        " for time %02d:%02d:%02d" },
     { Str::TIMER_AT_DATETIME,    " for date %04d-%02d-%02d %02d:%02d:%02d" },
     { Str::TIMER_DAILY,          " with daily alarm." },
+    { Str::TIMER_TARGET,         " (until %02d:%02d:%02d)" },
     { Str::REMAINING,            "Remaining: %s" },
     { Str::LOOP_PREFIX,          "Loop %d | " },
     { Str::TIMER_ENDED,          "\nTimer finished." },

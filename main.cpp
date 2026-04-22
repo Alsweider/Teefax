@@ -383,24 +383,29 @@ string formatVerbleibend(long long totalSec) {
     long long minutes = totalSec / secPerMin; totalSec %= secPerMin;
     long long seconds = totalSec;
 
-    stringstream ss;
-    bool first = true;
-    auto append = [&](long long val, const char* unit) {
-        if (val > 0 || !first) {
-            if (!first) ss << " ";
-            ss << val << unit;
-            first = false;
-        }
+    struct UnitVal { long long val; const char* unit; };
+    UnitVal parts[] = {
+        {years, "y"}, {months, "mo"}, {days, "d"},
+        {hours, "h"}, {minutes, "m"}, {seconds, "s"}
     };
 
-    append(years, "y");
-    append(months, "mo");
-    append(days, "d");
-    append(hours, "h");
-    append(minutes, "m");
-    append(seconds, "s");
+    // Letzten Nicht-Null-Wert finden
+    int last = -1;
+    for (int i = 5; i >= 0; --i) {
+        if (parts[i].val > 0) { last = i; break; }
+    }
+    if (last == -1) return "0s";
 
-    if (ss.str().empty()) return "0s"; // Sicherheit, damit kein leerer String ausgespuckt wird.
+    // Ausgabe vom ersten Nicht-Null bis zum letzten Nicht-Null
+    stringstream ss;
+    bool found = false;
+    for (int i = 0; i <= last; ++i) {
+        if (parts[i].val > 0 || found) {
+            if (found) ss << " ";
+            ss << parts[i].val << parts[i].unit;
+            found = true;
+        }
+    }
 
     return ss.str();
 }
@@ -802,6 +807,16 @@ int main(int argc, char* argv[])
                 char buf[256];
                 snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
                 cout << buf;
+
+                // absolute Zielzeit berechnen und anhängen
+                auto targetWall = chrono::system_clock::now() + chrono::milliseconds(ms);
+                time_t targetT = chrono::system_clock::to_time_t(targetWall);
+                tm targetTm{};
+                localtime_s(&targetTm, &targetT);
+                char tbuf[64];
+                snprintf(tbuf, sizeof(tbuf), t(Str::TIMER_TARGET),
+                         targetTm.tm_hour, targetTm.tm_min, targetTm.tm_sec);
+                cout << tbuf;
             } else {
                 cout << t(Str::TIMER_DAILY);
             }
