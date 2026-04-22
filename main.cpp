@@ -561,6 +561,7 @@ int main(int argc, char* argv[])
     bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
     vector<tuple<int,int,int>> dailyTimes;
     bool useDailyTimes = false;
+    string customMsg; // benutzerdefinierte Notiz in Benachrichtigungsfenster am Schluss
 
     // Audio priorisieren
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
@@ -610,6 +611,8 @@ int main(int argc, char* argv[])
             }
         } else if (arg == "--nomsg") {
             showMessage = false;
+        } else if (arg == "--msg" && i + 1 < argc) {
+        customMsg = argv[++i];
         } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) {
             alarmRepeat = safeStoi(argv[++i], 1);
             if (alarmRepeat < 1) alarmRepeat = 1;
@@ -1035,9 +1038,12 @@ int main(int argc, char* argv[])
 
         // Benachrichtigung, Zeit abgelaufen
         if (showMessage) {
+            wstring notifyText = toWide(t(Str::NOTIFY_MSG));
+            if (!customMsg.empty())
+                notifyText += L"\n\n" + toWide(customMsg); // benutzerdefinierte Notiz anhängen
             showNotification(
                 toWide(t(Str::NOTIFY_TITLE)),
-                toWide(t(Str::NOTIFY_MSG))
+                notifyText
                 );
         }
 
