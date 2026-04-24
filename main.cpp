@@ -13,6 +13,7 @@
 #include <atomic>
 #include "sound_array.h" // Signalton
 #include <vector> // Für täglichen Alarm
+#include <sstream> // Für --every Parsing/Formatierung
 
 
 #pragma comment(lib, "winmm.lib")
@@ -518,6 +519,104 @@ chrono::system_clock::time_point nextDailyTarget(
                : system_clock::now() + seconds(1);
 }
 
+// ── --every: Wochentag- oder Monatstag-Wiederholung ──────────────────
+
+struct EverySpec {
+    enum class Type { Weekday, MonthDay } type = Type::Weekday;
+    vector<int> days;   // Wochentage: 0=So…6=Sa  |  Monatstage: 1–31
+    int hour = 0, minute = 0, second = 0;
+};
+
+// Gibt den tm_wday-Wert (0–6) für einen Tagnamen zurück, oder -1
+int parseWeekday(const string& s) {
+    string u;
+    for (char c : s) u += static_cast<char>(tolower(static_cast<unsigned char>(c)));
+    if (u == "sun" || u == "sunday")    return 0;
+    if (u == "mon" || u == "monday")    return 1;
+    if (u == "tue" || u == "tuesday")   return 2;
+    if (u == "wed" || u == "wednesday") return 3;
+    if (u == "thu" || u == "thursday")  return 4;
+    if (u == "fri" || u == "friday")    return 5;
+    if (u == "sat" || u == "saturday")  return 6;
+    return -1;
+}
+
+// Kommaseparierte Tag-Liste parsen: "mon,wed,fri" oder "1,15"
+EverySpec parseEverySpec(const string& daysStr, int h, int m, int s) {
+    EverySpec spec;
+    spec.hour = h; spec.minute = m; spec.second = s;
+
+    istringstream ss(daysStr);
+    string token;
+    while (getline(ss, token, ',')) {
+        if (token.empty()) continue;
+        int wd = parseWeekday(token);
+        if (wd >= 0) {
+            spec.type = EverySpec::Type::Weekday;
+            spec.days.push_back(wd);
+        } else {
+            int day = safeStoi(token, -1);
+            if (day >= 1 && day <= 31) {
+                spec.type = EverySpec::Type::MonthDay;
+                spec.days.push_back(day);
+            }
+        }
+    }
+    return spec;
+}
+
+// Tage als lesbaren String ausgeben: "Mon,Wed,Fri" oder "1.,15."
+string formatEveryDays(const EverySpec& spec) {
+    static const char* wdNames[] = {"Sun","Mon","Tue","Wed","Thu","Fri","Sat"};
+    ostringstream ss;
+    for (size_t i = 0; i < spec.days.size(); ++i) {
+        if (i > 0) ss << ",";
+        if (spec.type == EverySpec::Type::Weekday)
+            ss << wdNames[spec.days[i]];
+        else
+            ss << spec.days[i] << ".";
+    }
+    return ss.str();
+}
+
+// Nächsten Zielzeitpunkt für --every berechnen (bis zu 400 Tage voraus)
+chrono::system_clock::time_point nextEveryTarget(const EverySpec& spec) {
+    using namespace chrono;
+
+    auto now   = system_clock::now();
+    time_t tnow = system_clock::to_time_t(now);
+    tm base{};
+    localtime_s(&base, &tnow);
+
+    for (int offset = 0; offset <= 400; ++offset) {
+        tm candidate  = base;
+        candidate.tm_mday  += offset;
+        candidate.tm_hour   = spec.hour;
+        candidate.tm_min    = spec.minute;
+        candidate.tm_sec    = spec.second;
+        candidate.tm_isdst  = -1;
+
+        time_t tt = mktime(&candidate);
+        if (tt == -1) continue;
+
+        auto target = system_clock::from_time_t(tt);
+        if (target <= now) continue;   // liegt in der Vergangenheit
+
+        bool match = false;
+        if (spec.type == EverySpec::Type::Weekday) {
+            for (int d : spec.days)
+                if (d == candidate.tm_wday) { match = true; break; }
+        } else {
+            for (int d : spec.days)
+                if (d == candidate.tm_mday) { match = true; break; }
+        }
+
+        if (match) return target;
+    }
+
+    return now + hours(24); // Fallback, sollte nie eintreten
+}
+
 // Erkennt, ob Teefax aus einer bestehenden Konsole aufgerufen wurde
 // oder ob Windows selbst die Konsole erstellt hat (= Doppelklick)
 bool launchedFromExistingConsole() {
@@ -561,6 +660,8 @@ int main(int argc, char* argv[])
     bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
     vector<tuple<int,int,int>> dailyTimes;
     bool useDailyTimes = false;
+    EverySpec everySpec;
+    bool useEvery = false;
     string customMsg; // benutzerdefinierte Notiz in Benachrichtigungsfenster am Schluss
 
     // Audio priorisieren
@@ -612,7 +713,7 @@ int main(int argc, char* argv[])
         } else if (arg == "--nomsg") {
             showMessage = false;
         } else if (arg == "--msg" && i + 1 < argc) {
-        customMsg = argv[++i];
+            customMsg = argv[++i];
         } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) {
             alarmRepeat = safeStoi(argv[++i], 1);
             if (alarmRepeat < 1) alarmRepeat = 1;
@@ -646,7 +747,7 @@ int main(int argc, char* argv[])
                     }
                     else
                     {
-                        // Keine gültige Uhrzeit → Mitternacht verwenden
+                        // Keine gültige Uhrzeit, also Mitternacht verwenden
                         hour = 0;
                         minute = 0;
                         second = 0;
@@ -735,12 +836,43 @@ int main(int argc, char* argv[])
             loop = true;
             maxLoops = -1; // I seek eternal fire
 
+        } else if ((arg == "--every" || arg == "-e") && i + 1 < argc) {
+            string daysStr = argv[++i];
+            int h = 0, m = 0, s = 0;
+
+            // Optionale Uhrzeit einlesen (sofern kein anderes Argument folgt)
+            if (i + 1 < argc && argv[i + 1][0] != '-') {
+                string timeStr = argv[i + 1];
+                int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
+                if (parsed >= 2) {
+                    if (parsed == 2) s = 0;
+                    ++i;
+                }
+                // Kein gültiges Zeitformat, also nicht konsumieren (evtl. Sounddatei)
+            }
+
+            everySpec = parseEverySpec(daysStr, h, m, s);
+            if (everySpec.days.empty()) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_EVERY), daysStr.c_str());
+                cout << buf << "\n";
+                return 1;
+            }
+            useEvery  = true;
+            loop      = true;
+            maxLoops  = -1;
+
+            auto target = nextEveryTarget(everySpec);
+            ms = chrono::duration_cast<chrono::milliseconds>(
+                     target - chrono::system_clock::now()).count();
+            if (ms <= 0) ms = 1000;
+
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
             ++i; // bereits im Vor-Durchlauf verarbeitet
 
         } else if (arg == "--version" || arg == "-v") {
-        cout << PRG_VERSION << "\n";
-        return 0;
+            cout << PRG_VERSION << "\n";
+            return 0;
         } else if (arg == "--help" || arg == "-h") {
             cout << t(Str::USAGE_HEADER);
             return 0;
@@ -766,7 +898,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (!useAtTime && !useDailyTimes && !showLiveTime && ms <= 0) {
+    if (!useAtTime && !useDailyTimes && !useEvery && !showLiveTime && ms <= 0) {
         cout << t(Str::ERROR_NO_TIME) << "\n";
         return 1;
     }
@@ -806,7 +938,15 @@ int main(int argc, char* argv[])
             // hier Umrechnung in passende Einheiten
             string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
 
-            if (!useDailyTimes){
+            if (useDailyTimes) {
+                cout << t(Str::TIMER_DAILY);
+            } else if (useEvery) {
+                char buf[256];
+                string daysStr = formatEveryDays(everySpec);
+                snprintf(buf, sizeof(buf), t(Str::TIMER_EVERY),
+                         daysStr.c_str(), everySpec.hour, everySpec.minute, everySpec.second);
+                cout << buf;
+            } else {
                 char buf[256];
                 snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
                 cout << buf;
@@ -820,8 +960,6 @@ int main(int argc, char* argv[])
                 snprintf(tbuf, sizeof(tbuf), t(Str::TIMER_TARGET),
                          targetTm.tm_hour, targetTm.tm_min, targetTm.tm_sec);
                 cout << tbuf;
-            } else {
-                cout << t(Str::TIMER_DAILY);
             }
         }
         if (asyncSound) {
@@ -857,6 +995,8 @@ int main(int argc, char* argv[])
         chrono::system_clock::time_point wallTarget;
         if (useDailyTimes) {
             wallTarget = nextDailyTarget(dailyTimes);
+        } else if (useEvery) {
+            wallTarget = nextEveryTarget(everySpec);
         } else if (useAtTime) {
             long long nextMs;
             if (useAtDateTime && loopCount > 1) {
@@ -874,14 +1014,14 @@ int main(int argc, char* argv[])
             if (ms > MAX_MS) ms = MAX_MS;
         }
 
-        long long totalMsThisRound = useDailyTimes
+        long long totalMsThisRound = (useDailyTimes || useEvery)
                                          ? chrono::duration_cast<chrono::milliseconds>(
                                                wallTarget - chrono::system_clock::now()).count()
                                          : ms;
 
         // Wanduhr-Ziel als time_t für Tomorrow-Anzeige
         time_t wallTargetT = 0;
-        if (useDailyTimes) {
+        if (useDailyTimes || useEvery) {
             wallTargetT = chrono::system_clock::to_time_t(wallTarget);
         } else if (useAtTime) {
             wallTargetT = chrono::system_clock::to_time_t(
@@ -901,7 +1041,7 @@ int main(int argc, char* argv[])
             bool done = false;
             long long verbleibendMs = 0;
 
-            if (useDailyTimes) {
+            if (useDailyTimes || useEvery) {
                 verbleibendMs = chrono::duration_cast<chrono::milliseconds>(
                                     wallTarget - nowWall).count();
                 if (verbleibendMs <= 0) done = true;
@@ -1020,9 +1160,14 @@ int main(int argc, char* argv[])
             }
         }
 
-        // Nächste Wartezeit berechnen (nur noch für --daily nötig, --at läuft oben)
+        // Nächste Wartezeit berechnen (nur noch für --daily / --every nötig, --at läuft oben)
         if (useDailyTimes) {
             wallTarget = nextDailyTarget(dailyTimes);
+            ms = chrono::duration_cast<chrono::milliseconds>(
+                     wallTarget - chrono::system_clock::now()).count();
+            if (ms <= 0) ms = 1000;
+        } else if (useEvery) {
+            wallTarget = nextEveryTarget(everySpec);
             ms = chrono::duration_cast<chrono::milliseconds>(
                      wallTarget - chrono::system_clock::now()).count();
             if (ms <= 0) ms = 1000;
@@ -1035,6 +1180,9 @@ int main(int argc, char* argv[])
         if (!openFile.empty()) {
             openFileAfterTimer(openFile);
         }
+
+        // Fenstertitel zurücksetzen, bevor die Benachrichtigung den Fokus/Thread blockiert.
+        SetConsoleTitleA("Teefax");
 
         // Benachrichtigung, Zeit abgelaufen
         if (showMessage) {
@@ -1054,8 +1202,6 @@ int main(int argc, char* argv[])
     if (noSleep){
         preventSleep(false);
     }
-
-    SetConsoleTitleA("Teefax"); // Fenstertitel zurücksetzen
 
     return 0;
 }
