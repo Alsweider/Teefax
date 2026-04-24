@@ -49,7 +49,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Wochen: `w` oder `wk` oder  `week`
 - Monate (auf 30 Tage genormt): `mo` oder `mon` oder `month`
 - Jahre (auf 365 Tage genormt): `y` oder `yr` oder `year`
-- Schleife: `--loop [Anzahl]` oder `-l` (z. B.: `teefax 3m --loop` oder `teefax 5s --loop 3` ). Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne. Anzahl der Wiederholungen optional, sonst unendlich.
+- Schleife: `--loop [Anzahl]` oder `-l` (z. B.: `teefax 3m --loop` oder `teefax 5s --loop 3`). Der Zähler beginnt nach Ablauf der eingestellten Zeit wieder von vorne. Anzahl der Wiederholungen optional, sonst unendlich.
 - Stummschalten: `--mute` (z. B. `teefax 20s --mute`) oder `-m`. Es wird kein Weckton abgespielt.
 - Eigener Weckton: Um eine .WAV-Datei anstelle der Programmtöne abzuspielen, muss der Dateipfad in Anführungszeichen als Parameter angegeben werden, z. B.: `teefax 5m "C:\Musik\wassertropfen.WAV"`
 - Alarm bei Uhrzeit (basierend auf Systemzeit): `-a HH:mm[:ss]` oder `--at HH:mm[:ss]` zählt bis zur angegebenen Uhrzeit. Alias: `--until`
@@ -59,18 +59,20 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Mini-Uhr - Laufende Direktanzeige des aktuellen Datums und der Zeit: `-t` oder `--time` (Konsole wird geleert; Abbrechen mit Strg+C)
 - Alarm wiederholen: `--alarm-repeat [Anzahl]` oder `-ar [Anzahl]`
 - Alarm-Intervall, Abstand zwischen den wiederholten Alarmen (Standard: 2): `--alarm-interval [Sekunden]` oder kurz `-ai [Sekunden]` (z. B. `teefax 10s --alarm-repeat 5 --alarm-interval 2` wiederholt den Alarmton nach Ablauf des Zählers fünfmal im 2-Sekunden-Takt)
-- Weiterzählen während Alarm. Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen. (Sinnvoll etwa mit `--loop` und `--nomsg` einsetzbar.): `--async` oder `-as`
+- Weiterzählen während Alarm - Blockierung des Zählers durch Weckton umgehen, also parallel zum Ton zählen (sinnvoll etwa mit `--loop` und `--nomsg`): `--async` oder `-as`
 - Datei, URL oder Programm nach Ablauf der Zeit öffnen: `-o [Dateipfad]` oder `--open [Dateipfad]`, z. B.: `teefax 5m -o "C:\Notizen\erledigen.txt"` oder `teefax 5m -o "https://www.example.com"`
 - Konsolenbefehl in der Kommandozeile ausführen: `-c [Befehl]` oder `--cmd [Befehl]`, z. B.: `teefax 20s --cmd "shutdown -s -f -t 180"` startet nach 20 Sekunden einen 180-Sekunden-Countdown zum Herunterfahren des Systems. Rekursiv: `teefax 5s -c "start teefax 20s"` startet nach Ablauf der 5 Sekunden einen neuen Zähler mit 20 Sekunden.
 - Benachrichtigungsfenster (Popup) nach Ablauf des Zählers unterdrücken: `--nomsg`
+- Eigene Notiz im Benachrichtigungsfenster: `--msg [Text]`, z. B.: `teefax 5m --msg "Tee fertig!"`. Der Text wird zusätzlich zur Standardmeldung im Popup angezeigt.
 - Bildschirmschoner & Ruhezustand unterdrücken: `-ns` oder `--nosleep`
 - Akustisch runterzählen bis zum Alarm: `-pa [Sekunden]` oder `--prealarm [Sekunden]`. Beispiel: `teefax 20 --prealarm 5` wird 5 Sekunden vor dem Schlussalarm beginnen, sekündlich einen Signalton auszugeben. Mögliche Einsatzzwecke sind der Start eines Wettrennens oder auch Silvester. In Verbindung mit dem rekursiven Aufruf lassen sich auch Start- und Endzähler kombinieren. Dies etwa bewirkt einen 5-sekündigen Startzähler mit Signaltönen, der nach Ablauf einen 20-sekündigen Zähler mit 5-sekündigen Endsignalen startet: `teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"`
 - Sprache festlegen (de, en, fr, pt, ru): `-la [Sprache]` oder `--lang [Sprache]`. Beispiel: `teefax 20s --lang fr`
+- Versionsnummer anzeigen: `-v` oder `--version`
 - Hilfe anzeigen: `-h` oder `--help`
 
 
 
-Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` Das löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
+Die Zeiteinheiten lassen sich auch kombiniert verwenden: `teefax 3m30s --loop --mute` löst einen Zähler von 3 Minuten und 30 Sekunden aus, der nach Ablauf keinen Weckton abspielt und sich immer wiederholt.
 
 # Funktionsweise & Technik
 
