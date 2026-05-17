@@ -167,16 +167,37 @@ bool isStandaloneUnit(const string& arg) {
 }
 
 // Hilfsfunktion: std::string -> std::wstring (mit Fehlerprüfung), weil Windows wstring für .WAV-Wiedergabe braucht
-wstring toWide(const string& str) {
+// cp = Codepage (CP_UTF8 für Literal-Strings aus t(); CP_ACP für argv-Werte auf Windows)
+wstring toWide(const string& str, UINT cp = CP_UTF8) {
     if (str.empty()) return wstring();
-    int size_needed = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, NULL, 0);
+    int size_needed = MultiByteToWideChar(cp, 0, str.c_str(), -1, NULL, 0);
     if (size_needed == 0) return wstring();
     wstring wstr;
     wstr.resize(size_needed);
-    int rc = MultiByteToWideChar(CP_UTF8, 0, str.c_str(), -1, &wstr[0], size_needed);
+    int rc = MultiByteToWideChar(cp, 0, str.c_str(), -1, &wstr[0], size_needed);
     if (rc == 0) return wstring();
     if (!wstr.empty() && wstr.back() == L'\0') wstr.pop_back();
     return wstr;
+}
+
+// Konvertierung fuer argv-Strings: Windows uebergibt argv in der ANSI-Systemcodepage (CP_ACP),
+// nicht in UTF-8 - daher separate Variante fuer alle Werte, die der Nutzer eingibt.
+inline wstring toWideArgv(const string& str) {
+    return toWide(str, CP_ACP);
+}
+
+// Rueckkonvertierung fuer die Konsolenausgabe: wstring -> string in der aktuellen
+// Konsolenausgabe-Codepage (GetConsoleOutputCP), damit Umlaute korrekt erscheinen.
+// CP_ACP (Eingabe) != GetConsoleOutputCP() (Ausgabe, z.B. CP_850 auf deutschen Systemen).
+string toConsole(const wstring& wstr) {
+    if (wstr.empty()) return string();
+    UINT cp = GetConsoleOutputCP();
+    int size = WideCharToMultiByte(cp, 0, wstr.c_str(), -1, NULL, 0, NULL, NULL);
+    if (size == 0) return string();
+    string str(size, '\0');
+    WideCharToMultiByte(cp, 0, wstr.c_str(), -1, &str[0], size, NULL, NULL);
+    if (!str.empty() && str.back() == '\0') str.pop_back();
+    return str;
 }
 
 // Berechnet Millisekunden bis zur nächsten angegebenen Uhrzeit
@@ -242,7 +263,10 @@ void openFileAfterTimer(const string& filePath) {
     if (!isUrl) {
         try {
             if (!fs::exists(fs::path(filePath))) {
-                cout << t(Str::FILE_NOT_FOUND) << filePath << "\n";
+                char buf[512];
+                snprintf(buf, sizeof(buf), t(Str::FILE_NOT_FOUND),
+                         toConsole(toWideArgv(filePath)).c_str());
+                cout << buf << "\n";
                 return;
             }
         } catch (const fs::filesystem_error& e) {
@@ -253,19 +277,23 @@ void openFileAfterTimer(const string& filePath) {
         }
     }
 
-    wstring wfile = toWide(filePath);
+    wstring wfile = toWideArgv(filePath);
     if (wfile.empty()) {
-        cout << t(Str::ERROR_FILE_CONVERSION) << filePath << "\n";
+        char buf[512];
+        snprintf(buf, sizeof(buf), t(Str::ERROR_FILE_CONVERSION),
+                 toConsole(toWideArgv(filePath)).c_str());
+        cout << buf << "\n";
         return;
     }
+    string display = toConsole(wfile);
     HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
     if ((INT_PTR)res <= 32) {
         char buf[256];
-        snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, filePath.c_str());
+        snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, display.c_str());
         cout << buf;
     } else {
         char buf[256];
-        snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), filePath.c_str());
+        snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), display.c_str());
         cout << buf;
     }
 }
@@ -276,13 +304,16 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
-    wstring wcommand = toWide(command);
+    wstring wcommand = toWideArgv(command);
     if (wcommand.empty()) {
         char buf[512];
-        snprintf(buf, sizeof(buf), t(Str::ERROR_CMD_CONVERSION), command.c_str());
+        snprintf(buf, sizeof(buf), t(Str::ERROR_CMD_CONVERSION),
+                 toConsole(toWideArgv(command)).c_str());
         cout << buf << "\n";
         return;
     }
+
+    string display = toConsole(wcommand);
 
     STARTUPINFOW si{};
     PROCESS_INFORMATION pi{};
@@ -299,7 +330,7 @@ void runConsoleCommand(const string& command) {
     if (!success) {
         DWORD err = GetLastError();
         char buf[512];
-        snprintf(buf, sizeof(buf), t(Str::CMD_ERROR), (int)err, command.c_str());
+        snprintf(buf, sizeof(buf), t(Str::CMD_ERROR), (int)err, display.c_str());
         cout << buf << "\n";
         return;
     }
@@ -308,7 +339,72 @@ void runConsoleCommand(const string& command) {
     CloseHandle(pi.hThread);
 
     char buf[512];
-    snprintf(buf, sizeof(buf), t(Str::CMD_STARTED), command.c_str());
+    snprintf(buf, sizeof(buf), t(Str::CMD_STARTED), display.c_str());
+    cout << buf << "\n";
+}
+
+// Fenster anhand eines Teilstrings im Titel in den Vordergrund holen
+struct FindWindowData {
+    wstring titlePart; // Suchbegriff (lowercase)
+    HWND    result = nullptr;
+};
+
+static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
+{
+    if (!IsWindowVisible(hwnd)) return TRUE;
+
+    wchar_t buf[512];
+    if (GetWindowTextW(hwnd, buf, 512) == 0) return TRUE;
+
+    wstring title(buf);
+    wstring titleLow = title;
+    auto* data = reinterpret_cast<FindWindowData*>(lParam);
+
+    // case-insensitive Vergleich
+    transform(titleLow.begin(), titleLow.end(), titleLow.begin(),
+              [](wchar_t c){ return static_cast<wchar_t>(towlower(c)); });
+
+    if (titleLow.find(data->titlePart) != wstring::npos) {
+        data->result = hwnd;
+        return FALSE; // Enumeration stoppen
+    }
+    return TRUE;
+}
+
+void bringWindowToFront(const string& titleStr)
+{
+    wstring wOriginal = toWideArgv(titleStr); // für Anzeige und Suche
+    wstring part = wOriginal;
+    // Suchbegriff in lowercase
+    transform(part.begin(), part.end(), part.begin(),
+              [](wchar_t c){ return static_cast<wchar_t>(towlower(c)); });
+
+    FindWindowData data;
+    data.titlePart = part;
+    EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&data));
+
+    string display = toConsole(wOriginal);
+
+    if (!data.result) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND), display.c_str());
+        cout << buf << "\n";
+        return;
+    }
+
+    HWND hwnd = data.result;
+
+    // Minimiert? -> Wiederherstellen
+    if (IsIconic(hwnd))
+        ShowWindow(hwnd, SW_RESTORE);
+
+    // In den Vordergrund bringen
+    SetForegroundWindow(hwnd);
+    BringWindowToTop(hwnd);
+    SetActiveWindow(hwnd);
+
+    char buf[256];
+    snprintf(buf, sizeof(buf), t(Str::WINDOW_FOCUSED), display.c_str());
     cout << buf << "\n";
 }
 
@@ -652,6 +748,7 @@ int main(int argc, char* argv[])
     bool asyncSound = false;
     string openFile;
     string cmdArg;
+    string focusWindow; // Fenstertitel für --focus
     bool showMessage = true; // Standard: MessageBox ist aktiv
     bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
     int preAlarmSeconds = 0; // Sekunden vor Schluss, in denen sekündlich gepiept wird
@@ -804,6 +901,8 @@ int main(int argc, char* argv[])
             openFile = argv[++i];
         } else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
             cmdArg = argv[++i];
+        } else if ((arg == "--focus" || arg == "-f") && i + 1 < argc) {
+            focusWindow = argv[++i];
         } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < argc) { // Sekündliches Piepsen vor Schluss
             preAlarmSeconds = safeStoi(argv[++i], 0);
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
@@ -1131,16 +1230,18 @@ int main(int argc, char* argv[])
                         fs::path p(soundFile);
                         if (!fs::exists(p) || !fs::is_regular_file(p)) {
                             char buf[512];
-                            snprintf(buf, sizeof(buf), t(Str::AUDIO_NOT_FOUND), soundFile.c_str());
+                            snprintf(buf, sizeof(buf), t(Str::AUDIO_NOT_FOUND),
+                                     toConsole(toWideArgv(soundFile)).c_str());
                             cout << buf << "\n";
                         } else {
-                            wstring widePath = toWide(soundFile);
+                            wstring widePath = toWideArgv(soundFile);
                             if (!widePath.empty()) {
                                 UINT flags = SND_FILENAME | (asyncSound ? SND_ASYNC : SND_SYNC);
                                 PlaySoundW(widePath.c_str(), NULL, flags);
                             } else {
                                 char buf[512];
-                                snprintf(buf, sizeof(buf), t(Str::AUDIO_PATH_ERROR), soundFile.c_str());
+                                snprintf(buf, sizeof(buf), t(Str::AUDIO_PATH_ERROR),
+                                         toConsole(toWideArgv(soundFile)).c_str());
                                 cout << buf << "\n";
                             }
                         }
@@ -1180,6 +1281,9 @@ int main(int argc, char* argv[])
         if (!openFile.empty()) {
             openFileAfterTimer(openFile);
         }
+        if (!focusWindow.empty()) {
+            bringWindowToFront(focusWindow);
+        }
 
         // Fenstertitel zurücksetzen, bevor die Benachrichtigung den Fokus/Thread blockiert.
         SetConsoleTitleA("Teefax");
@@ -1188,7 +1292,7 @@ int main(int argc, char* argv[])
         if (showMessage) {
             wstring notifyText = toWide(t(Str::NOTIFY_MSG));
             if (!customMsg.empty())
-                notifyText += L"\n\n" + toWide(customMsg); // benutzerdefinierte Notiz anhängen
+                notifyText += L"\n\n" + toWideArgv(customMsg); // benutzerdefinierte Notiz anhängen
             showNotification(
                 toWide(t(Str::NOTIFY_TITLE)),
                 notifyText

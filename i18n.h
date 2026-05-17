@@ -29,6 +29,9 @@ enum class Str {
     AUDIO_NOT_FOUND, AUDIO_PATH_ERROR,
     FILE_SYSTEM_ERROR,
 
+    // Fenster-Fokus
+    WINDOW_NOT_FOUND, WINDOW_FOCUSED,
+
     // Hilfe
     USAGE_HEADER,
 
@@ -73,6 +76,8 @@ static const TranslationMap LANG_DE = {
     { Str::ERROR_NEXT_TIME, "\nFehler bei der Berechnung der naechsten Uhrzeit.\n" },
     { Str::AUDIO_NOT_FOUND,  "\nAudiodatei nicht gefunden: %s" },
     { Str::AUDIO_PATH_ERROR, "\nFehler bei Pfad-Konvertierung fuer Audiodatei: %s" },
+    { Str::WINDOW_NOT_FOUND, "\nFenster nicht gefunden: %s" },
+    { Str::WINDOW_FOCUSED,   "\nFenster in Vordergrund geholt: %s" },
     { Str::USAGE_HEADER,
         "Verwendung:\n"
         "  teefax [<Zeit>] [Sounddatei] [Optionen]\n\n"
@@ -94,6 +99,7 @@ static const TranslationMap LANG_DE = {
         "  -t,  --time                 Direktanzeige Datum & Zeit\n"
         "  -d,  --daily HH:mm[:ss]     Taeglicher Alarm\n"
         "  -e,  --every <Tage> [HH:mm] Woechentlich/monatlich (z.B. mon,fri oder 1,15)\n"
+        "  -f,  --focus <Titel>        Fenster nach Ablauf in Vordergrund holen\n"
         "  -la, --lang <Sprache>       Sprache festlegen (de, en, fr, pt, ru)\n"
         "  -v,  --version              Versionsnummer anzeigen\n"
         "  -h,  --help                 Diese Hilfe anzeigen\n\n"
@@ -110,6 +116,7 @@ static const TranslationMap LANG_DE = {
         "  teefax 5m -c \"start notepad.exe\"\n"
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
+        "  teefax 5m --focus \"Notepad\"\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
     { Str::TOMORROW_SUFFIX, " (morgen)" },
@@ -149,6 +156,8 @@ static const TranslationMap LANG_FR = {
     { Str::CMD_ERROR,            "\nErreur lors de l'execution (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFichier audio introuvable: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErreur de conversion du chemin audio: %s" },
+    { Str::WINDOW_NOT_FOUND, "\nFenetre introuvable: %s" },
+    { Str::WINDOW_FOCUSED,   "\nFenetre mise au premier plan: %s" },
     { Str::USAGE_HEADER,
         "Utilisation:\n"
         "  teefax [<duree>] [fichier-son] [options]\n\n"
@@ -170,6 +179,7 @@ static const TranslationMap LANG_FR = {
         "  -t,  --time                 Affichage en direct de la date et l'heure\n"
         "  -d,  --daily HH:mm[:ss]     Alarme quotidienne\n"
         "  -e,  --every <jours> [HH:mm] Hebdomadaire/mensuel (ex. mon,fri ou 1,15)\n"
+        "  -f,  --focus <titre>        Mettre une fenetre au premier plan apres le compte\n"
         "  -la, --lang <langue>        Definir la langue (de, en, fr, pt, ru)\n"
         "  -v,  --version              Afficher le numero de version\n"
         "  -h,  --help                 Afficher cette aide\n\n"
@@ -186,6 +196,7 @@ static const TranslationMap LANG_FR = {
         "  teefax 5m -c \"start notepad.exe\"\n"
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
+        "  teefax 5m --focus \"Notepad\"\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
     { Str::TOMORROW_SUFFIX, " (demain)" },
@@ -225,6 +236,8 @@ static const TranslationMap LANG_PT = {
     { Str::CMD_ERROR,            "\nErro ao executar o comando (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFicheiro de audio nao encontrado: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErro na conversao do caminho do audio: %s" },
+    { Str::WINDOW_NOT_FOUND, "\nJanela nao encontrada: %s" },
+    { Str::WINDOW_FOCUSED,   "\nJanela trazida para o primeiro plano: %s" },
     { Str::USAGE_HEADER,
         "Utilizacao:\n"
         "  teefax [<duracao>] [ficheiro-som] [opcoes]\n\n"
@@ -246,6 +259,7 @@ static const TranslationMap LANG_PT = {
         "  -t,  --time                 Mostrar data e hora em tempo real\n"
         "  -d,  --daily HH:mm[:ss]     Alarme diario\n"
         "  -e,  --every <dias> [HH:mm] Semanal/mensal (ex. mon,fri ou 1,15)\n"
+        "  -f,  --focus <titulo>       Trazer janela para o primeiro plano apos o temporizador\n"
         "  -la, --lang <lingua>        Definir o idioma (de, en, fr, pt, ru)\n"
         "  -v,  --version              Mostrar numero de versao\n"
         "  -h,  --help                 Mostrar esta ajuda\n\n"
@@ -262,6 +276,7 @@ static const TranslationMap LANG_PT = {
         "  teefax 5m -c \"start notepad.exe\"\n"
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
+        "  teefax 5m --focus \"Notepad\"\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
     { Str::TOMORROW_SUFFIX, " (amanha)" },
@@ -301,6 +316,8 @@ static const TranslationMap LANG_RU = {
     { Str::CMD_ERROR,            "\nOshibka vypolneniya (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nAudiofajl ne najden: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nOshibka preobrazovaniya puti audio: %s" },
+    { Str::WINDOW_NOT_FOUND, "\nOkno ne najdeno: %s" },
+    { Str::WINDOW_FOCUSED,   "\nOkno vyvedeno na perednij plan: %s" },
     { Str::USAGE_HEADER,
         "Ispol'zovanie:\n"
         "  teefax [<vremya>] [zvukfajl] [optsii]\n\n"
@@ -322,6 +339,7 @@ static const TranslationMap LANG_RU = {
         "  -t,  --time                 Pokazyvat' tekushchee vremya\n"
         "  -d,  --daily HH:mm[:ss]     Ezhednevnyj signal\n"
         "  -e,  --every <dni> [HH:mm]  Ezhenedel'no/ezhemesyachno (napr. mon,fri ili 1,15)\n"
+        "  -f,  --focus <zagolovok>    Vyvestu okno na peredni plan posle tajmera\n"
         "  -la, --lang <yazyk>         Ustanovit' yazyk (de, en, fr, pt, ru)\n"
         "  -v,  --version              Pokazat' nomer versii\n"
         "  -h,  --help                 Pokazat' etu spravku\n\n"
@@ -338,6 +356,7 @@ static const TranslationMap LANG_RU = {
         "  teefax 5m -c \"start notepad.exe\"\n"
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
+        "  teefax 5m --focus \"Notepad\"\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     { Str::TOMORROW_SUFFIX, " (zavtra)" },
@@ -377,6 +396,8 @@ static const TranslationMap LANG_EN = {
     { Str::ERROR_NEXT_TIME, "\nError calculating next time.\n" },
     { Str::AUDIO_NOT_FOUND,  "\nAudio file not found: %s" },
     { Str::AUDIO_PATH_ERROR, "\nPath conversion error for audio file: %s" },
+    { Str::WINDOW_NOT_FOUND, "\nWindow not found: %s" },
+    { Str::WINDOW_FOCUSED,   "\nWindow brought to foreground: %s" },
     { Str::USAGE_HEADER,
         "Usage:\n"
         "  teefax [<time>] [soundfile] [options]\n\n"
@@ -398,6 +419,7 @@ static const TranslationMap LANG_EN = {
         "  -t,  --time                 Live date & time display\n"
         "  -d,  --daily HH:mm[:ss]     Daily alarm\n"
         "  -e,  --every <days> [HH:mm] Weekly/monthly recurrence (e.g. mon,fri or 1,15)\n"
+        "  -f,  --focus <title>        Bring window to foreground after timer\n"
         "  -la, --lang <language>      Set language (de, en, fr, pt, ru)\n"
         "  -v,  --version              Show version number\n"
         "  -h,  --help                 Show this help\n\n"
@@ -414,6 +436,7 @@ static const TranslationMap LANG_EN = {
         "  teefax 5m -c \"start notepad.exe\"\n"
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
+        "  teefax 5m --focus \"Notepad\"\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     { Str::TOMORROW_SUFFIX, " (tomorrow)" },
