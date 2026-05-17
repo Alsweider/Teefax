@@ -20,6 +20,7 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 - Daily recurring alarms
 - Loop / repeat timers
 - Open a file or run a console command when the timer ends
+- Bring a program window to the foreground when the timer ends
 - Pre-alarm: audible per-second countdown before the final signal
 - Live clock display mode
 - Suppress screensaver and standby during countdown
@@ -77,6 +78,7 @@ Combined example: `teefax 1h30m` counts down 1 hour and 30 minutes.
 | `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) |
 | `--open <filepath>` | `-o` | Open a file, program or URL when the timer ends |
 | `--cmd <command>` | `-c` | Run a console command when the timer ends |
+| `--focus <title>` | `-f` | Bring a window to the foreground when the timer ends (partial title match, case-insensitive) |
 | `--prealarm <s>` | `-pa` | Beep every second during the last X seconds |
 | `--nomsg` | | Suppress the notification popup |
 | `--msg <text>` | | Add a custom note to the notification popup |
@@ -124,6 +126,9 @@ teefax 5m --open "C:\Notes\todo.txt"
 
 # Run a command when done
 teefax 20s --cmd "shutdown /s /t 0"
+
+# Bring a window to the foreground when done
+teefax 5m --focus "Notepad"
 
 # Pre-alarm: beep every second for the last 5 seconds
 teefax 30s --prealarm 5

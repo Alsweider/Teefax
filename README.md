@@ -22,6 +22,7 @@ Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/la
 * Wiederholfunktionen
 * Datei nach einer bestimmten Zeit öffnen
 * Konsolenbefehl zeitgesteuert ausführen
+* Programmfenster in den Vordergrund holen
 * genaue Zeitmessung ohne systemlastbedingte Schwankungen
 * Sprachen: 🇫🇷, 🇵🇹, 🇷🇺, 🇬🇧, 🇩🇪
 
@@ -66,6 +67,7 @@ Parameter sind die Daten (Variablen), die das Programm gerne verarbeiten möchte
 - Eigene Notiz im Benachrichtigungsfenster: `--msg [Text]`, z. B.: `teefax 5m --msg "Tee fertig!"`. Der Text wird zusätzlich zur Standardmeldung im Popup angezeigt.
 - Bildschirmschoner & Ruhezustand unterdrücken: `-ns` oder `--nosleep`
 - Akustisch runterzählen bis zum Alarm: `-pa [Sekunden]` oder `--prealarm [Sekunden]`. Beispiel: `teefax 20 --prealarm 5` wird 5 Sekunden vor dem Schlussalarm beginnen, sekündlich einen Signalton auszugeben. Mögliche Einsatzzwecke sind der Start eines Wettrennens oder auch Silvester. In Verbindung mit dem rekursiven Aufruf lassen sich auch Start- und Endzähler kombinieren. Dies etwa bewirkt einen 5-sekündigen Startzähler mit Signaltönen, der nach Ablauf einen 20-sekündigen Zähler mit 5-sekündigen Endsignalen startet: `teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"`
+- Fenster nach Ablauf in den Vordergrund holen: `-f [Fenstertitel]` oder `--focus [Fenstertitel]`. Es genügt ein Teil des Fenstertitels, Groß- und Kleinschreibung werden ignoriert. Beispiel: `teefax 5m --focus "Vokabeltrainer"`
 - Sprache festlegen (de, en, fr, pt, ru): `-la [Sprache]` oder `--lang [Sprache]`. Beispiel: `teefax 20s --lang fr`
 - Versionsnummer anzeigen: `-v` oder `--version`
 - Hilfe anzeigen: `-h` oder `--help`
