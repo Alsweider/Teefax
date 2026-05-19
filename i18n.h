@@ -119,6 +119,7 @@ static const TranslationMap LANG_DE = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
     { Str::TOMORROW_SUFFIX, " (morgen)" },
@@ -200,6 +201,7 @@ static const TranslationMap LANG_FR = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
     { Str::TOMORROW_SUFFIX, " (demain)" },
@@ -281,6 +283,7 @@ static const TranslationMap LANG_PT = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
     { Str::TOMORROW_SUFFIX, " (amanha)" },
@@ -362,6 +365,7 @@ static const TranslationMap LANG_RU = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     { Str::TOMORROW_SUFFIX, " (zavtra)" },
@@ -443,6 +447,7 @@ static const TranslationMap LANG_EN = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     { Str::TOMORROW_SUFFIX, " (tomorrow)" },
