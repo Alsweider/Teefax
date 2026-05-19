@@ -8,6 +8,8 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 
 **Latest release: [Download](https://github.com/Alsweider/Teefax/releases/latest)**
 
+<img width="200" height="200" alt="icon" src="https://github.com/user-attachments/assets/22f7878a-98b6-4bac-ba9f-53583990aab2" />
+
 ![teefax3](https://github.com/user-attachments/assets/b923ca54-9185-4cb9-a3c7-5686e9508086)
 ![teefax4](https://github.com/user-attachments/assets/f7bb81db-b6c0-45da-822e-8e5a7bac5682)
 ![teefaxtime](https://github.com/user-attachments/assets/8ac423dd-181c-4c67-b0b6-a614adb2bc56)
