@@ -345,22 +345,22 @@ void runConsoleCommand(const string& command) {
 
 // Fenster anhand eines Teilstrings im Titel in den Vordergrund holen
 struct FindWindowData {
-    wstring titlePart; // Suchbegriff (lowercase)
+    wstring titlePart;         // Suchbegriff (lowercase)
+    HWND    excludeHwnd;       // eigenes Konsolenfenster, wird ignoriert
     HWND    result = nullptr;
 };
 
 static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 {
-    if (!IsWindowVisible(hwnd)) return TRUE;
+    auto* data = reinterpret_cast<FindWindowData*>(lParam);
+
+    if (hwnd == data->excludeHwnd) return TRUE; // eigenes Fenster ueberspringen
+    if (!IsWindowVisible(hwnd))    return TRUE;
 
     wchar_t buf[512];
     if (GetWindowTextW(hwnd, buf, 512) == 0) return TRUE;
 
-    wstring title(buf);
-    wstring titleLow = title;
-    auto* data = reinterpret_cast<FindWindowData*>(lParam);
-
-    // case-insensitive Vergleich
+    wstring titleLow(buf);
     transform(titleLow.begin(), titleLow.end(), titleLow.begin(),
               [](wchar_t c){ return static_cast<wchar_t>(towlower(c)); });
 
@@ -371,28 +371,25 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
-void bringWindowToFront(const string& titleStr)
+// Sucht ein sichtbares Fenster anhand eines Teilstrings – ohne Seiteneffekte.
+static HWND findWindowByTitle(const string& titleStr)
 {
-    wstring wOriginal = toWideArgv(titleStr); // für Anzeige und Suche
-    wstring part = wOriginal;
-    // Suchbegriff in lowercase
+    wstring part = toWideArgv(titleStr);
     transform(part.begin(), part.end(), part.begin(),
               [](wchar_t c){ return static_cast<wchar_t>(towlower(c)); });
 
     FindWindowData data;
-    data.titlePart = part;
+    data.titlePart   = part;
+    data.excludeHwnd = GetConsoleWindow();
     EnumWindows(EnumWindowsProc, reinterpret_cast<LPARAM>(&data));
+    return data.result;
+}
 
-    string display = toConsole(wOriginal);
-
-    if (!data.result) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND), display.c_str());
-        cout << buf << "\n";
-        return;
-    }
-
-    HWND hwnd = data.result;
+bool bringWindowToFront(const string& titleStr)
+{
+    HWND hwnd = findWindowByTitle(titleStr);
+    if (!hwnd)
+        return false;
 
     // Minimiert? -> Wiederherstellen
     if (IsIconic(hwnd))
@@ -402,10 +399,7 @@ void bringWindowToFront(const string& titleStr)
     SetForegroundWindow(hwnd);
     BringWindowToTop(hwnd);
     SetActiveWindow(hwnd);
-
-    char buf[256];
-    snprintf(buf, sizeof(buf), t(Str::WINDOW_FOCUSED), display.c_str());
-    cout << buf << "\n";
+    return true;
 }
 
 // Benachrichtigung / MessageBox
@@ -1064,7 +1058,21 @@ int main(int argc, char* argv[])
         if (asyncSound) {
             cout << t(Str::ASYNC_SUFFIX);
         }
+        if (!focusWindow.empty()) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::FOCUS_TARGET),
+                     toConsole(toWideArgv(focusWindow)).c_str());
+            cout << buf;
+        }
         cout << "\n";
+    }
+
+    // Vorab-Prüfung: Fenster jetzt schon vorhanden?
+    if (!focusWindow.empty() && !findWindowByTitle(focusWindow)) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_WARN),
+                 toConsole(toWideArgv(focusWindow)).c_str());
+        cout << buf << "\n" << flush;
     }
 
     // Schleife Direktanzeige von Zeit und Datum
@@ -1282,7 +1290,13 @@ int main(int argc, char* argv[])
             openFileAfterTimer(openFile);
         }
         if (!focusWindow.empty()) {
-            bringWindowToFront(focusWindow);
+            if (!bringWindowToFront(focusWindow)) {
+                char buf[256];
+                snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_ABORT),
+                         toConsole(toWideArgv(focusWindow)).c_str());
+                cout << buf;
+                loop = false;
+            }
         }
 
         // Fenstertitel zurücksetzen, bevor die Benachrichtigung den Fokus/Thread blockiert.

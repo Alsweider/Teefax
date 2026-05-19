@@ -30,12 +30,14 @@ enum class Str {
     FILE_SYSTEM_ERROR,
 
     // Fenster-Fokus
-    WINDOW_NOT_FOUND, WINDOW_FOCUSED,
+    WINDOW_NOT_FOUND_ABORT,
+    WINDOW_NOT_FOUND_WARN,
 
     // Hilfe
     USAGE_HEADER,
 
     TOMORROW_SUFFIX,
+    FOCUS_TARGET,
     _COUNT
 };
 
@@ -76,8 +78,8 @@ static const TranslationMap LANG_DE = {
     { Str::ERROR_NEXT_TIME, "\nFehler bei der Berechnung der naechsten Uhrzeit.\n" },
     { Str::AUDIO_NOT_FOUND,  "\nAudiodatei nicht gefunden: %s" },
     { Str::AUDIO_PATH_ERROR, "\nFehler bei Pfad-Konvertierung fuer Audiodatei: %s" },
-    { Str::WINDOW_NOT_FOUND, "\nFenster nicht gefunden: %s" },
-    { Str::WINDOW_FOCUSED,   "\nFenster in Vordergrund geholt: %s" },
+    { Str::WINDOW_NOT_FOUND_ABORT, "\nFenster nicht gefunden, Schleife abgebrochen: \"%s\"" },
+    { Str::WINDOW_NOT_FOUND_WARN,  "Warnung: Fenster \"%s\" derzeit nicht gefunden." },
     { Str::USAGE_HEADER,
         "Verwendung:\n"
         "  teefax [<Zeit>] [Sounddatei] [Optionen]\n\n"
@@ -120,6 +122,7 @@ static const TranslationMap LANG_DE = {
     },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
     { Str::TOMORROW_SUFFIX, " (morgen)" },
+    { Str::FOCUS_TARGET,    " | Fokus: \"%s\"" },
     };
 
 static const TranslationMap LANG_FR = {
@@ -156,8 +159,8 @@ static const TranslationMap LANG_FR = {
     { Str::CMD_ERROR,            "\nErreur lors de l'execution (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFichier audio introuvable: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErreur de conversion du chemin audio: %s" },
-    { Str::WINDOW_NOT_FOUND, "\nFenetre introuvable: %s" },
-    { Str::WINDOW_FOCUSED,   "\nFenetre mise au premier plan: %s" },
+    { Str::WINDOW_NOT_FOUND_ABORT, "\nFenetre introuvable, boucle arretee: \"%s\"" },
+    { Str::WINDOW_NOT_FOUND_WARN,  "Avertissement: fenetre \"%s\" introuvable pour l'instant." },
     { Str::USAGE_HEADER,
         "Utilisation:\n"
         "  teefax [<duree>] [fichier-son] [options]\n\n"
@@ -200,6 +203,7 @@ static const TranslationMap LANG_FR = {
     },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
     { Str::TOMORROW_SUFFIX, " (demain)" },
+    { Str::FOCUS_TARGET,    " | Cible: \"%s\"" },
     };
 
 static const TranslationMap LANG_PT = {
@@ -236,8 +240,8 @@ static const TranslationMap LANG_PT = {
     { Str::CMD_ERROR,            "\nErro ao executar o comando (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFicheiro de audio nao encontrado: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErro na conversao do caminho do audio: %s" },
-    { Str::WINDOW_NOT_FOUND, "\nJanela nao encontrada: %s" },
-    { Str::WINDOW_FOCUSED,   "\nJanela trazida para o primeiro plano: %s" },
+    { Str::WINDOW_NOT_FOUND_ABORT, "\nJanela nao encontrada, ciclo interrompido: \"%s\"" },
+    { Str::WINDOW_NOT_FOUND_WARN,  "Aviso: janela \"%s\" nao encontrada de momento." },
     { Str::USAGE_HEADER,
         "Utilizacao:\n"
         "  teefax [<duracao>] [ficheiro-som] [opcoes]\n\n"
@@ -280,6 +284,7 @@ static const TranslationMap LANG_PT = {
     },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
     { Str::TOMORROW_SUFFIX, " (amanha)" },
+    { Str::FOCUS_TARGET,    " | Foco: \"%s\"" },
     };
 
 static const TranslationMap LANG_RU = {
@@ -316,8 +321,8 @@ static const TranslationMap LANG_RU = {
     { Str::CMD_ERROR,            "\nOshibka vypolneniya (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nAudiofajl ne najden: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nOshibka preobrazovaniya puti audio: %s" },
-    { Str::WINDOW_NOT_FOUND, "\nOkno ne najdeno: %s" },
-    { Str::WINDOW_FOCUSED,   "\nOkno vyvedeno na perednij plan: %s" },
+    { Str::WINDOW_NOT_FOUND_ABORT, "\nOkno ne najdeno, tsikl ostanovlen: \"%s\"" },
+    { Str::WINDOW_NOT_FOUND_WARN,  "Preduprezhdenie: okno \"%s\" poka ne najdeno." },
     { Str::USAGE_HEADER,
         "Ispol'zovanie:\n"
         "  teefax [<vremya>] [zvukfajl] [optsii]\n\n"
@@ -360,6 +365,7 @@ static const TranslationMap LANG_RU = {
     },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     { Str::TOMORROW_SUFFIX, " (zavtra)" },
+    { Str::FOCUS_TARGET,    " | Okno: \"%s\"" },
     };
 
 static const TranslationMap LANG_EN = {
@@ -396,8 +402,8 @@ static const TranslationMap LANG_EN = {
     { Str::ERROR_NEXT_TIME, "\nError calculating next time.\n" },
     { Str::AUDIO_NOT_FOUND,  "\nAudio file not found: %s" },
     { Str::AUDIO_PATH_ERROR, "\nPath conversion error for audio file: %s" },
-    { Str::WINDOW_NOT_FOUND, "\nWindow not found: %s" },
-    { Str::WINDOW_FOCUSED,   "\nWindow brought to foreground: %s" },
+    { Str::WINDOW_NOT_FOUND_ABORT, "\nWindow not found, loop stopped: \"%s\"" },
+    { Str::WINDOW_NOT_FOUND_WARN,  "Warning: window \"%s\" not found at this time." },
     { Str::USAGE_HEADER,
         "Usage:\n"
         "  teefax [<time>] [soundfile] [options]\n\n"
@@ -440,6 +446,7 @@ static const TranslationMap LANG_EN = {
     },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     { Str::TOMORROW_SUFFIX, " (tomorrow)" },
+    { Str::FOCUS_TARGET,    " | Focus: \"%s\"" },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────
