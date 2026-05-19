@@ -3,7 +3,7 @@
 
 Teefax ist ein Küchenwecker, der über die Konsole (Eingabeaufforderung) bedient wird. Als Parameter erwartet er die gewünschte Wartezeit oder Uhrzeit. Nach Ablauf der Zeit ertönt ein Signal.
 
-Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/latest)
+**Neueste Version: [Herunterladen](https://github.com/Alsweider/Teefax/releases/latest)**
 
 <img width="200" height="200" alt="icon" src="https://github.com/user-attachments/assets/7cd1ff05-8dfc-4c0c-a899-534fc7526802" />
 
