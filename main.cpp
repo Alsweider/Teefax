@@ -1119,21 +1119,19 @@ int main(int argc, char* argv[])
             if (nextMs == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
             ms = nextMs;
             if (ms > MAX_MS) ms = MAX_MS;
+            // Ziel als absoluter system_clock-Zeitpunkt, NTP-Korrekturen werden automatisch berücksichtigt.
+            wallTarget = chrono::system_clock::now() + chrono::milliseconds(ms);
         }
 
-        long long totalMsThisRound = (useDailyTimes || useEvery)
+        long long totalMsThisRound = (useDailyTimes || useEvery || useAtTime)
                                          ? chrono::duration_cast<chrono::milliseconds>(
                                                wallTarget - chrono::system_clock::now()).count()
                                          : ms;
 
         // Wanduhr-Ziel als time_t für Tomorrow-Anzeige
         time_t wallTargetT = 0;
-        if (useDailyTimes || useEvery) {
+        if (useDailyTimes || useEvery || useAtTime) {
             wallTargetT = chrono::system_clock::to_time_t(wallTarget);
-        } else if (useAtTime) {
-            wallTargetT = chrono::system_clock::to_time_t(
-                chrono::system_clock::now()
-                + chrono::milliseconds(totalMsThisRound));
         }
 
         auto start = chrono::steady_clock::now();
@@ -1148,7 +1146,7 @@ int main(int argc, char* argv[])
             bool done = false;
             long long verbleibendMs = 0;
 
-            if (useDailyTimes || useEvery) {
+            if (useDailyTimes || useEvery || useAtTime) {
                 verbleibendMs = chrono::duration_cast<chrono::milliseconds>(
                                     wallTarget - nowWall).count();
                 if (verbleibendMs <= 0) done = true;
@@ -1207,15 +1205,31 @@ int main(int argc, char* argv[])
                 cout << "]   " << flush;
             }
 
-            // Bis zur nächsten Sekundengrenze schlafen:
-            // verbleibendMs % 1000 ergibt genau die Ms, die in der aktuellen
-            // Anzeigesekunde noch verbleiben. Anzeige springt synchron zur Uhr.
-            long long sleepMs = verbleibendMs % 1000;
-            if (sleepMs == 0) sleepMs = 1000;          // exakt auf Grenze: volle Sekunde
-            if (sleepMs > verbleibendMs) sleepMs = verbleibendMs; // nicht überschießen
-            if (sleepMs < 1) sleepMs = 1;
-
-            this_thread::sleep_for(chrono::milliseconds(sleepMs));
+            // Bis zur nächsten Sekundengrenze schlafen.
+            // Wandzeitmodi (--at, --daily, --every):
+            //   Zielpunkt wird aus wallTarget (system_clock) berechnet,
+            //   der eigentliche Schlaf läuft aber auf steady_clock.
+            //   So bleiben NTP-Vorwärtskorrekturen wirksam, während
+            //   Rückwärtssprünge den Thread nicht einfrieren.
+            //   Obergrenze 1,5s: nach einem Rückwärtssprung wird spätestens
+            //   dann neu ausgewertet, damit die Anzeige nicht einfriert.
+            // Countdown-Modus (5m, 1h30m ...):
+            //   sleep_until auf steady_clock direkt, also kein Drift möglich.
+            if (verbleibendSec >= 1) {
+                if (useDailyTimes || useEvery || useAtTime) {
+                    auto nextWallTick   = wallTarget - chrono::seconds(verbleibendSec - 1);
+                    auto durationToTick = nextWallTick - chrono::system_clock::now();
+                    if (durationToTick > chrono::milliseconds(1500))
+                        durationToTick = chrono::milliseconds(1500);
+                    if (durationToTick > chrono::milliseconds(0))
+                        this_thread::sleep_until(
+                            chrono::steady_clock::now() +
+                            chrono::duration_cast<chrono::milliseconds>(durationToTick));
+                } else {
+                    this_thread::sleep_until(
+                        end - chrono::seconds(verbleibendSec - 1));
+                }
+            }
         }
 
         cout << "\r";
