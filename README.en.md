@@ -152,7 +152,7 @@ teefax 5m --lang en
 
 ## How it works
 
-Teefax uses [`chrono::steady_clock`](https://cplusplus.com/reference/chrono/steady_clock/) from the C++11 standard library to measure time. This clock is monotonic and independent of the system clock — it never drifts backwards and is unaffected by system load. Rather than using a simple `Sleep()` call (which accumulates milliseconds of error over many iterations), Teefax always calculates the precise target timestamp and waits until that exact moment using `this_thread::sleep_until()`.
+Teefax measures time intervals using [`chrono::steady_clock`](https://cplusplus.com/reference/chrono/steady_clock/) from the C++11 standard library. This clock runs monotonically, is independent of the system time, and is not affected by system load. Instead of relying on a simple `Sleep()` call, Teefax always calculates the exact target time and waits with [`this_thread::sleep_until()`](https://cplusplus.com/reference/thread/this_thread/sleep_until/) precisely until that moment. For absolute points in time (`--at`, `--daily`, `--every`), the wall clock ([`system_clock`](https://cplusplus.com/reference/chrono/system_clock/)) is used so that calendar dates and times are evaluated correctly. To ensure sleep accuracy on Windows, the system timer resolution is set to 1 ms for the duration of the program (`timeBeginPeriod`), since the default Windows resolution of approximately 15.6 ms would otherwise limit the precision of `sleep_until()`.
 
 ---
 
