@@ -153,6 +153,14 @@ teefax 5m --lang de
 
 Teefax misst Zeitintervalle mit [`chrono::steady_clock`](https://cplusplus.com/reference/chrono/steady_clock/) aus der C++11-Standardbibliothek. Diese Uhr läuft monoton, ist unabhängig von der Systemzeit und wird durch Systemauslastung nicht beeinflusst. Anstatt eines einfachen `Sleep()`-Aufrufs errechnet Teefax stets den genauen Zielzeitpunkt und wartet mit [`this_thread::sleep_until()`](https://cplusplus.com/reference/thread/this_thread/sleep_until/) exakt bis zu diesem Moment. Für absolute Zeitpunkte (`--at`, `--daily`, `--every`) wird die Wanduhr ([`system_clock`](https://cplusplus.com/reference/chrono/system_clock/)) verwendet, damit Kalender- und Uhrzeitangaben korrekt ausgewertet werden. Um die Schlafgenauigkeit auf Windows sicherzustellen, wird die Systemtimerauflösung für die Laufzeit des Programms auf 1 ms gesetzt (`timeBeginPeriod`), da die Windows-Standardauflösung von ~15,6 ms sonst die Präzision von `sleep_until()` begrenzen würde.
 
+**Genauigkeit der Modi**
+
+Im Countdown-Modus (`teefax 5m`, `1h30m` usw.) basiert die Zeitmessung auf `steady_clock`, die intern vom Hardwaretakt des Prozessors angetrieben wird. Dieser unterliegt einer geringen Quarzoszillatordrift von typischerweise 10-50 ppm (Millionstel). Für kurze bis mittlere Timer ist das vernachlässigbar, da ein 5-Minuten-Timer weniger als 0,015 Sekunden abweicht. Bei sehr langen Timern summiert sich die Drift: Ein 24-Stunden-Timer kann bereits 1-4 Sekunden abweichen.
+
+`--at`, `--daily` und `--every` verwenden `system_clock`, die meist per NTP laufend mit Zeitservern synchronisiert wird. Die einzige verbleibende Ungenauigkeit ist der OS-Scheduler-Jitter beim letzten Aufwachen, der meist wenige Millisekunden beträgt, unabhängig von der Timer-Dauer.
+
+Für Zähler über mehrere Stunden oder Tage, bei denen die Endzeit exakt mit der Wanduhrzeit übereinstimmen soll, ist `--at` in der Regel die präzisere Wahl.
+
 ---
 
 ## Aus dem Quellcode bauen
