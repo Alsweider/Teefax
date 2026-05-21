@@ -155,9 +155,9 @@ Teefax misst Zeitintervalle mit [`chrono::steady_clock`](https://cplusplus.com/r
 
 **Genauigkeit der Modi**
 
-Im Countdown-Modus (`teefax 5m`, `1h30m` usw.) basiert die Zeitmessung auf `steady_clock`, die intern vom Hardwaretakt des Prozessors angetrieben wird. Dieser unterliegt einer geringen Quarzoszillatordrift von typischerweise 10-50 ppm (Millionstel). Für kurze bis mittlere Timer ist das vernachlässigbar, da ein 5-Minuten-Timer weniger als 0,015 Sekunden abweicht. Bei sehr langen Timern summiert sich die Drift: Ein 24-Stunden-Timer kann bereits 1-4 Sekunden abweichen.
+Im Countdown-Modus (`teefax 5m`, `1h30m` usw.) basiert die Zeitmessung auf `steady_clock`, die intern vom Hardwaretakt des Prozessors angetrieben wird. Dieser unterliegt einer geringen Quarzoszillatordrift von typischerweise 10-50 ppm (Millionstel). Für kurze bis mittlere Timer ist das vernachlässigbar, da ein 5-Minuten-Timer weniger als 0,015 Sekunden abweicht. Bei sehr langen Timern summiert sich die Drift: Ein 24-Stunden-Timer kann bereits 1-4 Sekunden abweichen. Dafür läuft `steady_clock` monoton und ist vollständig immun gegen Systemeingriffe. NTP-Korrekturen, Sommer-/Winterzeitumstellungen oder manuelle Uhrzeitänderungen können den Zähler nicht stören.
 
-`--at`, `--daily` und `--every` verwenden `system_clock`, die meist per NTP laufend mit Zeitservern synchronisiert wird. Die einzige verbleibende Ungenauigkeit ist der OS-Scheduler-Jitter beim letzten Aufwachen, der meist wenige Millisekunden beträgt, unabhängig von der Timer-Dauer.
+`--at`, `--daily` und `--every` verwenden `system_clock`, die meist per NTP laufend mit Zeitservern synchronisiert wird. Die einzige verbleibende Ungenauigkeit ist der OS-Scheduler-Jitter beim letzten Aufwachen, der meist wenige Millisekunden beträgt, unabhängig von der Timer-Dauer. Dafür können Systemzeiteingriffe den Ablauf im Prinzip beeinflussen.
 
 Für Zähler über mehrere Stunden oder Tage, bei denen die Endzeit exakt mit der Wanduhrzeit übereinstimmen soll, ist `--at` in der Regel die präzisere Wahl.
 
