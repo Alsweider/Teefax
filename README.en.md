@@ -156,9 +156,9 @@ Teefax measures time intervals using [`chrono::steady_clock`](https://cplusplus.
 
 **Precision per mode**
 
-In countdown mode (`teefax 5m`, `1h30m`, etc.), time is measured using `steady_clock`, which is driven by the processor's hardware oscillator. This oscillator is subject to a small crystal drift, typically 10–50 ppm (parts per million). For short to medium timers this is negligible: a 5-minute timer deviates by less than 0.015 seconds. For very long timers the drift accumulates: a 24-hour timer may deviate by 1-4 seconds.
+In countdown mode (`teefax 5m`, `1h30m`, etc.), time is measured using `steady_clock`, which is driven by the processor's hardware oscillator. This oscillator is subject to a small crystal drift, typically 10–50 ppm (parts per million). For short to medium timers this is negligible: a 5-minute timer deviates by less than 0.015 seconds. For very long timers the drift accumulates: a 24-hour timer may deviate by 1-4 seconds. However, `steady_clock` runs monotonically and is completely immune to system intervention. NTP corrections, daylight saving transitions, or manual clock changes cannot disturb the countdown.
 
-`--at`, `--daily` and `--every` use `system_clock`, which is continuously synchronised with time servers via NTP. The only remaining inaccuracy is OS scheduler jitter at the final wakeup. Typically a few milliseconds, regardless of timer duration.
+`--at`, `--daily` and `--every` use `system_clock`, which is continuously synchronised with time servers via NTP. The only remaining inaccuracy is OS scheduler jitter at the final wakeup. Typically a few milliseconds, regardless of timer duration. In return, system time changes can in principle affect these modes.
 
 For timers spanning several hours or days where the end time should match wall-clock time precisely, `--at` is the more accurate choice.
 
