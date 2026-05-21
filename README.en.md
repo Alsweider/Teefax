@@ -154,6 +154,14 @@ teefax 5m --lang en
 
 Teefax measures time intervals using [`chrono::steady_clock`](https://cplusplus.com/reference/chrono/steady_clock/) from the C++11 standard library. This clock runs monotonically, is independent of the system time, and is not affected by system load. Instead of relying on a simple `Sleep()` call, Teefax always calculates the exact target time and waits with [`this_thread::sleep_until()`](https://cplusplus.com/reference/thread/this_thread/sleep_until/) precisely until that moment. For absolute points in time (`--at`, `--daily`, `--every`), the wall clock ([`system_clock`](https://cplusplus.com/reference/chrono/system_clock/)) is used so that calendar dates and times are evaluated correctly. To ensure sleep accuracy on Windows, the system timer resolution is set to 1 ms for the duration of the program (`timeBeginPeriod`), since the default Windows resolution of approximately 15.6 ms would otherwise limit the precision of `sleep_until()`.
 
+**Precision per mode**
+
+In countdown mode (`teefax 5m`, `1h30m`, etc.), time is measured using `steady_clock`, which is driven by the processor's hardware oscillator. This oscillator is subject to a small crystal drift, typically 10–50 ppm (parts per million). For short to medium timers this is negligible: a 5-minute timer deviates by less than 0.015 seconds. For very long timers the drift accumulates: a 24-hour timer may deviate by 1-4 seconds.
+
+`--at`, `--daily` and `--every` use `system_clock`, which is continuously synchronised with time servers via NTP. The only remaining inaccuracy is OS scheduler jitter at the final wakeup. Typically a few milliseconds, regardless of timer duration.
+
+For timers spanning several hours or days where the end time should match wall-clock time precisely, `--at` is the more accurate choice.
+
 ---
 
 ## Building from source
