@@ -42,6 +42,22 @@ To stop the timer at any time, close the console window or press `Ctrl+C`.
 
 ---
 
+## Configuration file
+
+On startup, Teefax reads an optional `teefax.ini` file from the same directory as the `.exe`. The syntax is identical to the command line. One option per line, comments with `#`:
+
+```ini
+# teefax.ini
+--lang en
+--alarm-repeat 3
+--nomsg
+"C:\Sounds\gong.wav"
+```
+
+Command-line arguments override config values (last value wins). A commented example file is available in the repository as [`teefax.ini`](teefax.ini).
+
+---
+
 ## Usage
 
 ```
