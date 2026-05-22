@@ -25,7 +25,11 @@ namespace fs = std::filesystem;
 // Globale Markierung, ob timeBeginPeriod(1) gesetzt wurde (für Ctrl-C Handler)
 static atomic<bool> g_timePeriodSet{false};
 
-// Maximale Millisekunden (wir nutzen die maximale long long - etwas konservativ geclamped)
+// Ursprünglicher Konsolenmodus, wird beim Start gespeichert und beim Beenden wiederhergestellt
+static DWORD g_originalConsoleMode = 0;
+static bool  g_consoleModeChanged  = false;
+
+// Maximale Millisekunden (wir nutzen die maximale long long, etwas konservativ geclamped)
 constexpr long long MAX_MS = std::numeric_limits<long long>::max() / 4;
 
 // Ctrl-C / Console Event Handler: versucht, timeEndPeriod zurückzusetzen
@@ -33,6 +37,10 @@ BOOL WINAPI ConsoleHandler(DWORD signal) {
     if (g_timePeriodSet.load()) {
         timeEndPeriod(1);
         g_timePeriodSet.store(false);
+    }
+    if (g_consoleModeChanged) {
+        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
+        g_consoleModeChanged = false;
     }
     // FALSE zurückgeben, damit der Standard-Handler ebenfalls ausgeführt wird (Programmterminierung)
     return FALSE;
@@ -707,6 +715,64 @@ chrono::system_clock::time_point nextEveryTarget(const EverySpec& spec) {
     return now + hours(24); // Fallback, sollte nie eintreten
 }
 
+// ── Konfigurationsdatei (CLI-Format) ─────────────────────────────────
+// Tokenisiert eine Konfigurationszeile, respektiert einfache und doppelte
+// Anführungszeichen und bricht bei '#' ab (Kommentar).
+static vector<string> tokenizeConfigLine(const string& line) {
+    vector<string> tokens;
+    string cur;
+    bool inQuote = false;
+    char quoteChar = 0;
+    for (char c : line) {
+        if (inQuote) {
+            if (c == quoteChar) inQuote = false;
+            else cur += c;
+        } else if (c == '"' || c == '\'') {
+            inQuote = true;
+            quoteChar = c;
+        } else if (c == '#') {
+            break; // Rest der Zeile ist Kommentar
+        } else if (isspace(static_cast<unsigned char>(c))) {
+            if (!cur.empty()) { tokens.push_back(cur); cur.clear(); }
+        } else {
+            cur += c;
+        }
+    }
+    if (!cur.empty()) tokens.push_back(cur);
+    return tokens;
+}
+
+// Liest teefax.ini aus demselben Verzeichnis wie die .exe und hängt
+// alle geparsten Tokens an 'out' an. Fehlt die Datei, passiert nichts.
+static void loadConfigArgs(vector<string>& out) {
+    wchar_t exeBuf[MAX_PATH];
+    if (GetModuleFileNameW(nullptr, exeBuf, MAX_PATH) == 0) return;
+
+    wstring iniPath(exeBuf);
+    size_t slash = iniPath.rfind(L'\\');
+    if (slash == wstring::npos) return;
+    iniPath = iniPath.substr(0, slash + 1) + L"teefax.ini";
+
+    FILE* f = _wfopen(iniPath.c_str(), L"r");
+    if (!f) return;
+
+    char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        string line(buf);
+        // Zeilenende abschneiden
+        while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+            line.pop_back();
+        // Führende Leerzeichen / Tabs überspringen
+        size_t start = line.find_first_not_of(" \t");
+        if (start == string::npos) continue;
+        line = line.substr(start);
+        if (line[0] == '#') continue; // Kommentarzeile
+        for (auto& tok : tokenizeConfigLine(line))
+            out.push_back(tok);
+    }
+    fclose(f);
+}
+
 // Erkennt, ob Teefax aus einer bestehenden Konsole aufgerufen wurde
 // oder ob Windows selbst die Konsole erstellt hat (= Doppelklick)
 bool launchedFromExistingConsole() {
@@ -755,6 +821,16 @@ int main(int argc, char* argv[])
     bool useEvery = false;
     string customMsg; // benutzerdefinierte Notiz in Benachrichtigungsfenster am Schluss
 
+    // Kombinierte Argumentliste: Config-Defaults zuerst, dann Kommandozeile.
+    // Dadurch können alle CLI-Flags auch in teefax.ini gesetzt werden.
+    // Explizite Kommandozeilenargumente überschreiben Config-Werte automatisch
+    // (letzter Wert gewinnt bei Flags wie --lang, --alarm-repeat usw.).
+    vector<string> args;
+    loadConfigArgs(args);
+    for (int i = 1; i < argc; ++i)
+        args.push_back(argv[i]);
+    const int nArgs = static_cast<int>(args.size());
+
     // Audio priorisieren
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
 
@@ -763,12 +839,13 @@ int main(int argc, char* argv[])
 
     // QuickEdit-Modus deaktivieren: verhindert, dass ein Mausklick ins Konsolenfenster
     // den Timer einfriert (Windows pausiert den Prozess, sobald Text markiert wird).
-    // Zu erledigen: Sollte nach Programmende und Strg+C zurückgesetzt werden.
+    // Der Originalzustand wird beim Beenden und bei Strg+C wiederhergestellt.
     {
         HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
         DWORD mode = 0;
         if (GetConsoleMode(hIn, &mode)) {
-            //SetConsoleMode(hIn, mode & ~ENABLE_QUICK_EDIT_MODE);
+            g_originalConsoleMode = mode;
+            g_consoleModeChanged  = true;
             mode &= ~ENABLE_QUICK_EDIT_MODE;
             mode |= ENABLE_EXTENDED_FLAGS;
             SetConsoleMode(hIn, mode);
@@ -776,10 +853,11 @@ int main(int argc, char* argv[])
     }
 
     // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird
-    for (int i = 1; i < argc; ++i) {
-        string a = argv[i];
-        if ((a == "--lang" || a == "-la") && i + 1 < argc) {
-            _putenv_s("TEEFAX_LANG", argv[i + 1]);
+    // (Config-Defaults werden hier bereits berücksichtigt, da args beide enthält)
+    for (int i = 0; i < nArgs; ++i) {
+        const string& a = args[i];
+        if ((a == "--lang" || a == "-la") && i + 1 < nArgs) {
+            _putenv_s("TEEFAX_LANG", args[i + 1].c_str());
             break;
         }
     }
@@ -798,9 +876,9 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    // Argument-Parsen
-    for (int i = 1; i < argc; ++i) {
-        string arg = argv[i];
+    // Argument-Parsen (Config-Defaults + Kommandozeile in einem Durchlauf)
+    for (int i = 0; i < nArgs; ++i) {
+        string arg = args[i];
 
         if (arg == "--nosleep" || arg == "-ns") {
             noSleep = true;
@@ -808,8 +886,8 @@ int main(int argc, char* argv[])
             mute = true;
         } else if (arg == "--loop" || arg == "-l") {
             loop = true;
-            if (i + 1 < argc) {
-                int possibleCount = safeStoi(argv[i + 1], -1);
+            if (i + 1 < nArgs) {
+                int possibleCount = safeStoi(args[i + 1], -1);
                 if (possibleCount > 0) {
                     maxLoops = possibleCount;
                     ++i;
@@ -817,18 +895,18 @@ int main(int argc, char* argv[])
             }
         } else if (arg == "--nomsg") {
             showMessage = false;
-        } else if (arg == "--msg" && i + 1 < argc) {
-            customMsg = argv[++i];
-        } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < argc) {
-            alarmRepeat = safeStoi(argv[++i], 1);
+        } else if (arg == "--msg" && i + 1 < nArgs) {
+            customMsg = args[++i];
+        } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < nArgs) {
+            alarmRepeat = safeStoi(args[++i], 1);
             if (alarmRepeat < 1) alarmRepeat = 1;
-        } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < argc) {
-            alarmInterval = safeStoi(argv[++i], 2);
+        } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < nArgs) {
+            alarmInterval = safeStoi(args[++i], 2);
             if (alarmInterval < 1) alarmInterval = 1;
         } else if (arg == "--async" || arg == "-as") {
             asyncSound = true;
-        } else if ((arg == "--at" || arg == "-a" || arg == "--until") && i + 1 < argc) {
-            string first = argv[++i];
+        } else if ((arg == "--at" || arg == "-a" || arg == "--until") && i + 1 < nArgs) {
+            string first = args[++i];
 
             int year, month, day;
             int hour = 0, minute = 0, second = 0;
@@ -837,9 +915,9 @@ int main(int argc, char* argv[])
             if (sscanf(first.c_str(), "%d-%d-%d", &year, &month, &day) == 3)
             {
                 // Prüfen, ob danach eine Uhrzeit folgt (kein weiterer Parameter oder beginnt mit '-')
-                if (i + 1 < argc && argv[i + 1][0] != '-')
+                if (i + 1 < nArgs && args[i + 1][0] != '-')
                 {
-                    string timeStr = argv[i + 1];
+                    string timeStr = args[i + 1];
 
                     int parsed = sscanf(timeStr.c_str(),
                                         "%d:%d:%d",
@@ -905,22 +983,22 @@ int main(int argc, char* argv[])
                     return 1;
                 }
             }
-        } else if ((arg == "--open" || arg == "-o") && i + 1 < argc) {
-            openFile = argv[++i];
-        } else if ((arg == "--cmd" || arg == "-c") && i + 1 < argc) {
-            cmdArg = argv[++i];
-        } else if ((arg == "--focus" || arg == "-f") && i + 1 < argc) {
-            focusWindow = argv[++i];
-        } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < argc) { // Sekündliches Piepsen vor Schluss
-            preAlarmSeconds = safeStoi(argv[++i], 0);
+        } else if ((arg == "--open" || arg == "-o") && i + 1 < nArgs) {
+            openFile = args[++i];
+        } else if ((arg == "--cmd" || arg == "-c") && i + 1 < nArgs) {
+            cmdArg = args[++i];
+        } else if ((arg == "--focus" || arg == "-f") && i + 1 < nArgs) {
+            focusWindow = args[++i];
+        } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < nArgs) { // Sekündliches Piepsen vor Schluss
+            preAlarmSeconds = safeStoi(args[++i], 0);
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
         } else if (arg == "--time" || arg == "-t") {
             showLiveTime = true;
         } else if (arg == "--daily" || arg == "-d") {
             useDailyTimes = true;
 
-            while (i + 1 < argc && argv[i + 1][0] != '-') {
-                string timeStr = argv[i + 1]; // erst schauen, noch nicht erhöhen
+            while (i + 1 < nArgs && args[i + 1][0] != '-') {
+                string timeStr = args[i + 1]; // erst schauen, noch nicht erhöhen
                 int h = 0, m = 0, s = 0;
                 int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
                 if (parsed < 2) {
@@ -943,13 +1021,13 @@ int main(int argc, char* argv[])
             loop = true;
             maxLoops = -1; // I seek eternal fire
 
-        } else if ((arg == "--every" || arg == "-e") && i + 1 < argc) {
-            string daysStr = argv[++i];
+        } else if ((arg == "--every" || arg == "-e") && i + 1 < nArgs) {
+            string daysStr = args[++i];
             int h = 0, m = 0, s = 0;
 
             // Optionale Uhrzeit einlesen (sofern kein anderes Argument folgt)
-            if (i + 1 < argc && argv[i + 1][0] != '-') {
-                string timeStr = argv[i + 1];
+            if (i + 1 < nArgs && args[i + 1][0] != '-') {
+                string timeStr = args[i + 1];
                 int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
                 if (parsed >= 2) {
                     if (parsed == 2) s = 0;
@@ -974,7 +1052,7 @@ int main(int argc, char* argv[])
                      target - chrono::system_clock::now()).count();
             if (ms <= 0) ms = 1000;
 
-        } else if ((arg == "--lang" || arg == "-la") && i + 1 < argc) {
+        } else if ((arg == "--lang" || arg == "-la") && i + 1 < nArgs) {
             ++i; // bereits im Vor-Durchlauf verarbeitet
 
         } else if (arg == "--version" || arg == "-v") {
@@ -1349,9 +1427,15 @@ int main(int argc, char* argv[])
     } while (loop && (maxLoops == -1 || loopCount < maxLoops));
     cout << t(Str::TIMER_ENDED);
 
-    //Bildschirmschoner wieder erlauben
+    // Bildschirmschoner wieder erlauben
     if (noSleep){
         preventSleep(false);
+    }
+
+    // Konsolenmodus wiederherstellen
+    if (g_consoleModeChanged) {
+        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
+        g_consoleModeChanged = false;
     }
 
     return 0;
