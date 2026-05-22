@@ -968,6 +968,10 @@ int main(int argc, char* argv[])
             return 0;
         } else if (arg == "--help" || arg == "-h") {
             cout << t(Str::USAGE_HEADER);
+            if (!launchedFromExistingConsole()) {
+                cout << "\n";
+                system("pause");
+            }
             return 0;
         } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
             char buf[256];
@@ -977,7 +981,8 @@ int main(int argc, char* argv[])
         } else if (!useAtTime) {
             long long possible = parseTime(arg);
             if (possible > 0) {
-                ms = possible;
+                if (ms > MAX_MS - possible) ms = MAX_MS;
+                else ms += possible;
             } else if (isStandaloneUnit(arg)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), t(Str::ERROR_DETACHED_UNIT), arg.c_str());
