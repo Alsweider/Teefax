@@ -761,6 +761,20 @@ int main(int argc, char* argv[])
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);
     TimePeriodGuard timeGuard;
 
+    // QuickEdit-Modus deaktivieren: verhindert, dass ein Mausklick ins Konsolenfenster
+    // den Timer einfriert (Windows pausiert den Prozess, sobald Text markiert wird).
+    // Zu erledigen: Sollte nach Programmende und Strg+C zurückgesetzt werden.
+    {
+        HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+        DWORD mode = 0;
+        if (GetConsoleMode(hIn, &mode)) {
+            //SetConsoleMode(hIn, mode & ~ENABLE_QUICK_EDIT_MODE);
+            mode &= ~ENABLE_QUICK_EDIT_MODE;
+            mode |= ENABLE_EXTENDED_FLAGS;
+            SetConsoleMode(hIn, mode);
+        }
+    }
+
     // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird
     for (int i = 1; i < argc; ++i) {
         string a = argv[i];
