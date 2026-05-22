@@ -61,7 +61,7 @@ Einheiten werden direkt ohne Leerzeichen an die Zahl geschrieben und lassen sich
 | Monate (30 Tage) | `1mo` oder `1mon` oder `1month` |
 | Jahre (365 Tage) | `1y` oder `1yr` oder `1year` |
 
-Kombiniertes Beispiel: `teefax 1h30m` zählt 1 Stunde und 30 Minuten.
+Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 30 Minuten.
 
 ### Optionen
 
