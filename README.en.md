@@ -63,7 +63,7 @@ Units are written directly after the number, without spaces. Units can be combin
 | Months (30 days) | `1mo` or `1mon` or `1month` |
 | Years (365 days) | `1y` or `1yr` or `1year` |
 
-Combined example: `teefax 1h30m` counts down 1 hour and 30 minutes.
+Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 minutes.
 
 ### Options
 
