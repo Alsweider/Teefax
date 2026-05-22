@@ -40,6 +40,22 @@ Den Timer jederzeit beenden: Konsolenfenster schließen oder `Strg`+`C` drücken
 
 ---
 
+## Konfigurationsdatei
+
+Teefax liest beim Start eine optionale Konfigurationsdatei `teefax.ini` aus demselben Verzeichnis wie die `.exe`. Die Syntax ist identisch mit der Kommandozeile. Eine Option pro Zeile, Kommentare mit `#`:
+
+```ini
+# teefax.ini
+--lang en
+--alarm-repeat 3
+--nomsg
+"C:\Sounds\gong.wav"
+```
+
+Kommandozeilenargumente überschreiben Config-Werte (letzter Wert gewinnt). Eine kommentierte Beispieldatei liegt im Repository unter [`teefax.ini`](teefax.ini).
+
+---
+
 ## Nutzung
 
 ```
