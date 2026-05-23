@@ -1341,6 +1341,7 @@ int main(int argc, char* argv[])
         }
         for (int i = 0; i < barWidth; ++i) cout << '#';
         cout << "]   " << flush;
+        cout << "\n" << flush;
 
         if (!mute) {
             for (int r = 0; r < alarmRepeat; ++r) {
@@ -1391,6 +1392,13 @@ int main(int argc, char* argv[])
             ms = chrono::duration_cast<chrono::milliseconds>(
                      wallTarget - chrono::system_clock::now()).count();
             if (ms <= 0) ms = 1000;
+        }
+
+        // Konsolenmodus wiederherstellen, damit Kind-Prozesse (etwa via --cmd gestartet)
+        // die originale Einstellung erben und sie beim Beenden korrekt zurücksetzen können.
+        if (g_consoleModeChanged) {
+            SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
+            g_consoleModeChanged = false;
         }
 
         // Datei öffnen oder Konsolenbefehl ausführen
