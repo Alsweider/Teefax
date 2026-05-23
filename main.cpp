@@ -813,7 +813,7 @@ int main(int argc, char* argv[])
     bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
     int preAlarmSeconds = 0; // Sekunden vor Schluss, in denen sekündlich gepiept wird
     const int barWidth = 30;
-    int loopCount = 0;
+    long long loopCount = 0;
     bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
     vector<tuple<int,int,int>> dailyTimes;
     bool useDailyTimes = false;
@@ -899,7 +899,7 @@ int main(int argc, char* argv[])
             customMsg = args[++i];
         } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < nArgs) {
             alarmRepeat = safeStoi(args[++i], 1);
-            if (alarmRepeat < 1) alarmRepeat = 1;
+            if (alarmRepeat < 0) alarmRepeat = 1;
         } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < nArgs) {
             alarmInterval = safeStoi(args[++i], 2);
             if (alarmInterval < 1) alarmInterval = 1;
@@ -1193,7 +1193,7 @@ int main(int argc, char* argv[])
 
     // Die normale Timer-Schleife
     do {
-        if (loop) ++loopCount;
+        if (loop && loopCount < std::numeric_limits<long long>::max()) ++loopCount;
 
         // Für --daily und --at: absoluten Wanduhr-Zielzeitpunkt frisch bestimmen
         chrono::system_clock::time_point wallTarget;
@@ -1283,7 +1283,17 @@ int main(int argc, char* argv[])
 
                 string verbleibendStr = formatVerbleibend(verbleibendSec);
 
-                SetConsoleTitleA(("Teefax - " + verbleibendStr).c_str()); // Zeit im Fenstertitel anzeigen
+                {
+                    // verbleibendStr enthaelt nur ASCII (Ziffern + y/mo/d/h/m/s)
+                    wstring titleW = L"Teefax - " + wstring(verbleibendStr.begin(), verbleibendStr.end());
+                    if (!customMsg.empty()) {
+                        wstring excerptW = toWideArgv(customMsg);
+                        const size_t maxLen = 30;
+                        if (excerptW.size() > maxLen) excerptW = excerptW.substr(0, maxLen) + L"...";
+                        titleW += L" | " + excerptW;
+                    }
+                    SetConsoleTitleW(titleW.c_str()); // Zeit im Fenstertitel anzeigen
+                }
 
                 cout << "\r";
                 char buf[128];
@@ -1341,10 +1351,19 @@ int main(int argc, char* argv[])
         }
         for (int i = 0; i < barWidth; ++i) cout << '#';
         cout << "]   " << flush;
-        cout << "\n" << flush;
+
+        // \n nur wenn letzter Durchlauf oder nachfolgende Konsolenausgaben erwartet werden.
+        // Sonst bleibt der Cursor auf der Balken-Zeile und der naechste Durchlauf
+        // ueberschreibt sie mit \r. Verhindert ständig neue Durchlauf-Zeilen.
+        {
+            bool isLastIteration = !loop || (maxLoops != -1 && loopCount >= maxLoops);
+            bool hasPostOutput   = !cmdArg.empty() || !openFile.empty() || !focusWindow.empty();
+            if (isLastIteration || hasPostOutput)
+                cout << "\n" << flush;
+        }
 
         if (!mute) {
-            for (int r = 0; r < alarmRepeat; ++r) {
+            for (long long r = 0; alarmRepeat == 0 || r < alarmRepeat; ++r) {
                 if (!soundFile.empty()) {
                     try {
                         fs::path p(soundFile);
@@ -1377,7 +1396,7 @@ int main(int argc, char* argv[])
                         PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_SYNC);
                     }
                 }
-                if (r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
+                if (alarmRepeat == 0 || r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
             }
         }
 
