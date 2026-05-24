@@ -815,6 +815,7 @@ int main(int argc, char* argv[])
     const int barWidth = 30;
     long long loopCount = 0;
     bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
+    bool showStopwatch = false; // Stoppuhr-Modus
     vector<tuple<int,int,int>> dailyTimes;
     bool useDailyTimes = false;
     EverySpec everySpec;
@@ -994,6 +995,8 @@ int main(int argc, char* argv[])
             if (preAlarmSeconds < 0) preAlarmSeconds = 0;
         } else if (arg == "--time" || arg == "-t") {
             showLiveTime = true;
+        } else if (arg == "--stopwatch" || arg == "-sw") {
+            showStopwatch = true;
         } else if (arg == "--daily" || arg == "-d") {
             useDailyTimes = true;
 
@@ -1088,7 +1091,7 @@ int main(int argc, char* argv[])
         }
     }
 
-    if (!useAtTime && !useDailyTimes && !useEvery && !showLiveTime && ms <= 0) {
+    if (!useAtTime && !useDailyTimes && !useEvery && !showLiveTime && !showStopwatch && ms <= 0) {
         cout << t(Str::ERROR_NO_TIME) << "\n";
         return 1;
     }
@@ -1124,6 +1127,11 @@ int main(int argc, char* argv[])
             if (isTargetTomorrow(atTargetT))
                 cout << t(Str::TOMORROW_SUFFIX);
 
+        } else if (showStopwatch){
+            // Hier Überschrift, Logik unten unter if (showStopwatch)
+            // char buf[256];
+            // snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION); // Wird schon anderswo erledigt
+            cout << " (" << t(Str::STOPWATCH_LABEL) << ")\n";
         } else {
             // hier Umrechnung in passende Einheiten
             string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
@@ -1186,6 +1194,41 @@ int main(int argc, char* argv[])
             // Berechne Millisekunden bis zur nächsten Sekunde
             auto next = chrono::time_point_cast<chrono::seconds>(now) + chrono::seconds(1);
             this_thread::sleep_until(next);
+        }
+        return 0; // Programm wird über Strg+C beendet
+    }
+
+    // Stoppuhr-Modus
+    if (showStopwatch) {
+        auto start = chrono::steady_clock::now();
+
+        while (true) {
+            auto now         = chrono::steady_clock::now();
+            long long elapsedMs  = chrono::duration_cast<chrono::milliseconds>(
+                                      now - start).count();
+            long long elapsedSec = elapsedMs / 1000;
+            int       cs         = static_cast<int>((elapsedMs % 1000) / 10); // 0–99
+
+            string secStr = formatVerbleibend(elapsedSec);
+
+            // Fenstertitel nur einmal pro Sekunde aktualisieren
+            if (elapsedMs % 1000 < 100) {
+                wstring titleW = L"Teefax - "
+                                 + wstring(secStr.begin(), secStr.end());
+                SetConsoleTitleW(titleW.c_str());
+            }
+
+            char timebuf[64];
+            snprintf(timebuf, sizeof(timebuf), "%s.%02d", secStr.c_str(), cs);
+
+            char dispbuf[128];
+            snprintf(dispbuf, sizeof(dispbuf), t(Str::ELAPSED), timebuf);
+            cout << "\r" << dispbuf << "   " << flush;
+
+            // Nächste 100ms-Grenze relativ zum Startpunkt
+            auto nextTick = start
+                            + chrono::milliseconds(((elapsedMs / 100) + 1) * 100);
+            this_thread::sleep_until(nextTick);
         }
         return 0; // Programm wird über Strg+C beendet
     }

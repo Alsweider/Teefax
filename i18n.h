@@ -38,6 +38,8 @@ enum class Str {
 
     TOMORROW_SUFFIX,
     FOCUS_TARGET,
+    STOPWATCH_LABEL,
+    ELAPSED,
     _COUNT
 };
 
@@ -99,6 +101,7 @@ static const TranslationMap LANG_DE = {
         "       --msg <Text>           Eigene Notiz in der Benachrichtigung\n"
         "  -pa, --prealarm <s>         Sekuendlicher Beep X Sekunden vor Ablauf\n"
         "  -t,  --time                 Direktanzeige Datum & Zeit\n"
+        "  -sw, --stopwatch            Stoppuhr starten (Beenden mit Strg+C)\n"
         "  -d,  --daily HH:mm[:ss]     Taeglicher Alarm\n"
         "  -e,  --every <Tage> [HH:mm] Woechentlich/monatlich (z.B. mon,fri oder 1,15)\n"
         "  -f,  --focus <Titel>        Fenster nach Ablauf in Vordergrund holen\n"
@@ -119,11 +122,14 @@ static const TranslationMap LANG_DE = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nKonfigurationsdatei: teefax.ini (gleicher Ordner wie teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
-    { Str::TOMORROW_SUFFIX, " (morgen)" },
-    { Str::FOCUS_TARGET,    " | Fokus: \"%s\"" },
+    { Str::TOMORROW_SUFFIX,  " (morgen)" },
+    { Str::FOCUS_TARGET,     " | Fokus: \"%s\"" },
+    { Str::STOPWATCH_LABEL,  "Stoppuhr" },
+    { Str::ELAPSED,          "Vergangen: %s" },
     };
 
 static const TranslationMap LANG_FR = {
@@ -181,6 +187,7 @@ static const TranslationMap LANG_FR = {
         "       --msg <texte>          Note dans la notification\n"
         "  -pa, --prealarm <s>         Bip chaque seconde X secondes avant la fin\n"
         "  -t,  --time                 Affichage en direct de la date et l'heure\n"
+        "  -sw, --stopwatch            Demarrer le chronometre (Ctrl+C pour quitter)\n"
         "  -d,  --daily HH:mm[:ss]     Alarme quotidienne\n"
         "  -e,  --every <jours> [HH:mm] Hebdomadaire/mensuel (ex. mon,fri ou 1,15)\n"
         "  -f,  --focus <titre>        Mettre une fenetre au premier plan apres le compte\n"
@@ -201,11 +208,14 @@ static const TranslationMap LANG_FR = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nFichier de configuration: teefax.ini (meme dossier que teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
-    { Str::TOMORROW_SUFFIX, " (demain)" },
-    { Str::FOCUS_TARGET,    " | Cible: \"%s\"" },
+    { Str::TOMORROW_SUFFIX,  " (demain)" },
+    { Str::FOCUS_TARGET,     " | Cible: \"%s\"" },
+    { Str::STOPWATCH_LABEL,  "Chronometre" },
+    { Str::ELAPSED,          "Ecoule: %s" },
     };
 
 static const TranslationMap LANG_PT = {
@@ -263,6 +273,7 @@ static const TranslationMap LANG_PT = {
         "       --msg <texto>          Nota na notificacao\n"
         "  -pa, --prealarm <s>         Bip por segundo X segundos antes do fim\n"
         "  -t,  --time                 Mostrar data e hora em tempo real\n"
+        "  -sw, --stopwatch            Iniciar cronometro (sair com Ctrl+C)\n"
         "  -d,  --daily HH:mm[:ss]     Alarme diario\n"
         "  -e,  --every <dias> [HH:mm] Semanal/mensal (ex. mon,fri ou 1,15)\n"
         "  -f,  --focus <titulo>       Trazer janela para o primeiro plano apos o temporizador\n"
@@ -283,11 +294,14 @@ static const TranslationMap LANG_PT = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nFicheiro de configuracao: teefax.ini (mesma pasta que teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
-    { Str::TOMORROW_SUFFIX, " (amanha)" },
-    { Str::FOCUS_TARGET,    " | Foco: \"%s\"" },
+    { Str::TOMORROW_SUFFIX,  " (amanha)" },
+    { Str::FOCUS_TARGET,     " | Foco: \"%s\"" },
+    { Str::STOPWATCH_LABEL,  "Cronometro" },
+    { Str::ELAPSED,          "Decorrido: %s" },
     };
 
 static const TranslationMap LANG_RU = {
@@ -345,6 +359,7 @@ static const TranslationMap LANG_RU = {
         "       --msg <tekst>          Zametka v uvedomlenii\n"
         "  -pa, --prealarm <s>         Bip kazhduyu sekundu za X sekund do kontsa\n"
         "  -t,  --time                 Pokazyvat' tekushchee vremya\n"
+        "  -sw, --stopwatch            Zapustit' sekundomer (vyjti Ctrl+C)\n"
         "  -d,  --daily HH:mm[:ss]     Ezhednevnyj signal\n"
         "  -e,  --every <dni> [HH:mm]  Ezhenedel'no/ezhemesyachno (napr. mon,fri ili 1,15)\n"
         "  -f,  --focus <zagolovok>    Vyvestu okno na peredni plan posle tajmera\n"
@@ -365,11 +380,14 @@ static const TranslationMap LANG_RU = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nFajl konfiguratsii: teefax.ini (ta zhe papka, chto i teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
-    { Str::TOMORROW_SUFFIX, " (zavtra)" },
-    { Str::FOCUS_TARGET,    " | Okno: \"%s\"" },
+    { Str::TOMORROW_SUFFIX,  " (zavtra)" },
+    { Str::FOCUS_TARGET,     " | Okno: \"%s\"" },
+    { Str::STOPWATCH_LABEL,  "Sekundomer" },
+    { Str::ELAPSED,          "Proshlo: %s" },
     };
 
 static const TranslationMap LANG_EN = {
@@ -427,6 +445,7 @@ static const TranslationMap LANG_EN = {
         "       --msg <text>           Custom note in the notification\n"
         "  -pa, --prealarm <s>         Beep every second X seconds before end\n"
         "  -t,  --time                 Live date & time display\n"
+        "  -sw, --stopwatch            Start stopwatch (exit with Ctrl+C)\n"
         "  -d,  --daily HH:mm[:ss]     Daily alarm\n"
         "  -e,  --every <days> [HH:mm] Weekly/monthly recurrence (e.g. mon,fri or 1,15)\n"
         "  -f,  --focus <title>        Bring window to foreground after timer\n"
@@ -447,11 +466,14 @@ static const TranslationMap LANG_EN = {
         "  teefax 20s --prealarm 5\n"
         "  teefax --daily 4:00 10:00 16:00 22:00\n"
         "  teefax 5m --focus \"Notepad\"\n"
+        "\nConfig file: teefax.ini (same folder as teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
-    { Str::TOMORROW_SUFFIX, " (tomorrow)" },
-    { Str::FOCUS_TARGET,    " | Focus: \"%s\"" },
+    { Str::TOMORROW_SUFFIX,  " (tomorrow)" },
+    { Str::FOCUS_TARGET,     " | Focus: \"%s\"" },
+    { Str::STOPWATCH_LABEL,  "Stopwatch" },
+    { Str::ELAPSED,          "Elapsed: %s" },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────
