@@ -28,7 +28,7 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 - Suppress screensaver and standby during countdown
 - Accurate timing using `chrono::steady_clock` — not affected by system load
 - Lightweight: ~150 KB binary, ~0.7 MB RAM
-- Languages: 🇩🇪 🇬🇧 🇫🇷 🇵🇹 🇷🇺
+- Languages: 🇩🇪 🇬🇧 🇫🇷 🇵🇹 🇷🇺 *(Machine-translated from German. [Found an error?](https://github.com/Alsweider/Teefax/issues))*
 
 ---
 
