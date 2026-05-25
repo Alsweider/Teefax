@@ -24,6 +24,7 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 - Open a file or run a console command when the timer ends
 - Bring a program window to the foreground when the timer ends
 - Pre-alarm: audible per-second countdown before the final signal
+- Stopwatch with centisecond resolution
 - Live clock display mode
 - Suppress screensaver and standby during countdown
 - Accurate timing using `chrono::steady_clock` — not affected by system load
