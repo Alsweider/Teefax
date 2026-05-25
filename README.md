@@ -22,6 +22,7 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) von JFSoftware v
 - Datei öffnen oder Konsolenbefehl ausführen nach Ablauf
 - Programmfenster nach Ablauf in den Vordergrund holen
 - Voralarm: sekündliches Piepsen vor dem Schlussalarm
+- Stoppuhr mit Zentisekundenauflösung
 - Mini-Uhr: Direktanzeige von Datum und Uhrzeit
 - Bildschirmschoner und Standby während des Countdowns unterdrücken
 - Präzise Zeitmessung mit `chrono::steady_clock`, unabhängig von der Systemauslastung
