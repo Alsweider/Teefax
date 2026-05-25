@@ -1238,7 +1238,8 @@ int main(int argc, char* argv[])
             // Fenstertitel einmal pro Sekunde aktualisieren
             if (!isPaused && elapsedSec != lastTitleSec) {
                 lastTitleSec = elapsedSec;
-                wstring titleW = L"Teefax - "
+                wstring labelW = toWide(t(Str::STOPWATCH_LABEL));
+                wstring titleW = L"Teefax - " + labelW + L" - "
                                  + wstring(secStr.begin(), secStr.end());
                 SetConsoleTitleW(titleW.c_str());
             }
