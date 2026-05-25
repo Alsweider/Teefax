@@ -105,7 +105,7 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--lang <lang>` | `-la` | Set language: `de`, `en`, `fr`, `pt`, `ru` |
 | `--version` | `-v` | Show version number |
 | `--help` | `-h` | Show help |
-| `--stopwatch`| `-sw` | Start stopwatch (stop with `Ctrl+C`) |
+| `--stopwatch`| `-sw` | `Space` or `P`: Pause/Resume, `Ctrl+C`: Exit |
 
 ---
 
