@@ -104,7 +104,7 @@ Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 3
 | `--lang <Sprache>` | `-la` | Sprache festlegen: `de`, `en`, `fr`, `pt`, `ru` |
 | `--version` | `-v` | Versionsnummer anzeigen |
 | `--help` | `-h` | Hilfe anzeigen |
-| `--stopwatch`| `-sw` | Stoppuhr starten (stoppen mit `Strg+C`) |
+| `--stopwatch`| `-sw` | Stoppuhr starten (`Leertaste` oder `P`: Pause/Weiter, `Strg+C`: Beenden) |
 
 ---
 
