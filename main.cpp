@@ -14,6 +14,7 @@
 #include "sound_array.h" // Signalton
 #include <vector> // Für täglichen Alarm
 #include <sstream> // Für --every Parsing/Formatierung
+#include <conio.h> // _kbhit(), _getch() für Stoppuhr-Pause
 
 
 #pragma comment(lib, "winmm.lib")
@@ -1103,7 +1104,7 @@ int main(int argc, char* argv[])
         preventSleep(true);
     }
 
-    if (!showLiveTime){ // Wenn nur die Zeit angezeigt wird, Folgendes weglassen
+    if (!showLiveTime && !showStopwatch){ // Wenn nur die Zeit angezeigt wird oder Stoppuhr läuft, Folgendes weglassen
         char buf[256];
 
         snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
@@ -1127,11 +1128,6 @@ int main(int argc, char* argv[])
             if (isTargetTomorrow(atTargetT))
                 cout << t(Str::TOMORROW_SUFFIX);
 
-        } else if (showStopwatch){
-            // Hier Überschrift, Logik unten unter if (showStopwatch)
-            // char buf[256];
-            // snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION); // Wird schon anderswo erledigt
-            cout << " (" << t(Str::STOPWATCH_LABEL) << ")\n";
         } else {
             // hier Umrechnung in passende Einheiten
             string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
@@ -1200,19 +1196,48 @@ int main(int argc, char* argv[])
 
     // Stoppuhr-Modus
     if (showStopwatch) {
-        auto start = chrono::steady_clock::now();
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+        cout << buf << " (" << t(Str::STOPWATCH_LABEL) << ")\n";
+        cout << t(Str::STOPWATCH_HINT) << "\n";
+
+        auto start   = chrono::steady_clock::now();
+        bool isPaused = false;
+        chrono::steady_clock::time_point pauseStart;
+        long long frozenMs     = 0;  // Anzeige einfrieren bei Pause
+        long long lastTitleSec = -1; // Fenstertitel nur einmal pro Sekunde
 
         while (true) {
-            auto now         = chrono::steady_clock::now();
-            long long elapsedMs  = chrono::duration_cast<chrono::milliseconds>(
-                                      now - start).count();
+            // Tasteneingabe prüfen (nicht-blockierend)
+            if (_kbhit()) {
+                int key = _getch();
+                if (key == ' ' || key == 'p' || key == 'P') {
+                    if (!isPaused) {
+                        isPaused  = true;
+                        pauseStart = chrono::steady_clock::now();
+                        frozenMs  = chrono::duration_cast<chrono::milliseconds>(
+                                       pauseStart - start).count();
+                    } else {
+                        // Startpunkt um Pausendauer verschieben, Elapsed bleibt korrekt
+                        start    += chrono::steady_clock::now() - pauseStart;
+                        isPaused  = false;
+                    }
+                }
+            }
+
+            long long elapsedMs = isPaused
+                                      ? frozenMs
+                                      : chrono::duration_cast<chrono::milliseconds>(
+                                            chrono::steady_clock::now() - start).count();
+
             long long elapsedSec = elapsedMs / 1000;
-            int       cs         = static_cast<int>((elapsedMs % 1000) / 10); // 0–99
+            int       cs         = static_cast<int>((elapsedMs % 1000) / 10);
 
             string secStr = formatVerbleibend(elapsedSec);
 
-            // Fenstertitel nur einmal pro Sekunde aktualisieren
-            if (elapsedMs % 1000 < 100) {
+            // Fenstertitel einmal pro Sekunde aktualisieren
+            if (!isPaused && elapsedSec != lastTitleSec) {
+                lastTitleSec = elapsedSec;
                 wstring titleW = L"Teefax - "
                                  + wstring(secStr.begin(), secStr.end());
                 SetConsoleTitleW(titleW.c_str());
@@ -1223,12 +1248,23 @@ int main(int argc, char* argv[])
 
             char dispbuf[128];
             snprintf(dispbuf, sizeof(dispbuf), t(Str::ELAPSED), timebuf);
-            cout << "\r" << dispbuf << "   " << flush;
 
-            // Nächste 100ms-Grenze relativ zum Startpunkt
-            auto nextTick = start
-                            + chrono::milliseconds(((elapsedMs / 100) + 1) * 100);
-            this_thread::sleep_until(nextTick);
+            // Pausenanzeige anhängen bzw. wegwischen (feste Breite durch Leerzeichen)
+            char linebuf[256];
+            if (isPaused)
+                snprintf(linebuf, sizeof(linebuf), "%s %s", dispbuf, t(Str::STOPWATCH_PAUSED));
+            else
+                snprintf(linebuf, sizeof(linebuf), "%s", dispbuf);
+            cout << "\r" << linebuf << "            " << flush;
+
+            if (isPaused) {
+                this_thread::sleep_for(chrono::milliseconds(10));
+            } else {
+                // Nächste 10ms-Grenze relativ zum Startpunkt. Echte Zentisekunden, ohne Drift
+                auto nextTick = start
+                                + chrono::milliseconds(((elapsedMs / 10) + 1) * 10);
+                this_thread::sleep_until(nextTick);
+            }
         }
         return 0; // Programm wird über Strg+C beendet
     }

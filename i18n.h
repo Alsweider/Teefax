@@ -40,6 +40,8 @@ enum class Str {
     FOCUS_TARGET,
     STOPWATCH_LABEL,
     ELAPSED,
+    STOPWATCH_HINT,
+    STOPWATCH_PAUSED,
     _COUNT
 };
 
@@ -130,6 +132,8 @@ static const TranslationMap LANG_DE = {
     { Str::FOCUS_TARGET,     " | Fokus: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Stoppuhr" },
     { Str::ELAPSED,          "Vergangen: %s" },
+    { Str::STOPWATCH_HINT,   "Leertaste oder P: Pause/Weiter | Strg+C: Beenden" },
+    { Str::STOPWATCH_PAUSED, "[PAUSIERT]" },
     };
 
 static const TranslationMap LANG_FR = {
@@ -216,6 +220,8 @@ static const TranslationMap LANG_FR = {
     { Str::FOCUS_TARGET,     " | Cible: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Chronometre" },
     { Str::ELAPSED,          "Ecoule: %s" },
+    { Str::STOPWATCH_HINT,   "Espace ou P: Pause/Reprendre | Ctrl+C: Quitter" },
+    { Str::STOPWATCH_PAUSED, "[EN PAUSE]" },
     };
 
 static const TranslationMap LANG_PT = {
@@ -302,6 +308,8 @@ static const TranslationMap LANG_PT = {
     { Str::FOCUS_TARGET,     " | Foco: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Cronometro" },
     { Str::ELAPSED,          "Decorrido: %s" },
+    { Str::STOPWATCH_HINT,   "Espaco ou P: Pausar/Continuar | Ctrl+C: Sair" },
+    { Str::STOPWATCH_PAUSED, "[PAUSADO]" },
     };
 
 static const TranslationMap LANG_RU = {
@@ -388,6 +396,8 @@ static const TranslationMap LANG_RU = {
     { Str::FOCUS_TARGET,     " | Okno: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Sekundomer" },
     { Str::ELAPSED,          "Proshlo: %s" },
+    { Str::STOPWATCH_HINT,   "Probel ili P: Pauza/Prodolzhit' | Ctrl+C: Vyjti" },
+    { Str::STOPWATCH_PAUSED, "[PAUZA]" },
     };
 
 static const TranslationMap LANG_EN = {
@@ -474,6 +484,8 @@ static const TranslationMap LANG_EN = {
     { Str::FOCUS_TARGET,     " | Focus: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Stopwatch" },
     { Str::ELAPSED,          "Elapsed: %s" },
+    { Str::STOPWATCH_HINT,   "Space or P: Pause/Resume | Ctrl+C: Exit" },
+    { Str::STOPWATCH_PAUSED, "[PAUSED]" },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────
