@@ -111,10 +111,10 @@ teefax 2s --mute
 ### 4.5 Asynchroner Ton
 
 ```
-teefax 2s --async --nomsg
+teefax 2s --async
 ```
 
-- [ ] Timer endet, Ton startet (Programm beendet sich ggf. vor Ende des Tons - OK)
+- [ ] Timer endet, Ton startet (Programm beendet sich ggf. vor Ende des Tons, Ton und MessageBox gleichzeitig - OK)
 
 ---
 
