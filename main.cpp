@@ -266,6 +266,17 @@ long long millisecondsUntilDateTime(int year, int month, int day,
 
 
 void openFileAfterTimer(const string& filePath) {
+    // Fehlermeldungen werden mit \r auf Spalte 0 positioniert und ohne abschliessendes \n
+    // ausgegeben. So ueberschreiben sie den Fortschrittsbalken der aktuellen Zeile.
+    // Der naechste Durchlauf startet wieder mit \r und ueberschreibt die Fehlermeldung.
+    // Nur beim letzten Durchlauf setzt isLastIteration vorher ein \n, sodass der Fehler
+    // auf einer eigenen Zeile unterhalb des letzten Balkens bleibt.
+    // Alle i18n-Fehlertexte beginnen mit \n (historisch). Das wird hier uebersprungen.
+    auto printErr = [](const char* buf) {
+        const char* msg = (buf[0] == '\n') ? buf + 1 : buf;
+        cout << "\r" << msg << flush;
+    };
+
     bool isUrl = filePath.rfind("http://", 0) == 0 ||
                  filePath.rfind("https://", 0) == 0;
 
@@ -275,13 +286,13 @@ void openFileAfterTimer(const string& filePath) {
                 char buf[512];
                 snprintf(buf, sizeof(buf), t(Str::FILE_NOT_FOUND),
                          toConsole(toWideArgv(filePath)).c_str());
-                cout << buf << "\n";
+                printErr(buf);
                 return;
             }
         } catch (const fs::filesystem_error& e) {
             char buf[512];
             snprintf(buf, sizeof(buf), t(Str::FILE_SYSTEM_ERROR), e.what());
-            cout << buf << "\n";
+            printErr(buf);
             return;
         }
     }
@@ -291,7 +302,7 @@ void openFileAfterTimer(const string& filePath) {
         char buf[512];
         snprintf(buf, sizeof(buf), t(Str::ERROR_FILE_CONVERSION),
                  toConsole(toWideArgv(filePath)).c_str());
-        cout << buf << "\n";
+        printErr(buf);
         return;
     }
     string display = toConsole(wfile);
@@ -299,11 +310,7 @@ void openFileAfterTimer(const string& filePath) {
     if ((INT_PTR)res <= 32) {
         char buf[256];
         snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, display.c_str());
-        cout << buf;
-    } else {
-        char buf[256];
-        snprintf(buf, sizeof(buf), t(Str::FILE_OPENED), display.c_str());
-        cout << buf;
+        printErr(buf);
     }
 }
 
@@ -1186,6 +1193,12 @@ int main(int argc, char* argv[])
                      toConsole(toWideArgv(focusWindow)).c_str());
             cout << buf;
         }
+        if (!openFile.empty()) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::OPEN_TARGET),
+                     toConsole(toWideArgv(openFile)).c_str());
+            cout << buf;
+        }
         cout << "\n";
     }
 
@@ -1466,12 +1479,14 @@ int main(int argc, char* argv[])
         for (int i = 0; i < barWidth; ++i) cout << '#';
         cout << "]   " << flush;
 
-        // \n nur wenn letzter Durchlauf oder nachfolgende Konsolenausgaben erwartet werden.
-        // Sonst bleibt der Cursor auf der Balken-Zeile und der naechste Durchlauf
-        // ueberschreibt sie mit \r. Verhindert ständig neue Durchlauf-Zeilen.
+        // \n nur wenn letzter Durchlauf oder --cmd aktiv ist (gibt immer CMD_STARTED aus).
+        // --open und --focus geben im Erfolgsfall nichts mehr aus (Info steht in der
+        // Startmeldung). Ihre Fehler-Strings beginnen selbst mit \n und brauchen
+        // kein vorheriges \n. Ohne dieses \n ueberschreibt der naechste Durchlauf
+        // den Balken per \r in derselben Zeile.
         {
             bool isLastIteration = !loop || (maxLoops != -1 && loopCount >= maxLoops);
-            bool hasPostOutput   = !cmdArg.empty() || !openFile.empty() || !focusWindow.empty();
+            bool hasPostOutput   = !cmdArg.empty();
             if (isLastIteration || hasPostOutput)
                 cout << "\n" << flush;
         }
