@@ -380,7 +380,7 @@ static BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
-// Sucht ein sichtbares Fenster anhand eines Teilstrings – ohne Seiteneffekte.
+// Sucht ein sichtbares Fenster anhand eines Teilstrings, ohne Seiteneffekte.
 static HWND findWindowByTitle(const string& titleStr)
 {
     wstring part = toWideArgv(titleStr);
@@ -622,11 +622,11 @@ chrono::system_clock::time_point nextDailyTarget(
 
 struct EverySpec {
     enum class Type { Weekday, MonthDay } type = Type::Weekday;
-    vector<int> days;   // Wochentage: 0=So…6=Sa  |  Monatstage: 1–31
+    vector<int> days;   // Wochentage: 0=So…6=Sa  |  Monatstage: 1-31
     int hour = 0, minute = 0, second = 0;
 };
 
-// Gibt den tm_wday-Wert (0–6) für einen Tagnamen zurück, oder -1
+// Gibt den tm_wday-Wert (0-6) für einen Tagnamen zurück, oder -1
 int parseWeekday(const string& s) {
     string u;
     for (char c : s) u += static_cast<char>(tolower(static_cast<unsigned char>(c)));
@@ -776,6 +776,26 @@ static void loadConfigArgs(vector<string>& out) {
 
 // Erkennt, ob Teefax aus einer bestehenden Konsole aufgerufen wurde
 // oder ob Windows selbst die Konsole erstellt hat (= Doppelklick)
+// Erzeugt einen WAV-Puffer mit 1 Sekunde Stille (22050 Hz, 16-bit, mono).
+// Wird einmalig aufgebaut. Zeiger bleibt fuer die Lebensdauer des Programms gueltig.
+static const vector<uint8_t>& silentWav() {
+    static vector<uint8_t> wav = [](){
+        constexpr uint32_t RATE  = 22050;
+        constexpr uint32_t DSIZE = RATE * 2; // 1s, 16-bit mono = 44100 Bytes
+        vector<uint8_t> w(44 + DSIZE, 0);
+        auto w16 = [&](size_t o, uint16_t v){ memcpy(w.data()+o, &v, 2); };
+        auto w32 = [&](size_t o, uint32_t v){ memcpy(w.data()+o, &v, 4); };
+        memcpy(w.data()+0,  "RIFF", 4); w32(4,  36 + DSIZE);
+        memcpy(w.data()+8,  "WAVE", 4);
+        memcpy(w.data()+12, "fmt ", 4); w32(16, 16);
+        w16(20, 1); w16(22, 1); w32(24, RATE); w32(28, RATE*2); w16(32, 2); w16(34, 16);
+        memcpy(w.data()+36, "data", 4); w32(40, DSIZE);
+        // w[44..] = 0 (Stille, bereits initialisiert)
+        return w;
+    }();
+    return wav;
+}
+
 bool launchedFromExistingConsole() {
     HWND hwnd = GetConsoleWindow();
     if (!hwnd) return false;
@@ -854,13 +874,14 @@ int main(int argc, char* argv[])
         }
     }
 
-    // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird
-    // (Config-Defaults werden hier bereits berücksichtigt, da args beide enthält)
+    // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird.
+    // Kein break: alle --lang-Vorkommen auswerten, damit CLI-Argumente
+    // einen INI-Wert ueberschreiben koennen (letzter Wert gewinnt).
     for (int i = 0; i < nArgs; ++i) {
         const string& a = args[i];
         if ((a == "--lang" || a == "-la") && i + 1 < nArgs) {
             _putenv_s("TEEFAX_LANG", args[i + 1].c_str());
-            break;
+            ++i; // Wert ueberspringen
         }
     }
 
@@ -1315,6 +1336,7 @@ int main(int argc, char* argv[])
         auto end = start + chrono::milliseconds(totalMsThisRound);
 
         long long lastVerbleibendSec = -1;
+        bool soundPrewarmed = false; // Bluetooth-Prewarm: einmalig pro Durchlauf
 
         while (true) {
             auto nowSteady = chrono::steady_clock::now();
@@ -1347,6 +1369,18 @@ int main(int argc, char* argv[])
                     verbleibendSec <= preAlarmSeconds)
                 {
                     Beep(1200, 80);
+                }
+
+                // BT-PREWARM: 2 Sekunden vor Ablauf den Audiopfad aufwaermen.
+                // SND_ASYNC kehrt sofort zurueck, ohne zu blockieren oder die Anzeige zu verzögern.
+                // Nicht bei --async: dort koennte ein laufender Alarm-Sound
+                // aus dem vorherigen Durchlauf unterbrochen werden.
+                if (!mute && !asyncSound && !soundPrewarmed &&
+                    verbleibendSec > 0 && verbleibendSec <= 2)
+                {
+                    soundPrewarmed = true;
+                    PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
+                               NULL, SND_MEMORY | SND_ASYNC);
                 }
 
                 long long totalMs = totalMsThisRound;
