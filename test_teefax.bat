@@ -17,7 +17,7 @@ if not exist "%EXE%" (
 
 echo.
 echo  =======================================================
-echo   Teefax Smoke Tests
+echo   Teefax Smoke-Tests
 echo   Hinweis: teefax.ini sollte leer sein oder fehlen,
 echo   damit INI-Einstellungen keine Tests verfaelschen.
 echo  =======================================================
