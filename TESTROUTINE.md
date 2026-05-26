@@ -383,7 +383,7 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 
 | Bereich | Status |
 |---|---|
-| Smoke Tests (automatisch) | ☐ OK ☐ Fehler |
+| Smoke-Tests (automatisch) | ☐ OK ☐ Fehler |
 | Anzeige & Ausgabe | ☐ OK ☐ Fehler |
 | Ton | ☐ OK ☐ Fehler |
 | Benachrichtigung | ☐ OK ☐ Fehler |
