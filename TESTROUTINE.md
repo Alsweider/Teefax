@@ -241,8 +241,8 @@ teefax 2s --mute --nomsg --cmd "notepad.exe"
 ### 10.3 Fensterfokus (--focus)
 
 ```
-:: Notepad öffnen, dann:
-teefax 5s --mute --nomsg --focus "Notepad"
+:: Editor (Notepad) öffnen, dann:
+teefax 5s --mute --nomsg --focus "Editor"
 ```
 
 - [ ] Warnung `Warnung: Fenster ... nicht gefunden` erscheint NICHT (Fenster ist offen)
@@ -262,7 +262,7 @@ teefax 2s --loop 3 --mute --nomsg --cmd "echo loop_cmd"
 ```
 
 - [ ] Befehl wird nach jedem Durchlauf ausgeführt (3-mal)
-- [ ] Balken überschreibt sich in der selben Zeile (keine neuen Zeilen pro Durchlauf)
+- [ ] Neue Zeile pro Durchlauf, Eingabebefehl und Konsolenantwort sauber übereinander. Ausgaben für jeden Durchlauf bleiben erhalten.
 
 ---
 
