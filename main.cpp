@@ -265,16 +265,17 @@ long long millisecondsUntilDateTime(int year, int month, int day,
 }
 
 
-void openFileAfterTimer(const string& filePath) {
-    // Fehlermeldungen werden mit \r auf Spalte 0 positioniert und ohne abschliessendes \n
-    // ausgegeben. So ueberschreiben sie den Fortschrittsbalken der aktuellen Zeile.
-    // Der naechste Durchlauf startet wieder mit \r und ueberschreibt die Fehlermeldung.
-    // Nur beim letzten Durchlauf setzt isLastIteration vorher ein \n, sodass der Fehler
-    // auf einer eigenen Zeile unterhalb des letzten Balkens bleibt.
-    // Alle i18n-Fehlertexte beginnen mit \n (historisch). Das wird hier uebersprungen.
+// Gibt false zurueck, wenn die Datei nicht geoeffnet werden konnte (z. B. nicht gefunden),
+// damit der Aufrufer bei Bedarf die Schleife abbrechen kann (wie --focus).
+// Fehlermeldungen werden mit \r auf Spalte 0 positioniert: der naechste Schleifendurchlauf
+// ueberschreibt sie per \r wieder; beim letzten Durchlauf bleibt die Meldung stehen.
+// Alle i18n-Fehlertexte beginnen mit \n (historisch). Das wird hier uebersprungen.
+bool openFileAfterTimer(const string& filePath) {
+    // Fehlermeldung überschreibt den Balken per \r; trailing spaces loeschen
+    // Balkenreste, die laenger als die Fehlermeldung sind.
     auto printErr = [](const char* buf) {
         const char* msg = (buf[0] == '\n') ? buf + 1 : buf;
-        cout << "\r" << msg << flush;
+        cout << "\r" << msg << "                                        " << flush;
     };
 
     bool isUrl = filePath.rfind("http://", 0) == 0 ||
@@ -287,13 +288,13 @@ void openFileAfterTimer(const string& filePath) {
                 snprintf(buf, sizeof(buf), t(Str::FILE_NOT_FOUND),
                          toConsole(toWideArgv(filePath)).c_str());
                 printErr(buf);
-                return;
+                return false;
             }
         } catch (const fs::filesystem_error& e) {
             char buf[512];
             snprintf(buf, sizeof(buf), t(Str::FILE_SYSTEM_ERROR), e.what());
             printErr(buf);
-            return;
+            return false;
         }
     }
 
@@ -303,7 +304,7 @@ void openFileAfterTimer(const string& filePath) {
         snprintf(buf, sizeof(buf), t(Str::ERROR_FILE_CONVERSION),
                  toConsole(toWideArgv(filePath)).c_str());
         printErr(buf);
-        return;
+        return false;
     }
     string display = toConsole(wfile);
     HINSTANCE res = ShellExecuteW(NULL, L"open", wfile.c_str(), NULL, NULL, SW_SHOWNORMAL);
@@ -311,12 +312,20 @@ void openFileAfterTimer(const string& filePath) {
         char buf[256];
         snprintf(buf, sizeof(buf), t(Str::FILE_ERROR), (INT_PTR)res, display.c_str());
         printErr(buf);
+        return false;
     }
+    return true;
 }
 
+// CMD_STARTED wird vor dem Start ausgegeben, damit die Ausgabe des Prozesses
+// geordnet darunter erscheint. WaitForSingleObject stellt sicher, dass der
+// Kindprozess fertig ist, bevor die naechste Schleifenrunde oder TIMER_ENDED
+// beginnt. Verhindert Zeileninterleaving und doppelte Durchlauf-Anzeigen.
+// Hinweis: Langlaeufer (z. B. "notepad.exe" ohne "start") blockieren teefax
+// bis zum Beenden des Programms. Fuer solche Faelle "start" vorschalten.
 void runConsoleCommand(const string& command) {
     if (command.empty()) {
-        cout << t(Str::NO_COMMAND) << "\n";
+        cout << "\n" << t(Str::NO_COMMAND) << "\n";
         return;
     }
 
@@ -325,11 +334,18 @@ void runConsoleCommand(const string& command) {
         char buf[512];
         snprintf(buf, sizeof(buf), t(Str::ERROR_CMD_CONVERSION),
                  toConsole(toWideArgv(command)).c_str());
-        cout << buf << "\n";
+        cout << "\n" << buf << "\n";
         return;
     }
 
     string display = toConsole(wcommand);
+
+    // CMD_STARTED vor dem Prozessstart: Ausgabe erscheint geordnet darunter
+    {
+        char buf[512];
+        snprintf(buf, sizeof(buf), t(Str::CMD_STARTED), display.c_str());
+        cout << buf << "\n" << flush;
+    }
 
     STARTUPINFOW si{};
     PROCESS_INFORMATION pi{};
@@ -351,12 +367,11 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
+    // Warten bis Prozess beendet: verhindert Ausgabe-Interleaving mit dem
+    // naechsten Balken. Langlaeufer blockieren teefax, ggf. "start" nutzen.
+    WaitForSingleObject(pi.hProcess, INFINITE);
     CloseHandle(pi.hProcess);
     CloseHandle(pi.hThread);
-
-    char buf[512];
-    snprintf(buf, sizeof(buf), t(Str::CMD_STARTED), display.c_str());
-    cout << buf << "\n";
 }
 
 // Fenster anhand eines Teilstrings im Titel in den Vordergrund holen
@@ -1479,17 +1494,16 @@ int main(int argc, char* argv[])
         for (int i = 0; i < barWidth; ++i) cout << '#';
         cout << "]   " << flush;
 
-        // \n nur wenn letzter Durchlauf oder --cmd aktiv ist (gibt immer CMD_STARTED aus).
-        // --open und --focus geben im Erfolgsfall nichts mehr aus (Info steht in der
-        // Startmeldung). Ihre Fehler-Strings beginnen selbst mit \n und brauchen
-        // kein vorheriges \n. Ohne dieses \n ueberschreibt der naechste Durchlauf
-        // den Balken per \r in derselben Zeile.
-        {
-            bool isLastIteration = !loop || (maxLoops != -1 && loopCount >= maxLoops);
-            bool hasPostOutput   = !cmdArg.empty();
-            if (isLastIteration || hasPostOutput)
-                cout << "\n" << flush;
-        }
+        // \n nach dem vollen Balken:
+        // - Immer beim letzten Durchlauf (TIMER_ENDED, MessageBox folgen).
+        // - Immer wenn --cmd aktiv ist: CMD_STARTED und Prozessausgabe sollen
+        //   auf eigenen Zeilen stehen, nicht neben dem Balken.
+        // - --open und --focus: kein eigenes \n noetig (kein Konsolentext bei Erfolg;
+        //   Fehler steuern \n selbst via \r/printErr bzw. Abbruchmeldung).
+        bool isLastIteration = !loop || (maxLoops != -1 && loopCount >= maxLoops);
+        bool hasPostOutput   = !cmdArg.empty();
+        if (isLastIteration || hasPostOutput)
+            cout << "\n" << flush;
 
         if (!mute) {
             for (long long r = 0; alarmRepeat == 0 || r < alarmRepeat; ++r) {
@@ -1554,7 +1568,10 @@ int main(int argc, char* argv[])
             runConsoleCommand(cmdArg);
         }
         if (!openFile.empty()) {
-            openFileAfterTimer(openFile);
+            // Wie --focus: bei Fehler (Datei nicht gefunden) Schleife abbrechen.
+            if (!openFileAfterTimer(openFile) && loop) {
+                loop = false;
+            }
         }
         if (!focusWindow.empty()) {
             if (!bringWindowToFront(focusWindow)) {
