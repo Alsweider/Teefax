@@ -1399,16 +1399,17 @@ int main(int argc, char* argv[])
                     Beep(1200, 80);
                 }
 
-                // BT-PREWARM: 2 Sekunden vor Ablauf den Audiopfad aufwaermen.
-                // SND_ASYNC kehrt sofort zurueck, ohne zu blockieren oder die Anzeige zu verzögern.
-                // Nicht bei --async: dort koennte ein laufender Alarm-Sound
-                // aus dem vorherigen Durchlauf unterbrochen werden.
+                // BT-PREWARM: Audiopfad aufwaermen und bis zum Alarm aktiv halten.
+                // SND_LOOP | SND_ASYNC: nahtlose Stille haelt BT-Verbindung durchgehend aktiv,
+                // sodass keine Aktivierungs-/Deaktivierungsklicks zwischen Vorwärmen und Alarm entstehen.
+                // Das folgende PlaySoundA fuer den Alarm beendet den Loop automatisch.
+                // Nicht bei --async: koennte laufenden Alarm-Sound unterbrechen.
                 if (!mute && !asyncSound && !soundPrewarmed &&
                     verbleibendSec > 0 && verbleibendSec <= 2)
                 {
                     soundPrewarmed = true;
                     PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
-                               NULL, SND_MEMORY | SND_ASYNC);
+                               NULL, SND_MEMORY | SND_ASYNC | SND_LOOP);
                 }
 
                 long long totalMs = totalMsThisRound;
@@ -1566,6 +1567,20 @@ int main(int argc, char* argv[])
         // Datei öffnen oder Konsolenbefehl ausführen
         if (!cmdArg.empty()) {
             runConsoleCommand(cmdArg);
+            // Nach Rückkehr des Kind-Prozesses QuickEdit wieder deaktivieren.
+            // Das Kind (z. B. eine weitere teefax-Instanz) hat ggf. den Originalzustand
+            // (QuickEdit an) beim Beenden wiederhergestellt. Damit der Parent-Prozess
+            // durchgehend QuickEdit-frei bleibt, wird es hier sofort erneut abgeschaltet.
+            {
+                HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+                DWORD mode = 0;
+                if (GetConsoleMode(hIn, &mode)) {
+                    mode &= ~ENABLE_QUICK_EDIT_MODE;
+                    mode |=  ENABLE_EXTENDED_FLAGS;
+                    SetConsoleMode(hIn, mode);
+                    g_consoleModeChanged = true;
+                }
+            }
         }
         if (!openFile.empty()) {
             // Wie --focus: bei Fehler (Datei nicht gefunden) Schleife abbrechen.

@@ -120,7 +120,7 @@ set T=--msg mit Text
 "%EXE%" 1s --mute --nomsg --msg "Testnotiz OK" >nul 2>&1
 call :chk %errorlevel% 0
 
-set T=--async (Ton spielt kurz)
+set T=--async (Ton spielt kurz, unhoerbar)
 "%EXE%" 1s --async --nomsg >nul 2>&1
 call :chk %errorlevel% 0
 
@@ -161,10 +161,10 @@ call :chk %errorlevel% 0
 rem ── 6. Konfigurationsdatei ───────────────────────────────────────────
 
 set T=INI-Option --mute (Ton sollte fehlen)
-echo --mute > teefax_test.ini
+echo --mute > teefax.ini
 "%EXE%" 1s --nomsg 2>nul >nul
 call :chk %errorlevel% 0
-del teefax_test.ini >nul 2>&1
+del teefax.ini >nul 2>&1
 
 rem ── Ergebnis ─────────────────────────────────────────────────────────
 
