@@ -790,11 +790,174 @@ static void loadConfigArgs(vector<string>& out) {
         if (start == string::npos) continue;
         line = line.substr(start);
         if (line[0] == '#') continue; // Kommentarzeile
+        if (line.rfind("macro ", 0) == 0) continue; // Makro-Definition, nicht als Argument laden
         for (auto& tok : tokenizeConfigLine(line))
             out.push_back(tok);
     }
     fclose(f);
 }
+
+// ── Makro-System ──────────────────────────────────────────────────────
+
+// Pfad zur teefax.ini ermitteln (wird von mehreren Makro-Funktionen benoetigt)
+static wstring getIniPath() {
+    wchar_t exeBuf[MAX_PATH];
+    if (GetModuleFileNameW(nullptr, exeBuf, MAX_PATH) == 0) return L"";
+    wstring p(exeBuf);
+    size_t slash = p.rfind(L'\\');
+    if (slash == wstring::npos) return L"";
+    return p.substr(0, slash + 1) + L"teefax.ini";
+}
+
+// Alle Makros aus der ini laden: "macro <name> = <args>" -> map
+static unordered_map<string,string> loadMacros() {
+    unordered_map<string,string> macros;
+    wstring iniPath = getIniPath();
+    if (iniPath.empty()) return macros;
+
+    FILE* f = _wfopen(iniPath.c_str(), L"r");
+    if (!f) return macros;
+
+    char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        string line(buf);
+        while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+            line.pop_back();
+        size_t start = line.find_first_not_of(" \t");
+        if (start == string::npos) continue;
+        line = line.substr(start);
+        if (line[0] == '#') continue;
+
+        // Erwartet: "macro <name> = <args>"
+        if (line.rfind("macro ", 0) != 0) continue;
+        size_t nameStart = 6; // nach "macro "
+        size_t eq = line.find('=', nameStart);
+        if (eq == string::npos) continue;
+
+        string name = line.substr(nameStart, eq - nameStart);
+        size_t ns = name.find_first_not_of(" \t");
+        size_t ne = name.find_last_not_of(" \t");
+        if (ns == string::npos) continue;
+        name = name.substr(ns, ne - ns + 1);
+
+        string value = line.substr(eq + 1);
+        size_t vs = value.find_first_not_of(" \t");
+        if (vs != string::npos) value = value.substr(vs);
+        size_t ve = value.find_last_not_of(" \t");
+        if (ve != string::npos) value = value.substr(0, ve + 1);
+
+        if (!name.empty()) macros[name] = value;
+    }
+    fclose(f);
+    return macros;
+}
+
+// Reservierte Namen: alle bekannten Flags und Kurzformen
+static bool isMacroNameReserved(const string& name) {
+    static const vector<string> reserved = {
+        "--mute","-m","--loop","-l","--nomsg","--msg","--alarm-repeat","-ar",
+        "--alarm-interval","-ai","--async","-as","--at","-a","--until",
+        "--open","-o","--cmd","-c","--focus","-f","--prealarm","-pa",
+        "--time","-t","--stopwatch","-sw","--daily","-d","--every","-e",
+        "--nosleep","-ns","--lang","-la","--version","-v","--help","-h",
+        "--macro"
+    };
+    for (const auto& r : reserved)
+        if (name == r) return true;
+    return false;
+}
+
+// Makroname darf nur Buchstaben und Ziffern enthalten
+static bool isMacroNameValid(const string& name) {
+    if (name.empty()) return false;
+    for (char c : name)
+        if (!isalnum(static_cast<unsigned char>(c))) return false;
+    return true;
+}
+
+// Makro in ini schreiben (neu oder ueberschreiben).
+// Bestehende "macro <name> = ..."-Zeile wird ersetzt, sonst ans Ende angehaengt.
+static void saveMacroToIni(const string& name, const string& args) {
+    wstring iniPath = getIniPath();
+    if (iniPath.empty()) return;
+
+    vector<string> lines;
+    FILE* f = _wfopen(iniPath.c_str(), L"r");
+    if (f) {
+        char buf[1024];
+        while (fgets(buf, sizeof(buf), f)) {
+            string line(buf);
+            while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+                line.pop_back();
+            lines.push_back(line);
+        }
+        fclose(f);
+    }
+
+    string entry  = "macro " + name + " = " + args;
+    string prefix = "macro " + name + " ";
+
+    bool replaced = false;
+    for (auto& line : lines) {
+        string trimmed = line;
+        size_t s = trimmed.find_first_not_of(" \t");
+        if (s != string::npos) trimmed = trimmed.substr(s);
+        if (trimmed.rfind(prefix, 0) == 0 && trimmed.find('=') != string::npos) {
+            line = entry;
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) lines.push_back(entry);
+
+    FILE* fw = _wfopen(iniPath.c_str(), L"w");
+    if (!fw) return;
+    for (const auto& line : lines)
+        fprintf(fw, "%s\n", line.c_str());
+    fclose(fw);
+}
+
+// Makro aus ini entfernen; gibt true zurueck wenn gefunden und entfernt
+static bool removeMacroFromIni(const string& name) {
+    wstring iniPath = getIniPath();
+    if (iniPath.empty()) return false;
+
+    vector<string> lines;
+    FILE* f = _wfopen(iniPath.c_str(), L"r");
+    if (!f) return false;
+    char buf[1024];
+    while (fgets(buf, sizeof(buf), f)) {
+        string line(buf);
+        while (!line.empty() && (line.back() == '\n' || line.back() == '\r'))
+            line.pop_back();
+        lines.push_back(line);
+    }
+    fclose(f);
+
+    string prefix = "macro " + name + " ";
+    bool found = false;
+    vector<string> kept;
+    for (const auto& line : lines) {
+        string trimmed = line;
+        size_t s = trimmed.find_first_not_of(" \t");
+        if (s != string::npos) trimmed = trimmed.substr(s);
+        if (!found && trimmed.rfind(prefix, 0) == 0 && trimmed.find('=') != string::npos) {
+            found = true; // diese Zeile weglassen
+        } else {
+            kept.push_back(line);
+        }
+    }
+    if (!found) return false;
+
+    FILE* fw = _wfopen(iniPath.c_str(), L"w");
+    if (!fw) return false;
+    for (const auto& line : kept)
+        fprintf(fw, "%s\n", line.c_str());
+    fclose(fw);
+    return true;
+}
+
+// ── Ende Makro-System ─────────────────────────────────────────────────
 
 // Erkennt, ob Teefax aus einer bestehenden Konsole aufgerufen wurde
 // oder ob Windows selbst die Konsole erstellt hat (= Doppelklick)
@@ -873,6 +1036,151 @@ int main(int argc, char* argv[])
     loadConfigArgs(args);
     for (int i = 1; i < argc; ++i)
         args.push_back(argv[i]);
+
+    // ── --macro Verwaltungsbefehle (vor allem anderen auswerten) ─────────
+    // Sprache muss dafür schon gesetzt sein, deshalb hier ein Mini-Vorlauf.
+    for (int i = 0; i < static_cast<int>(args.size()); ++i) {
+        if ((args[i] == "--lang" || args[i] == "-la") && i + 1 < static_cast<int>(args.size())) {
+            _putenv_s("TEEFAX_LANG", args[i + 1].c_str());
+        }
+    }
+
+    for (int i = 0; i < static_cast<int>(args.size()); ++i) {
+        if (args[i] != "--macro") continue;
+
+        if (i + 1 >= static_cast<int>(args.size())) {
+            cout << t(Str::MACRO_MISSING_NAME) << "\n";
+            return 1;
+        }
+
+        string subcmd = args[i + 1];
+
+        // ── --macro list ─────────────────────────────────────────────
+        if (subcmd == "list") {
+            auto macros = loadMacros();
+            if (macros.empty()) {
+                cout << t(Str::MACRO_LIST_EMPTY) << "\n";
+            } else {
+                cout << t(Str::MACRO_LIST_HEADER) << "\n";
+                for (const auto& kv : macros)
+                    cout << "  " << kv.first << " = " << kv.second << "\n";
+            }
+            return 0;
+        }
+
+        // ── --macro remove <name> ────────────────────────────────────
+        if (subcmd == "remove") {
+            if (i + 2 >= static_cast<int>(args.size())) {
+                cout << t(Str::MACRO_MISSING_NAME) << "\n";
+                return 1;
+            }
+            string name = args[i + 2];
+            char buf[256];
+            if (removeMacroFromIni(name)) {
+                snprintf(buf, sizeof(buf), t(Str::MACRO_REMOVED), name.c_str());
+                cout << buf << "\n";
+            } else {
+                snprintf(buf, sizeof(buf), t(Str::MACRO_NOT_FOUND), name.c_str());
+                cout << buf << "\n";
+                return 1;
+            }
+            return 0;
+        }
+
+        // ── --macro add <name> <args...> ─────────────────────────────
+        if (subcmd == "add") {
+            if (i + 2 >= static_cast<int>(args.size())) {
+                cout << t(Str::MACRO_MISSING_NAME) << "\n";
+                return 1;
+            }
+            string name = args[i + 2];
+            char buf[256];
+
+            if (!isMacroNameValid(name)) {
+                snprintf(buf, sizeof(buf), t(Str::MACRO_INVALID_NAME), name.c_str());
+                cout << buf << "\n";
+                return 1;
+            }
+            if (isMacroNameReserved(name)) {
+                snprintf(buf, sizeof(buf), t(Str::MACRO_NAME_RESERVED), name.c_str());
+                cout << buf << "\n";
+                return 1;
+            }
+            if (i + 3 >= static_cast<int>(args.size())) {
+                cout << t(Str::MACRO_MISSING_ARGS) << "\n";
+                return 1;
+            }
+
+            // Alle verbleibenden Argumente als Makro-Body zusammensetzen
+            // (mit Anführungszeichen um Tokens mit Leerzeichen)
+            string macroArgs;
+            for (int j = i + 3; j < static_cast<int>(args.size()); ++j) {
+                if (j > i + 3) macroArgs += " ";
+                bool needsQuotes = args[j].find(' ') != string::npos;
+                if (needsQuotes) macroArgs += '"';
+                macroArgs += args[j];
+                if (needsQuotes) macroArgs += '"';
+            }
+
+            // Rückfrage wenn Makro bereits existiert
+            auto macros = loadMacros();
+            if (macros.count(name)) {
+                snprintf(buf, sizeof(buf), t(Str::MACRO_OVERWRITE_PROMPT), name.c_str());
+                cout << buf << flush;
+                // QuickEdit kurz wiederherstellen damit cin funktioniert
+                if (g_consoleModeChanged) {
+                    SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
+                }
+                string answer;
+                getline(cin, answer);
+                if (g_consoleModeChanged) {
+                    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+                    DWORD mode = 0;
+                    if (GetConsoleMode(hIn, &mode)) {
+                        mode &= ~ENABLE_QUICK_EDIT_MODE;
+                        mode |=  ENABLE_EXTENDED_FLAGS;
+                        SetConsoleMode(hIn, mode);
+                    }
+                }
+                string yesChars = t(Str::MACRO_OVERWRITE_YES);
+                if (answer.empty() || yesChars.find(answer[0]) == string::npos)
+                    return 0; // abgebrochen
+            }
+
+            saveMacroToIni(name, macroArgs);
+            snprintf(buf, sizeof(buf), t(Str::MACRO_ADDED), name.c_str());
+            cout << buf << "\n";
+            return 0;
+        }
+
+        // Unbekannter Subbefehl
+        cout << t(Str::MACRO_MISSING_NAME) << "\n";
+        return 1;
+    }
+
+    // ── Makro-Expansion ───────────────────────────────────────────────
+    // Wenn das erste Nicht-INI-Argument ein bekannter Makroname ist,
+    // werden dessen Tokens an die Argumentliste angehaengt.
+    // Nur CLI-Argumente werden geprueft (ab Index args.size() - argc + 1),
+    // um zu verhindern, dass INI-Tokens als Makronamen gewertet werden.
+    {
+        auto macros = loadMacros();
+        int cliStart = static_cast<int>(args.size()) - (argc - 1);
+        if (cliStart < 0) cliStart = 0;
+        for (int i = cliStart; i < static_cast<int>(args.size()); ++i) {
+            const string& a = args[i];
+            if (a[0] == '-') continue; // Flags ueberspringen
+            auto it = macros.find(a);
+            if (it != macros.end()) {
+                // Makroname durch expandierte Tokens ersetzen
+                vector<string> expanded = tokenizeConfigLine(it->second);
+                args.erase(args.begin() + i);
+                args.insert(args.begin() + i, expanded.begin(), expanded.end());
+                break; // nur einmal expandieren
+            }
+        }
+    }
+
     const int nArgs = static_cast<int>(args.size());
 
     // Audio priorisieren
@@ -1102,6 +1410,13 @@ int main(int argc, char* argv[])
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < nArgs) {
             ++i; // bereits im Vor-Durchlauf verarbeitet
 
+        } else if (arg == "--macro") {
+            // Bereits vor dem Haupt-Parser vollstaendig behandelt (add/remove/list).
+            // Hier nur die verbleibenden Tokens ueberspringen, damit kein Fehler entsteht.
+            if (i + 1 < nArgs) ++i; // Subbefehl (add/remove/list)
+            if (i + 1 < nArgs) ++i; // Name
+            if (i + 1 < nArgs) ++i; // evtl. Args (fuer "add")
+
         } else if (arg == "--version" || arg == "-v") {
             cout << PRG_VERSION << "\n";
             return 0;
@@ -1234,6 +1549,7 @@ int main(int argc, char* argv[])
             tm local{};
             localtime_s(&local, &tnow);
 
+            // cout << "\r" << put_time(&local, "%Y-%m-%d %H:%M:%S") << flush;
             char timebuf[32];
             strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &local);
             cout << "\r" << timebuf << flush;

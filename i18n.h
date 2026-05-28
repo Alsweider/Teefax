@@ -43,6 +43,19 @@ enum class Str {
     ELAPSED,
     STOPWATCH_HINT,
     STOPWATCH_PAUSED,
+
+    // Makros
+    MACRO_ADDED,
+    MACRO_OVERWRITE_PROMPT,
+    MACRO_OVERWRITE_YES,
+    MACRO_REMOVED,
+    MACRO_NOT_FOUND,
+    MACRO_LIST_HEADER,
+    MACRO_LIST_EMPTY,
+    MACRO_INVALID_NAME,
+    MACRO_NAME_RESERVED,
+    MACRO_MISSING_NAME,
+    MACRO_MISSING_ARGS,
     _COUNT
 };
 
@@ -110,7 +123,10 @@ static const TranslationMap LANG_DE = {
         "  -f,  --focus <Titel>        Fenster nach Ablauf in Vordergrund holen\n"
         "  -la, --lang <Sprache>       Sprache festlegen (de, en, fr, pt, ru)\n"
         "  -v,  --version              Versionsnummer anzeigen\n"
-        "  -h,  --help                 Diese Hilfe anzeigen\n\n"
+        "  -h,  --help                 Diese Hilfe anzeigen\n"
+        "       --macro list           Alle Makros anzeigen\n"
+        "       --macro add <N> <Args> Makro speichern\n"
+        "       --macro remove <N>     Makro entfernen\n\n"
         "Beispiele:\n"
         "  teefax 5m\n"
         "  teefax 10s --loop\n"
@@ -134,8 +150,19 @@ static const TranslationMap LANG_DE = {
     { Str::OPEN_TARGET,      " | Oeffnet: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Stoppuhr" },
     { Str::ELAPSED,          "Vergangen: %s" },
-    { Str::STOPWATCH_HINT,   "Leertaste oder P: Pause/Weiter | R: Reset | Strg+C: Beenden" },
+    { Str::STOPWATCH_HINT,   "Leertaste oder P: Pause/Weiter | R: Zuruecksetzen | Strg+C: Beenden" },
     { Str::STOPWATCH_PAUSED, "[PAUSIERT]" },
+    { Str::MACRO_ADDED,           "Makro '%s' gespeichert." },
+    { Str::MACRO_OVERWRITE_PROMPT,"Makro '%s' existiert bereits. Ueberschreiben? [j/n]: " },
+    { Str::MACRO_OVERWRITE_YES,   "jJ" },
+    { Str::MACRO_REMOVED,         "Makro '%s' entfernt." },
+    { Str::MACRO_NOT_FOUND,       "Makro '%s' nicht gefunden." },
+    { Str::MACRO_LIST_HEADER,     "Definierte Makros:" },
+    { Str::MACRO_LIST_EMPTY,      "Keine Makros definiert." },
+    { Str::MACRO_INVALID_NAME,    "Ungueltiger Makroname '%s'. Nur Buchstaben und Ziffern erlaubt." },
+    { Str::MACRO_NAME_RESERVED,   "Name '%s' ist reserviert und kann nicht als Makroname verwendet werden." },
+    { Str::MACRO_MISSING_NAME,    "Bitte einen Makronamen angeben." },
+    { Str::MACRO_MISSING_ARGS,    "Bitte Argumente fuer das Makro angeben." },
     };
 
 static const TranslationMap LANG_FR = {
@@ -199,7 +226,10 @@ static const TranslationMap LANG_FR = {
         "  -f,  --focus <titre>        Mettre une fenetre au premier plan apres le compte\n"
         "  -la, --lang <langue>        Definir la langue (de, en, fr, pt, ru)\n"
         "  -v,  --version              Afficher le numero de version\n"
-        "  -h,  --help                 Afficher cette aide\n\n"
+        "  -h,  --help                 Afficher cette aide\n"
+        "       --macro list           Lister les macros\n"
+        "       --macro add <N> <Args> Enregistrer un macro\n"
+        "       --macro remove <N>     Supprimer un macro\n\n"
         "Exemples:\n"
         "  teefax 5m\n"
         "  teefax 10s --loop\n"
@@ -223,8 +253,19 @@ static const TranslationMap LANG_FR = {
     { Str::OPEN_TARGET,      " | Ouvre: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Chronometre" },
     { Str::ELAPSED,          "Ecoule: %s" },
-    { Str::STOPWATCH_HINT,   "Espace ou P: Pause/Reprendre | R: Reset | Ctrl+C: Quitter" },
+    { Str::STOPWATCH_HINT,   "Espace ou P: Pause/Reprendre | R: Reinitialiser | Ctrl+C: Quitter" },
     { Str::STOPWATCH_PAUSED, "[EN PAUSE]" },
+    { Str::MACRO_ADDED,           "Macro '%s' enregistre." },
+    { Str::MACRO_OVERWRITE_PROMPT,"Le macro '%s' existe deja. Ecraser? [o/n]: " },
+    { Str::MACRO_OVERWRITE_YES,   "oO" },
+    { Str::MACRO_REMOVED,         "Macro '%s' supprime." },
+    { Str::MACRO_NOT_FOUND,       "Macro '%s' introuvable." },
+    { Str::MACRO_LIST_HEADER,     "Macros definis:" },
+    { Str::MACRO_LIST_EMPTY,      "Aucun macro defini." },
+    { Str::MACRO_INVALID_NAME,    "Nom de macro invalide '%s'. Lettres et chiffres uniquement." },
+    { Str::MACRO_NAME_RESERVED,   "Le nom '%s' est reserve et ne peut pas etre utilise comme nom de macro." },
+    { Str::MACRO_MISSING_NAME,    "Veuillez indiquer un nom de macro." },
+    { Str::MACRO_MISSING_ARGS,    "Veuillez indiquer des arguments pour le macro." },
     };
 
 static const TranslationMap LANG_PT = {
@@ -288,7 +329,10 @@ static const TranslationMap LANG_PT = {
         "  -f,  --focus <titulo>       Trazer janela para o primeiro plano apos o temporizador\n"
         "  -la, --lang <lingua>        Definir o idioma (de, en, fr, pt, ru)\n"
         "  -v,  --version              Mostrar numero de versao\n"
-        "  -h,  --help                 Mostrar esta ajuda\n\n"
+        "  -h,  --help                 Mostrar esta ajuda\n"
+        "       --macro list           Listar macros\n"
+        "       --macro add <N> <Args> Guardar um macro\n"
+        "       --macro remove <N>     Remover um macro\n\n"
         "Exemplos:\n"
         "  teefax 5m\n"
         "  teefax 10s --loop\n"
@@ -314,6 +358,17 @@ static const TranslationMap LANG_PT = {
     { Str::ELAPSED,          "Decorrido: %s" },
     { Str::STOPWATCH_HINT,   "Espaco ou P: Pausar/Continuar | R: Reset | Ctrl+C: Sair" },
     { Str::STOPWATCH_PAUSED, "[PAUSADO]" },
+    { Str::MACRO_ADDED,           "Macro '%s' guardado." },
+    { Str::MACRO_OVERWRITE_PROMPT,"O macro '%s' ja existe. Substituir? [s/n]: " },
+    { Str::MACRO_OVERWRITE_YES,   "sS" },
+    { Str::MACRO_REMOVED,         "Macro '%s' removido." },
+    { Str::MACRO_NOT_FOUND,       "Macro '%s' nao encontrado." },
+    { Str::MACRO_LIST_HEADER,     "Macros definidos:" },
+    { Str::MACRO_LIST_EMPTY,      "Nenhum macro definido." },
+    { Str::MACRO_INVALID_NAME,    "Nome de macro invalido '%s'. Apenas letras e digitos." },
+    { Str::MACRO_NAME_RESERVED,   "O nome '%s' e reservado e nao pode ser usado como nome de macro." },
+    { Str::MACRO_MISSING_NAME,    "Indique um nome para o macro." },
+    { Str::MACRO_MISSING_ARGS,    "Indique argumentos para o macro." },
     };
 
 static const TranslationMap LANG_RU = {
@@ -377,7 +432,10 @@ static const TranslationMap LANG_RU = {
         "  -f,  --focus <zagolovok>    Vyvestu okno na peredni plan posle tajmera\n"
         "  -la, --lang <yazyk>         Ustanovit' yazyk (de, en, fr, pt, ru)\n"
         "  -v,  --version              Pokazat' nomer versii\n"
-        "  -h,  --help                 Pokazat' etu spravku\n\n"
+        "  -h,  --help                 Pokazat' etu spravku\n"
+        "       --macro list           Pokazat' makrosy\n"
+        "       --macro add <N> <Args> Sokhranit' makros\n"
+        "       --macro remove <N>     Udalit' makros\n\n"
         "Primery:\n"
         "  teefax 5m\n"
         "  teefax 10s --loop\n"
@@ -403,6 +461,17 @@ static const TranslationMap LANG_RU = {
     { Str::ELAPSED,          "Proshlo: %s" },
     { Str::STOPWATCH_HINT,   "Probel ili P: Pauza/Prodolzhit' | R: Reset | Ctrl+C: Vyjti" },
     { Str::STOPWATCH_PAUSED, "[PAUZA]" },
+    { Str::MACRO_ADDED,           "Makros '%s' sokhranyon." },
+    { Str::MACRO_OVERWRITE_PROMPT,"Makros '%s' uzhe sushchestvuet. Perezapisat'? [d/n]: " },
+    { Str::MACRO_OVERWRITE_YES,   "dD" },
+    { Str::MACRO_REMOVED,         "Makros '%s' udalen." },
+    { Str::MACRO_NOT_FOUND,       "Makros '%s' ne najden." },
+    { Str::MACRO_LIST_HEADER,     "Opredelyonnye makrosy:" },
+    { Str::MACRO_LIST_EMPTY,      "Makrosy ne opredeleny." },
+    { Str::MACRO_INVALID_NAME,    "Nevernoe imya makrosa '%s'. Tol'ko bukvy i tsifry." },
+    { Str::MACRO_NAME_RESERVED,   "Imya '%s' zarezervrovano i ne mozhet ispol'zovat'sya kak imya makrosa." },
+    { Str::MACRO_MISSING_NAME,    "Ukazhite imya makrosa." },
+    { Str::MACRO_MISSING_ARGS,    "Ukazhite argumenty dlya makrosa." },
     };
 
 static const TranslationMap LANG_EN = {
@@ -466,7 +535,10 @@ static const TranslationMap LANG_EN = {
         "  -f,  --focus <title>        Bring window to foreground after timer\n"
         "  -la, --lang <language>      Set language (de, en, fr, pt, ru)\n"
         "  -v,  --version              Show version number\n"
-        "  -h,  --help                 Show this help\n\n"
+        "  -h,  --help                 Show this help\n"
+        "       --macro list           List all macros\n"
+        "       --macro add <N> <Args> Save a macro\n"
+        "       --macro remove <N>     Remove a macro\n\n"
         "Examples:\n"
         "  teefax 5m\n"
         "  teefax 10s --loop\n"
@@ -492,6 +564,17 @@ static const TranslationMap LANG_EN = {
     { Str::ELAPSED,          "Elapsed: %s" },
     { Str::STOPWATCH_HINT,   "Space or P: Pause/Resume | R: Reset | Ctrl+C: Exit" },
     { Str::STOPWATCH_PAUSED, "[PAUSED]" },
+    { Str::MACRO_ADDED,           "Macro '%s' saved." },
+    { Str::MACRO_OVERWRITE_PROMPT,"Macro '%s' already exists. Overwrite? [y/n]: " },
+    { Str::MACRO_OVERWRITE_YES,   "yY" },
+    { Str::MACRO_REMOVED,         "Macro '%s' removed." },
+    { Str::MACRO_NOT_FOUND,       "Macro '%s' not found." },
+    { Str::MACRO_LIST_HEADER,     "Defined macros:" },
+    { Str::MACRO_LIST_EMPTY,      "No macros defined." },
+    { Str::MACRO_INVALID_NAME,    "Invalid macro name '%s'. Only letters and digits allowed." },
+    { Str::MACRO_NAME_RESERVED,   "Name '%s' is reserved and cannot be used as a macro name." },
+    { Str::MACRO_MISSING_NAME,    "Please provide a macro name." },
+    { Str::MACRO_MISSING_ARGS,    "Please provide arguments for the macro." },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────
