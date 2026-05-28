@@ -1234,7 +1234,12 @@ int main(int argc, char* argv[])
             tm local{};
             localtime_s(&local, &tnow);
 
-            cout << "\r" << put_time(&local, "%Y-%m-%d %H:%M:%S") << flush;
+            char timebuf[32];
+            strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &local);
+            cout << "\r" << timebuf << flush;
+            char titlebuf[48];
+            snprintf(titlebuf, sizeof(titlebuf), "Teefax - %s", timebuf);
+            SetConsoleTitleA(titlebuf);
 
             // Berechne Millisekunden bis zur nächsten Sekunde
             auto next = chrono::time_point_cast<chrono::seconds>(now) + chrono::seconds(1);
@@ -1271,6 +1276,13 @@ int main(int argc, char* argv[])
                         start    += chrono::steady_clock::now() - pauseStart;
                         isPaused  = false;
                     }
+                } else if (key == 'r' || key == 'R') {
+                    auto now     = chrono::steady_clock::now();
+                    start        = now;
+                    pauseStart   = now;
+                    isPaused     = true;
+                    frozenMs     = 0;
+                    lastTitleSec = -1;
                 }
             }
 

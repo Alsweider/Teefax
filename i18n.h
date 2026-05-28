@@ -134,7 +134,7 @@ static const TranslationMap LANG_DE = {
     { Str::OPEN_TARGET,      " | Oeffnet: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Stoppuhr" },
     { Str::ELAPSED,          "Vergangen: %s" },
-    { Str::STOPWATCH_HINT,   "Leertaste oder P: Pause/Weiter | Strg+C: Beenden" },
+    { Str::STOPWATCH_HINT,   "Leertaste oder P: Pause/Weiter | R: Reset | Strg+C: Beenden" },
     { Str::STOPWATCH_PAUSED, "[PAUSIERT]" },
     };
 
@@ -223,7 +223,7 @@ static const TranslationMap LANG_FR = {
     { Str::OPEN_TARGET,      " | Ouvre: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Chronometre" },
     { Str::ELAPSED,          "Ecoule: %s" },
-    { Str::STOPWATCH_HINT,   "Espace ou P: Pause/Reprendre | Ctrl+C: Quitter" },
+    { Str::STOPWATCH_HINT,   "Espace ou P: Pause/Reprendre | R: Reset | Ctrl+C: Quitter" },
     { Str::STOPWATCH_PAUSED, "[EN PAUSE]" },
     };
 
@@ -312,7 +312,7 @@ static const TranslationMap LANG_PT = {
     { Str::OPEN_TARGET,      " | Abre: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Cronometro" },
     { Str::ELAPSED,          "Decorrido: %s" },
-    { Str::STOPWATCH_HINT,   "Espaco ou P: Pausar/Continuar | Ctrl+C: Sair" },
+    { Str::STOPWATCH_HINT,   "Espaco ou P: Pausar/Continuar | R: Reset | Ctrl+C: Sair" },
     { Str::STOPWATCH_PAUSED, "[PAUSADO]" },
     };
 
@@ -401,7 +401,7 @@ static const TranslationMap LANG_RU = {
     { Str::OPEN_TARGET,      " | Otkryvaet: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Sekundomer" },
     { Str::ELAPSED,          "Proshlo: %s" },
-    { Str::STOPWATCH_HINT,   "Probel ili P: Pauza/Prodolzhit' | Ctrl+C: Vyjti" },
+    { Str::STOPWATCH_HINT,   "Probel ili P: Pauza/Prodolzhit' | R: Reset | Ctrl+C: Vyjti" },
     { Str::STOPWATCH_PAUSED, "[PAUZA]" },
     };
 
@@ -490,7 +490,7 @@ static const TranslationMap LANG_EN = {
     { Str::OPEN_TARGET,      " | Opens: \"%s\"" },
     { Str::STOPWATCH_LABEL,  "Stopwatch" },
     { Str::ELAPSED,          "Elapsed: %s" },
-    { Str::STOPWATCH_HINT,   "Space or P: Pause/Resume | Ctrl+C: Exit" },
+    { Str::STOPWATCH_HINT,   "Space or P: Pause/Resume | R: Reset | Ctrl+C: Exit" },
     { Str::STOPWATCH_PAUSED, "[PAUSED]" },
     };
 
