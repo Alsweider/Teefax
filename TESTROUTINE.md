@@ -275,6 +275,7 @@ teefax --time
 ```
 
 - [ ] Datum und Uhrzeit werden angezeigt und aktualisieren sich jede Sekunde
+- [ ] Datum und Uhrzeit sind auch im Titel der Konsole sichtbar. 
 - [ ] `Strg+C` beendet sauber
 
 ### 11.2 Stoppuhr
