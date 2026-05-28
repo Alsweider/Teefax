@@ -26,7 +26,7 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) von JFSoftware v
 - Mini-Uhr: Direktanzeige von Datum und Uhrzeit
 - Bildschirmschoner und Standby während des Countdowns unterdrücken
 - Präzise Zeitmessung mit `chrono::steady_clock`, unabhängig von der Systemauslastung
-- Klein: ~150 KB Programmdatei, ~0,7 MB RAM
+- Klein: ~200 KB Programmdatei, ~0,7 MB RAM
 - Sprachen: 🇩🇪 🇫🇷 🇵🇹 🇬🇧 🇷🇺 *(Maschinenübersetzt aus dem Deutschen. [Fehler gefunden?](https://github.com/Alsweider/Teefax/issues))*
 
 ---
