@@ -129,6 +129,7 @@ Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 3
 | `--version` | `-v` | Versionsnummer anzeigen |
 | `--help` | `-h` | Hilfe anzeigen |
 | `--stopwatch`| `-sw` | Stoppuhr starten (`Leertaste` oder `P`: Pause/Weiter, `Strg+C`: Beenden) |
+| `--macro <list\|add\|remove>` | | Makros verwalten (siehe [Makros](#makros)) |
 
 ---
 
