@@ -115,6 +115,7 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--at YYYY-MM-DD` | `-a` | Count down to a specific date (midnight) |
 | `--at YYYY-MM-DD HH:MM` | `-a` | Count down to a specific date and time |
 | `--daily HH:MM[:SS] ...` | `-d` | Daily recurring alarm at one or more times |
+| `--every <days> [HH:MM]` | `-e` | Weekly/monthly recurrence (e.g. `mon,fri` or `1,15`) |
 | `--alarm-repeat <n>` | `-ar` | Repeat the alarm sound n times after the timer ends |
 | `--alarm-interval <s>` | `-ai` | Seconds between repeated alarms (default: 2) |
 | `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) |
@@ -130,6 +131,7 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--version` | `-v` | Show version number |
 | `--help` | `-h` | Show help |
 | `--stopwatch`| `-sw` | `Space` or `P`: Pause/Resume, `Ctrl+C`: Exit |
+| `--macro <list\|add\|remove>` | | Manage macros (see [Macros](#macros)) |
 
 ---
 
