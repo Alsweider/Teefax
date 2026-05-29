@@ -62,7 +62,7 @@ teefax 2m30s --mute --nomsg
 
 - [ ] Kombination aus Minuten und Sekunden korrekt angezeigt
 
-### 3.4 Fenstertitel
+### 3.4 Fenstertitel mit --msg
 
 ```
 teefax 10s --mute --nomsg --msg "Tee fertig"
@@ -114,7 +114,7 @@ teefax 2s --mute
 teefax 2s --async
 ```
 
-- [ ] Timer endet, Ton startet (Programm beendet sich ggf. vor Ende des Tons, Ton und MessageBox gleichzeitig - OK)
+- [ ] Timer endet, Ton startet (Programm beendet sich ggf. vor Ende des Tons, Ton und MessageBox gleichzeitig, OK)
 
 ---
 
@@ -153,7 +153,7 @@ teefax --at HH:MM    (ca. 1-2 Minuten in der Zukunft)
 - [ ] Startmeldung zeigt korrekte Zielzeit
 
 ```
-teefax --at HH:MM    (Uhrzeit liegt in der Vergangenheit -> morgen)
+teefax --at HH:MM    (Uhrzeit liegt in der Vergangenheit → morgen)
 ```
 
 - [ ] Suffix `(morgen)` / `(tomorrow)` erscheint in der Ausgabe
@@ -208,9 +208,34 @@ teefax --daily HH:MM    (ca. 1 Minute in der Zukunft)
 
 ---
 
-## 10. Aktionen nach Ablauf
+## 10. Wiederholender Alarm (--every)
 
-### 10.1 Datei öffnen
+```
+teefax --every mon,fri 08:00    (nächsten passenden Wochentag abwarten oder kurz in Zukunft setzen)
+```
+
+- [ ] Startmeldung zeigt Wochentage und Uhrzeit
+- [ ] Countdown läuft bis zum nächsten passenden Zeitpunkt
+- [ ] Nach Ablauf: Timer wartet automatisch auf den übernächsten Termin (loop)
+- [ ] `Strg+C` beendet sauber
+
+```
+teefax --every 1,15 09:00    (1. und 15. des Monats)
+```
+
+- [ ] Startmeldung zeigt Monatstage und Uhrzeit
+
+```
+teefax --every xyz
+```
+
+- [ ] Fehlermeldung, Exit-Code 1
+
+---
+
+## 11. Aktionen nach Ablauf
+
+### 11.1 Datei öffnen
 
 ```
 teefax 2s --mute --nomsg --open "C:\Windows\notepad.exe"
@@ -224,7 +249,7 @@ teefax 2s --mute --nomsg --open "C:\___nx___\datei.txt"
 
 - [ ] Fehlermeldung (Datei nicht gefunden), kein Absturz, Exit 0
 
-### 10.2 Konsolenbefehl
+### 11.2 Konsolenbefehl
 
 ```
 teefax 2s --mute --nomsg --cmd "echo teefax_cmd_test_ok"
@@ -236,16 +261,16 @@ teefax 2s --mute --nomsg --cmd "echo teefax_cmd_test_ok"
 teefax 2s --mute --nomsg --cmd "notepad.exe"
 ```
 
-- [ ] Notepad öffnet sich nach Ablauf
+- [ ] Notepad öffnet sich nach Ablauf *(Programm wartet auf Schließen von Notepad erwartet)*
 
-### 10.3 Fensterfokus (--focus)
+### 11.3 Fensterfokus (--focus)
 
 ```
-:: Editor (Notepad) öffnen, dann:
+:: Notepad öffnen, dann:
 teefax 5s --mute --nomsg --focus "Editor"
 ```
 
-- [ ] Warnung `Warnung: Fenster ... nicht gefunden` erscheint NICHT (Fenster ist offen)
+- [ ] Warnung `Warnung: Fenster ... nicht gefunden` erscheint **nicht** (Fenster ist offen)
 - [ ] Nach Ablauf: Notepad-Fenster erscheint im Vordergrund
 
 ```
@@ -255,45 +280,47 @@ teefax 5s --mute --nomsg --focus "___nichtvorhanden___"
 - [ ] Warnung `Warnung: Fenster ... nicht gefunden` erscheint beim Start
 - [ ] Nach Ablauf: Fehlermeldung, Loop (falls aktiv) wird gestoppt
 
-### 10.4 Aktionen im Loop
+### 11.4 Aktionen im Loop
 
 ```
 teefax 2s --loop 3 --mute --nomsg --cmd "echo loop_cmd"
 ```
 
 - [ ] Befehl wird nach jedem Durchlauf ausgeführt (3-mal)
-- [ ] Neue Zeile pro Durchlauf, Eingabebefehl und Konsolenantwort sauber übereinander. Ausgaben für jeden Durchlauf bleiben erhalten.
+- [ ] Ausgaben der einzelnen Durchläufe erscheinen sauber untereinander, kein Zeichenmüll
 
 ---
 
-## 11. Interaktive Modi
+## 12. Interaktive Modi
 
-### 11.1 Uhrzeitanzeige
+### 12.1 Uhrzeitanzeige
 
 ```
 teefax --time
 ```
 
 - [ ] Datum und Uhrzeit werden angezeigt und aktualisieren sich jede Sekunde
-- [ ] Datum und Uhrzeit sind auch im Titel der Konsole sichtbar. 
+- [ ] Datum und Uhrzeit sind auch im Fenstertitel sichtbar
 - [ ] `Strg+C` beendet sauber
 
-### 11.2 Stoppuhr
+### 12.2 Stoppuhr
 
 ```
 teefax --stopwatch
 ```
 
 - [ ] Stoppuhr läuft (Zentisekunden sichtbar)
-- [ ] `Leertaste` pausiert die Stoppuhr, `[PAUSED]` erscheint
+- [ ] `Leertaste` oder `P` pausiert, `[PAUSED]` erscheint in der Anzeige
 - [ ] Erneute `Leertaste` setzt fort, Zeit stimmt weiter
+- [ ] `R` setzt die Stoppuhr auf 0 zurück und pausiert sie
+- [ ] Nach Reset: erneute `Leertaste` startet neu
 - [ ] `Strg+C` beendet sauber
 
 ---
 
-## 12. Sprachversionen
+## 13. Sprachversionen
 
-Jeweils prüfen, ob Startmeldung und Hilfe in der richtigen Sprache erscheinen:
+Jeweils prüfen, ob Startmeldung in der richtigen Sprache erscheint:
 
 ```
 teefax 2s --mute --nomsg --lang en
@@ -311,7 +338,7 @@ teefax 2s --mute --nomsg --lang ru
 
 ---
 
-## 13. Konfigurationsdatei (teefax.ini)
+## 14. Konfigurationsdatei (teefax.ini)
 
 Testdatei `teefax.ini` anlegen:
 
@@ -324,8 +351,8 @@ Testdatei `teefax.ini` anlegen:
 teefax 2s
 ```
 
-- [ ] Kein Ton (--mute aus INI)
-- [ ] Ausgabe auf Englisch (--lang aus INI)
+- [ ] Kein Ton (`--mute` aus INI)
+- [ ] Ausgabe auf Englisch (`--lang` aus INI)
 - [ ] Kommandozeilenwert überschreibt INI:
   ```
   teefax 2s --lang de
@@ -336,24 +363,89 @@ INI danach wieder löschen / leeren.
 
 ---
 
-## 14. Verhalten beim Doppelklick
+## 15. Makro-System
+
+### 15.1 Makro anlegen und ausführen
+
+```
+teefax --macro add tee 3m --mute --nomsg
+```
+
+- [ ] Bestätigung `Makro 'tee' gespeichert.` erscheint
+- [ ] Eintrag in `teefax.ini` sichtbar (`macro tee = 3m --mute --nomsg`)
+
+```
+teefax --macro list
+```
+
+- [ ] Makro `tee` erscheint in der Liste
+
+```
+teefax tee
+```
+
+- [ ] Startet einen 3-Minuten-Timer (oder entsprechend den gespeicherten Argumenten)
+
+### 15.2 Makro überschreiben
+
+```
+teefax --macro add tee 5m --mute --nomsg
+```
+
+- [ ] Rückfrage `... bereits vorhanden. Überschreiben?` erscheint
+- [ ] Bei `n`: Makro bleibt unverändert
+- [ ] Bei `j` / `y`: Makro wird aktualisiert
+
+### 15.3 Makro entfernen
+
+```
+teefax --macro remove tee
+```
+
+- [ ] Bestätigung erscheint, Eintrag ist aus `teefax.ini` entfernt
+
+```
+teefax --macro remove nichtvorhanden
+```
+
+- [ ] Fehlermeldung, Exit-Code 1
+
+### 15.4 Fehlerbehandlung
+
+```
+teefax --macro add bad-name 1s
+```
+
+- [ ] Fehlermeldung (ungültiger Name), Exit-Code 1
+
+```
+teefax --macro add --loop 1s
+```
+
+- [ ] Fehlermeldung (reservierter Name), Exit-Code 1
+
+INI danach wieder löschen / leeren.
+
+---
+
+## 16. Verhalten beim Doppelklick
 
 `teefax.exe` direkt per Doppelklick starten (kein Terminal):
 
 - [ ] Hilfe wird angezeigt
-- [ ] `„Weiter mit beliebiger Taste..."` erscheint (pause-Prompt)
+- [ ] `Weiter mit beliebiger Taste...` erscheint (pause-Prompt)
 - [ ] Fenster schließt sich nach Tastendruck
 
 ---
 
-## 15. Sonderfälle
+## 17. Sonderfälle
 
 ```
 teefax 5s --mute --nomsg
 :: Während der Laufzeit mit der Maus in die Konsole klicken
 ```
 
-- [ ] QuickEdit-Modus deaktiviert: Mausklick friert Timer NICHT ein
+- [ ] QuickEdit-Modus deaktiviert: Mausklick friert Timer **nicht** ein
 
 ```
 teefax 5s --mute --nomsg
@@ -371,11 +463,11 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 
 ---
 
-## 16. Binärdatei
+## 18. Binärdatei
 
-- [ ] Dateigröße plausibel (~200 KB +/- 50 KB)
+- [ ] Dateigröße plausibel (~200 KB ±50 KB)
 - [ ] Icon erscheint korrekt im Explorer (16×16, 32×32 erkennbar)
-- [ ] Dateieigenschaften -> Details: Firmenname, Produktname, Beschreibung, Copyright befüllt
+- [ ] Dateieigenschaften → Details: Firmenname, Produktname, Beschreibung, Copyright befüllt
 - [ ] Version in den Dateieigenschaften stimmt mit `teefax --version` überein
 
 ---
@@ -389,15 +481,17 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 | Ton | ☐ OK ☐ Fehler |
 | Benachrichtigung | ☐ OK ☐ Fehler |
 | Zielzeit --at | ☐ OK ☐ Fehler |
-| Schleife | ☐ OK ☐ Fehler |
-| Voralarm | ☐ OK ☐ Fehler |
-| Täglicher Alarm | ☐ OK ☐ Fehler |
+| Schleife --loop | ☐ OK ☐ Fehler |
+| Voralarm --prealarm | ☐ OK ☐ Fehler |
+| Täglicher Alarm --daily | ☐ OK ☐ Fehler |
+| Wiederholender Alarm --every | ☐ OK ☐ Fehler |
 | Aktionen nach Ablauf | ☐ OK ☐ Fehler |
 | Interaktive Modi | ☐ OK ☐ Fehler |
 | Sprachen | ☐ OK ☐ Fehler |
 | INI-Datei | ☐ OK ☐ Fehler |
+| Makro-System | ☐ OK ☐ Fehler |
 | Doppelklick | ☐ OK ☐ Fehler |
 | Sonderfälle | ☐ OK ☐ Fehler |
 | Binärdatei | ☐ OK ☐ Fehler |
 
-**Freigabe:** ☐ Release OK &nbsp;&nbsp; ☐ Nicht freigegeben - offene Punkte: ___________
+**Freigabe:** ☐ Release OK &nbsp;&nbsp; ☐ Nicht freigegeben | offene Punkte: ___________
