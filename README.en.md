@@ -26,6 +26,7 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 - Pre-alarm: audible per-second countdown before the final signal
 - Stopwatch with centisecond resolution
 - Live clock display mode
+- Macros: save frequent argument combinations and call them by a short name
 - Suppress screensaver and standby during countdown
 - Accurate timing using `chrono::steady_clock` — not affected by system load
 - Lightweight: ~150 KB binary, ~0.7 MB RAM
@@ -56,6 +57,28 @@ On startup, Teefax reads an optional `teefax.ini` file from the same directory a
 ```
 
 Command-line arguments override config values (last value wins). A commented example file is available in the repository as [`teefax.ini`](teefax.ini).
+
+---
+
+## Macros
+
+Frequently used argument combinations can be saved as a macro and called by a short name.
+
+```bash
+# Save a macro
+teefax --macro add tea 3m --msg "Tea is ready!"
+
+# Run the macro
+teefax tea
+
+# List all macros
+teefax --macro list
+
+# Remove a macro
+teefax --macro remove tea
+```
+
+Macros are stored as `macro <name> = <arguments>` lines in `teefax.ini`. Names may only contain letters and digits, and must not clash with reserved option names (e.g. `--loop`). When a macro is called, its stored arguments are expanded automatically before all other parameters are evaluated.
 
 ---
 
@@ -164,6 +187,10 @@ teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"
 
 # Set language explicitly
 teefax 5m --lang en
+
+# Save a macro and run it
+teefax --macro add tea 3m --msg "Tea is ready!"
+teefax tea
 ```
 
 ---

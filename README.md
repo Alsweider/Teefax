@@ -24,6 +24,7 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) von JFSoftware v
 - Voralarm: sekündliches Piepsen vor dem Schlussalarm
 - Stoppuhr mit Zentisekundenauflösung
 - Mini-Uhr: Direktanzeige von Datum und Uhrzeit
+- Makros: häufige Befehlskombinationen speichern und mit Kurzname aufrufen
 - Bildschirmschoner und Standby während des Countdowns unterdrücken
 - Präzise Zeitmessung mit `chrono::steady_clock`, unabhängig von der Systemauslastung
 - Klein: ~200 KB Programmdatei, ~0,7 MB RAM
@@ -54,6 +55,28 @@ Teefax liest beim Start eine optionale Konfigurationsdatei `teefax.ini` aus dems
 ```
 
 Kommandozeilenargumente überschreiben Config-Werte (letzter Wert gewinnt). Eine kommentierte Beispieldatei liegt im Repository unter [`teefax.ini`](teefax.ini).
+
+---
+
+## Makros
+
+Häufig genutzte Befehlskombinationen lassen sich als Makro speichern und danach mit einem kurzen Namen aufrufen.
+
+```bash
+# Makro anlegen
+teefax --macro add tee 3m --msg "Tee fertig!"
+
+# Makro aufrufen
+teefax tee
+
+# Alle Makros anzeigen
+teefax --macro list
+
+# Makro entfernen
+teefax --macro remove tee
+```
+
+Makros werden als `macro <Name> = <Argumente>`-Zeilen in der `teefax.ini` gespeichert. Makronamen dürfen nur Buchstaben und Ziffern enthalten und dürfen keine reservierten Optionsnamen (z. B. `--loop`) sein. Beim Aufruf werden die gespeicherten Argumente automatisch expandiert, bevor alle weiteren Parameter ausgewertet werden.
 
 ---
 
@@ -163,6 +186,10 @@ teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"
 
 # Sprache explizit setzen
 teefax 5m --lang de
+
+# Makro anlegen und aufrufen
+teefax --macro add tee 3m --msg "Tee fertig!"
+teefax tee
 ```
 
 ---
