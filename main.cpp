@@ -1800,7 +1800,7 @@ int main(int argc, char* argv[])
                 cout << " [";
 
                 for (int i = 0; i < barWidth; ++i) cout << (i < filled ? '#' : '-');
-                cout << "]   " << flush;
+                cout << "]        " << flush;
             }
 
             // Bis zur nächsten Sekundengrenze schlafen.
@@ -1841,7 +1841,7 @@ int main(int argc, char* argv[])
             cout << buf << " [";
         }
         for (int i = 0; i < barWidth; ++i) cout << '#';
-        cout << "]   " << flush;
+        cout << "]        " << flush;
 
         // \n nach dem vollen Balken:
         // - Immer beim letzten Durchlauf (TIMER_ENDED, MessageBox folgen).
@@ -1915,19 +1915,21 @@ int main(int argc, char* argv[])
         // Datei öffnen oder Konsolenbefehl ausführen
         if (!cmdArg.empty()) {
             runConsoleCommand(cmdArg);
-            // Nach Rückkehr des Kind-Prozesses QuickEdit wieder deaktivieren.
-            // Das Kind (z. B. eine weitere teefax-Instanz) hat ggf. den Originalzustand
-            // (QuickEdit an) beim Beenden wiederhergestellt. Damit der Parent-Prozess
-            // durchgehend QuickEdit-frei bleibt, wird es hier sofort erneut abgeschaltet.
-            {
-                HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-                DWORD mode = 0;
-                if (GetConsoleMode(hIn, &mode)) {
-                    mode &= ~ENABLE_QUICK_EDIT_MODE;
-                    mode |=  ENABLE_EXTENDED_FLAGS;
-                    SetConsoleMode(hIn, mode);
-                    g_consoleModeChanged = true;
-                }
+        }
+
+        // QuickEdit nach jedem Durchlauf neu deaktivieren.
+        // Bei --cmd: das Kind hat ggf. den Originalzustand (QuickEdit an) beim Beenden
+        // wiederhergestellt. Bei --daily / --every ohne --cmd: die Wiederherstellung oben
+        // schaltet QuickEdit ebenfalls zurück. In beiden Fällen muss es hier erneut
+        // abgeschaltet werden, damit der Timer in Schleifen durchgehend QuickEdit-frei bleibt.
+        if (loop) {
+            HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+            DWORD mode = 0;
+            if (GetConsoleMode(hIn, &mode)) {
+                mode &= ~ENABLE_QUICK_EDIT_MODE;
+                mode |=  ENABLE_EXTENDED_FLAGS;
+                SetConsoleMode(hIn, mode);
+                g_consoleModeChanged = true;
             }
         }
         if (!openFile.empty()) {
