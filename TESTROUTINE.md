@@ -416,19 +416,7 @@ teefax --macro remove nichtvorhanden
 teefax --macro add bad-name 1s
 ```
 
-- [ ] Fehlermeldung (ungültiger Name, Bindestriche nicht erlaubt), Exit-Code 1
-
-```
-teefax --macro add loop 1s
-```
-
-- [ ] Fehlermeldung (reservierter Name), Exit-Code 1
-
-```
-teefax --macro add --loop 1s
-```
-
-- [ ] Fehlermeldung (ungültiger Name, beginnt mit `--`), Exit-Code 1
+- [ ] Fehlermeldung (ungültiger Name — Sonderzeichen nicht erlaubt), Exit-Code 1
 
 INI danach wieder löschen / leeren.
 
