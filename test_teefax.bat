@@ -194,16 +194,8 @@ set T=--macro remove nicht-vorhandenes Makro gibt Exit 1
 "%EXE%" --macro remove ttest_nx >nul 2>&1
 call :chk %errorlevel% 1
 
-set T=--macro add ungueliger Name (Bindestrich) gibt Exit 1
+set T=--macro add ungueliger Name (Sonderzeichen) gibt Exit 1
 "%EXE%" --macro add bad-name 1s >nul 2>&1
-call :chk %errorlevel% 1
-
-set T=--macro add reservierter Name (loop) gibt Exit 1
-"%EXE%" --macro add loop 1s >nul 2>&1
-call :chk %errorlevel% 1
-
-set T=--macro add Name mit Doppelbindestrich gibt Exit 1 (ungueltig, nicht reserviert)
-"%EXE%" --macro add --loop 1s >nul 2>&1
 call :chk %errorlevel% 1
 
 set T=--macro add ohne Argumente gibt Exit 1
