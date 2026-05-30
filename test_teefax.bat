@@ -120,7 +120,7 @@ set T=--msg mit Text
 "%EXE%" 1s --mute --nomsg --msg "Testnotiz OK" >nul 2>&1
 call :chk %errorlevel% 0
 
-set T=--async (Ton spielt kurz, unhoerbar durch --nomsg)
+set T=--async (Ton spielt kurz, unhoerbar)
 "%EXE%" 1s --async --nomsg >nul 2>&1
 call :chk %errorlevel% 0
 
@@ -194,11 +194,15 @@ set T=--macro remove nicht-vorhandenes Makro gibt Exit 1
 "%EXE%" --macro remove ttest_nx >nul 2>&1
 call :chk %errorlevel% 1
 
-set T=--macro add ungültiger Name (Sonderzeichen) gibt Exit 1
+set T=--macro add ungueliger Name (Bindestrich) gibt Exit 1
 "%EXE%" --macro add bad-name 1s >nul 2>&1
 call :chk %errorlevel% 1
 
-set T=--macro add reservierter Name gibt Exit 1
+set T=--macro add reservierter Name (loop) gibt Exit 1
+"%EXE%" --macro add loop 1s >nul 2>&1
+call :chk %errorlevel% 1
+
+set T=--macro add Name mit Doppelbindestrich gibt Exit 1 (ungueltig, nicht reserviert)
 "%EXE%" --macro add --loop 1s >nul 2>&1
 call :chk %errorlevel% 1
 
@@ -208,7 +212,6 @@ call :chk %errorlevel% 1
 
 rem Aufraumen: INI entfernen, falls vom Makro-Test erzeugt
 if exist teefax.ini (
-    rem Nur loeschen wenn sie ausschliesslich Makro-Zeilen enthaelt
     findstr /v /i "^macro " teefax.ini >nul 2>&1
     if errorlevel 1 del teefax.ini >nul 2>&1
 )
