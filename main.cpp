@@ -190,7 +190,7 @@ wstring toWide(const string& str, UINT cp = CP_UTF8) {
 }
 
 // Konvertierung fuer argv-Strings: Windows uebergibt argv in der ANSI-Systemcodepage (CP_ACP),
-// nicht in UTF-8 - daher separate Variante fuer alle Werte, die der Nutzer eingibt.
+// nicht in UTF-8. Daher separate Variante fuer alle Werte, die der Nutzer eingibt.
 inline wstring toWideArgv(const string& str) {
     return toWide(str, CP_ACP);
 }
@@ -1114,7 +1114,7 @@ int main(int argc, char* argv[])
             // Alle verbleibenden Argumente als Makro-Body zusammensetzen.
             // Quoting-Regeln für die INI-Zeile:
             // - Token enthält Leerzeichen           -> immer quoten
-            // - Token folgt auf eine Flag mit Wert-Parameter (--focus, --msg,
+            // - Token folgt auf ein Flag mit Wert-Parameter (--focus, --msg,
             //   --open, --cmd, --at, --lang, --alarm-repeat, --alarm-interval,
             //   --prealarm, --loop, --every, --daily) -> immer quoten,
             //   damit beim späteren Einlesen via tokenizeConfigLine der Wert
@@ -1132,7 +1132,7 @@ int main(int argc, char* argv[])
                 if (j > i + 3) macroArgs += " ";
                 const string& tok = args[j];
                 bool needsQuotes = nextNeedsQuotes || tok.find(' ') != string::npos;
-                // Prüfen ob dieses Token selbst eine wertnehmende Flag ist
+                // Prüfen ob dieses Token selbst eine Option mit Argument ist
                 nextNeedsQuotes = false;
                 for (const auto& vf : valueFlags) {
                     if (tok == vf) { nextNeedsQuotes = true; break; }
@@ -1251,7 +1251,7 @@ int main(int argc, char* argv[])
 
     // Argument-Parsen (Config-Defaults + Kommandozeile in einem Durchlauf)
     for (int i = 0; i < nArgs; ++i) {
-        string arg = args[i];
+        const string& arg = args[i];
 
         if (arg == "--nosleep" || arg == "-ns") {
             noSleep = true;
@@ -1709,7 +1709,16 @@ int main(int argc, char* argv[])
         }
 
         auto start = chrono::steady_clock::now();
-        auto end = start + chrono::milliseconds(totalMsThisRound);
+        auto end   = start + chrono::milliseconds(totalMsThisRound);
+
+        // customMsg einmalig in wstring konvertieren. Aendert sich eh nie waehrend des Durchlaufs.
+        wstring customMsgW;
+        if (!customMsg.empty()) {
+            customMsgW = toWideArgv(customMsg);
+            const size_t maxLen = 30;
+            if (customMsgW.size() > maxLen)
+                customMsgW = customMsgW.substr(0, maxLen) + L"...";
+        }
 
         long long lastVerbleibendSec = -1;
         bool soundPrewarmed = false; // Bluetooth-Prewarm: einmalig pro Durchlauf
@@ -1777,12 +1786,8 @@ int main(int argc, char* argv[])
                 {
                     // verbleibendStr enthaelt nur ASCII (Ziffern + y/mo/d/h/m/s)
                     wstring titleW = L"Teefax - " + wstring(verbleibendStr.begin(), verbleibendStr.end());
-                    if (!customMsg.empty()) {
-                        wstring excerptW = toWideArgv(customMsg);
-                        const size_t maxLen = 30;
-                        if (excerptW.size() > maxLen) excerptW = excerptW.substr(0, maxLen) + L"...";
-                        titleW += L" | " + excerptW;
-                    }
+                    if (!customMsgW.empty())
+                        titleW += L" | " + customMsgW;
                     SetConsoleTitleW(titleW.c_str()); // Zeit im Fenstertitel anzeigen
                 }
 
