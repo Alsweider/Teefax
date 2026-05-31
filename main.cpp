@@ -1243,7 +1243,7 @@ int main(int argc, char* argv[])
         cout << t(Str::USAGE_HEADER);
 
         if (!launchedFromExistingConsole()) {
-            cout << "\n";
+            cout << "\n" << flush;
             system("pause"); // oder: cout << "Druecke eine Taste..."; cin.get();
         }
 
