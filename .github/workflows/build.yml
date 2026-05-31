@@ -27,7 +27,7 @@ jobs:
         shell: msys2 {0}
         run: |
           VERSION=$(grep -m1 '^VERSION' Teefax.pro | tr -d ' ' | cut -d= -f2)
-          g++ -std=c++17 -O2 -static-libgcc -static-libstdc++ \
+          g++ -std=c++17 -O2 -static \
               "-DPRG_VERSION=\"$VERSION\"" \
               -o teefax.exe main.cpp -lwinmm
 
