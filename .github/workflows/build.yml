@@ -16,35 +16,36 @@ jobs:
       - name: Code auschecken
         uses: actions/checkout@v4
 
-      # Qt installieren – nur für qmake + MinGW-Compiler.
+      # Qt installieren - nur fuer qmake + MinGW-Compiler.
       # Qt-Bibliotheken landen NICHT im Binary (CONFIG -= qt in Teefax.pro).
       # Lokale Umgebung: Qt 6.5.3 / MinGW 11.2.0 (mingw1120_64).
+      # MinGW wird automatisch als Teil des Qt-Pakets mitinstalliert -
+      # kein separater tools-Parameter noetig.
       # Cache spart ~2 Minuten bei Folge-Builds.
       - name: Qt + MinGW installieren
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.5.3'
           arch: 'win64_mingw'
-          tools: 'tools_mingw1120'
           cache: true
 
       # Release-Build via qmake + mingw32-make.
       # Die statischen Flags (-static-libgcc -static-libstdc++ -static) aus
-      # Teefax.pro sorgen dafür, dass die .exe keine MinGW-DLLs benötigt.
+      # Teefax.pro sorgen dafuer, dass die .exe keine MinGW-DLLs benoetigt.
       - name: Build (Release)
         shell: cmd
         run: |
           qmake Teefax.pro CONFIG+=release
           mingw32-make -j4
 
-      # Kurztest: Binary starten und Exit-Code 0 prüfen.
-      # Liefert auch die Versionsnummer für das Build-Log.
+      # Kurztest: Binary starten und Exit-Code 0 pruefen.
+      # Liefert auch die Versionsnummer fuer das Build-Log.
       - name: Kurztest
         shell: cmd
         run: release\teefax.exe --version
 
-      # Artefakt hochladen – verfügbar unter Actions → Workflow-Run → Artifacts.
-      # Nützlich zum manuellen Download auch ohne Tag/Release.
+      # Artefakt hochladen - verfuegbar unter Actions -> Workflow-Run -> Artifacts.
+      # Nuetzlich zum manuellen Download auch ohne Tag/Release.
       - name: Artefakt hochladen
         uses: actions/upload-artifact@v4
         with:
@@ -52,9 +53,9 @@ jobs:
           path: release\teefax.exe
           if-no-files-found: error
 
-      # GitHub Release anlegen – nur bei Tag-Pushes, nicht bei workflow_dispatch.
+      # GitHub Release anlegen - nur bei Tag-Pushes, nicht bei workflow_dispatch.
       # Der Tag-Name (z. B. v0.27.5) wird automatisch als Release-Titel verwendet.
-      # GITHUB_TOKEN wird von Actions automatisch bereitgestellt, kein Setup nötig.
+      # GITHUB_TOKEN wird von Actions automatisch bereitgestellt, kein Setup noetig.
       - name: GitHub Release erstellen
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
