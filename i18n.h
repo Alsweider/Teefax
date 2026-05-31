@@ -143,6 +143,7 @@ static const TranslationMap LANG_DE = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nKonfigurationsdatei: teefax.ini (gleicher Ordner wie teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
+        "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nDateisystem-Fehler beim Oeffnen: %s" },
     { Str::TOMORROW_SUFFIX,  " (morgen)" },
@@ -246,6 +247,7 @@ static const TranslationMap LANG_FR = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nFichier de configuration: teefax.ini (meme dossier que teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
+        "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErreur systeme de fichiers: %s" },
     { Str::TOMORROW_SUFFIX,  " (demain)" },
@@ -349,6 +351,7 @@ static const TranslationMap LANG_PT = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nFicheiro de configuracao: teefax.ini (mesma pasta que teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
+        "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nErro no sistema de ficheiros: %s" },
     { Str::TOMORROW_SUFFIX,  " (amanha)" },
@@ -452,6 +455,7 @@ static const TranslationMap LANG_RU = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nFajl konfiguratsii: teefax.ini (ta zhe papka, chto i teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
+         "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     { Str::TOMORROW_SUFFIX,  " (zavtra)" },
@@ -555,6 +559,7 @@ static const TranslationMap LANG_EN = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nConfig file: teefax.ini (same folder as teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
+         "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     { Str::TOMORROW_SUFFIX,  " (tomorrow)" },
