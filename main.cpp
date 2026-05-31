@@ -15,6 +15,7 @@
 #include <vector> // Für täglichen Alarm
 #include <sstream> // Für --every Parsing/Formatierung
 #include <conio.h> // _kbhit(), _getch() für Stoppuhr-Pause
+#include <algorithm>
 
 
 #pragma comment(lib, "winmm.lib")
