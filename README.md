@@ -27,7 +27,7 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) von JFSoftware v
 - Makros: häufige Befehlskombinationen speichern und mit Kurzname aufrufen
 - Bildschirmschoner und Standby während des Countdowns unterdrücken
 - Präzise Zeitmessung mit `chrono::steady_clock`, unabhängig von der Systemauslastung
-- Klein: ~1,2 MB Programmdatei, ~0,7 MB RAM
+- Klein: ~1 MB Programmdatei, ~0,7 MB RAM
 - Sprachen: 🇩🇪 🇫🇷 🇵🇹 🇬🇧 🇷🇺 *(Maschinenübersetzt aus dem Deutschen. [Fehler gefunden?](https://github.com/Alsweider/Teefax/issues))*
 
 ---
