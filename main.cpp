@@ -3,7 +3,7 @@
 #include <chrono>
 #include <thread>
 #include <string>
-#include <iomanip>
+#include <cmath>
 #include <ctime>
 #include <windows.h>
 #include <mmsystem.h>
@@ -982,6 +982,52 @@ static const vector<uint8_t>& silentWav() {
     return wav;
 }
 
+// Generiert einen WAV-Puffer fuer den gesamten Voralarm-Zeitraum:
+// 'prewarmMs' Millisekunden Stille (BT-Aufwaermung), danach 'count' Beeps
+// im Sekundentakt (880 Hz, 100 ms Ton + 900 ms Stille pro Zyklus).
+// Kein SND_LOOP noetig. Der Puffer endet nach dem letzten Beep von selbst.
+// Kontinuierlicher Audio-Stream: kein Soundwechsel, kein BT-Gap beim ersten Beep.
+// Rueckgabe: leerer Vektor wenn count <= 0.
+static vector<uint8_t> buildPreAlarmWav(int count, int prewarmMs = 2000) {
+    if (count <= 0) return {};
+
+    constexpr uint32_t RATE         = 22050;
+    constexpr uint32_t BEEP_SAMPLES = RATE * 100 / 1000; // 100 ms = 2205 Samples
+    constexpr float    FREQ         = 880.0f;
+    constexpr float    PI2          = 6.28318530f;
+
+    const uint32_t prewarmSamples = static_cast<uint32_t>(prewarmMs) * RATE / 1000;
+    const uint32_t cycleSamples   = RATE;                              // 1 s pro Beep-Zyklus
+    const uint32_t totalSamples   = prewarmSamples + static_cast<uint32_t>(count) * cycleSamples;
+    const uint32_t DSIZE          = totalSamples * 2;                  // 16-bit mono
+
+    vector<uint8_t> w(44 + DSIZE, 0);
+    auto w16 = [&](size_t o, uint16_t v){ memcpy(w.data()+o, &v, 2); };
+    auto w32 = [&](size_t o, uint32_t v){ memcpy(w.data()+o, &v, 4); };
+
+    memcpy(w.data()+0,  "RIFF", 4); w32(4,  36 + DSIZE);
+    memcpy(w.data()+8,  "WAVE", 4);
+    memcpy(w.data()+12, "fmt ", 4); w32(16, 16);
+    w16(20, 1); w16(22, 1); w32(24, RATE); w32(28, RATE*2); w16(32, 2); w16(34, 16);
+    memcpy(w.data()+36, "data", 4); w32(40, DSIZE);
+
+    auto* samples = reinterpret_cast<int16_t*>(w.data() + 44);
+    const uint32_t FADE = BEEP_SAMPLES / 10;
+
+    for (int b = 0; b < count; ++b) {
+        uint32_t offset = prewarmSamples + static_cast<uint32_t>(b) * cycleSamples;
+        for (uint32_t i = 0; i < BEEP_SAMPLES; ++i) {
+            float env = 1.0f;
+            if (i < FADE)                     env = static_cast<float>(i)                / static_cast<float>(FADE);
+            else if (i > BEEP_SAMPLES - FADE) env = static_cast<float>(BEEP_SAMPLES - i) / static_cast<float>(FADE);
+            float s = env * 0.55f * 32767.0f * sinf(PI2 * FREQ * static_cast<float>(i) / static_cast<float>(RATE));
+            samples[offset + i] = static_cast<int16_t>(s);
+        }
+        // Stille zwischen den Beeps ist bereits 0-initialisiert
+    }
+    return w;
+}
+
 bool launchedFromExistingConsole() {
     HWND hwnd = GetConsoleWindow();
     if (!hwnd) return false;
@@ -1722,7 +1768,9 @@ int main(int argc, char* argv[])
         }
 
         long long lastVerbleibendSec = -1;
-        bool soundPrewarmed = false; // Bluetooth-Prewarm: einmalig pro Durchlauf
+        bool soundPrewarmed  = false; // Bluetooth-Prewarm: einmalig pro Durchlauf
+        bool preAlarmStarted = false; // Voralarm-WAV: einmalig pro Durchlauf gestartet
+        vector<uint8_t> preAlarmWavBuf; // Haelt den Voralarm-Puffer am Leben (SND_MEMORY | SND_ASYNC)
 
         while (true) {
             auto nowSteady = chrono::steady_clock::now();
@@ -1749,25 +1797,41 @@ int main(int argc, char* argv[])
             if (verbleibendSec != lastVerbleibendSec) {
                 lastVerbleibendSec = verbleibendSec;
 
-                // PRE-ALARM
-                if (preAlarmSeconds > 0 &&
-                    verbleibendSec > 0 &&
-                    verbleibendSec <= preAlarmSeconds)
-                {
-                    Beep(1200, 80);
-                }
-
-                // BT-PREWARM: Audiopfad aufwaermen und bis zum Alarm aktiv halten.
-                // SND_LOOP | SND_ASYNC: nahtlose Stille haelt BT-Verbindung durchgehend aktiv,
-                // sodass keine Aktivierungs-/Deaktivierungsklicks zwischen Vorwärmen und Alarm entstehen.
-                // Das folgende PlaySoundA fuer den Alarm beendet den Loop automatisch.
-                // Nicht bei --async: koennte laufenden Alarm-Sound unterbrechen.
-                if (!mute && !asyncSound && !soundPrewarmed &&
+                // BT-PREWARM (nur ohne Voralarm): Stille-Loop 2 s vor dem Alarm starten.
+                // Bei aktivem Voralarm entfaellt das. Die Voralarm-WAV unten
+                // enthaelt bereits Stille am Anfang und haelt BT durchgehend warm.
+                if (!mute && !asyncSound && !soundPrewarmed && preAlarmSeconds == 0 &&
                     verbleibendSec > 0 && verbleibendSec <= 2)
                 {
                     soundPrewarmed = true;
                     PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
                                NULL, SND_MEMORY | SND_ASYNC | SND_LOOP);
+                }
+
+                // VORALARM: Einmalig pro Durchlauf einen WAV-Puffer aufbauen und abspielen.
+                // Der Puffer enthaelt Stille (BT-Prewarm) gefolgt von allen Beeps.
+                // Ein kontinuierlicher Audio-Stream ohne Unterbrechung.
+                // Kein SND_LOOP: der Puffer endet nach dem letzten Beep von selbst.
+                // Der Alarm-PlaySoundA am Durchlaufende unterbricht automatisch.
+                // preAlarmWavBuf haelt den Puffer am Leben bis der Stream endet.
+                if (preAlarmSeconds > 0 && !preAlarmStarted &&
+                    verbleibendSec > 0 && verbleibendSec <= static_cast<long long>(preAlarmSeconds) + 2)
+                {
+                    preAlarmStarted = true;
+                    // Anzahl verbleibender Beeps: kuerzer als preAlarmSeconds wenn der Timer
+                    // insgesamt kuerzer als preAlarmSeconds + 2 s ist.
+                    int beepCount  = static_cast<int>(
+                        min(verbleibendSec, static_cast<long long>(preAlarmSeconds)));
+                    // Stille-Prewarm: bis zu 2000 ms, je nachdem wie viel Zeit bleibt.
+                    int prewarmMs  = static_cast<int>(
+                        min(2000LL, (verbleibendSec - static_cast<long long>(beepCount)) * 1000LL));
+                    if (prewarmMs < 0) prewarmMs = 0;
+
+                    preAlarmWavBuf = buildPreAlarmWav(beepCount, prewarmMs);
+                    if (!preAlarmWavBuf.empty()) {
+                        PlaySoundA(reinterpret_cast<LPCSTR>(preAlarmWavBuf.data()),
+                                   NULL, SND_MEMORY | SND_ASYNC);
+                    }
                 }
 
                 long long totalMs = totalMsThisRound;
