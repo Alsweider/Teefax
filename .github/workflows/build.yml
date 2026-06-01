@@ -1,5 +1,8 @@
 name: Build & Release
 
+permissions:
+  contents: write
+
 # Läuft automatisch bei einem neuen Version-Tag (z. B. git tag v0.27.5 && git push origin v0.27.5)
 # Manuell auslösbar über GitHub Actions → "Run workflow" (zum Testen ohne Release)
 on:
