@@ -1715,6 +1715,17 @@ int main(int argc, char* argv[])
     }
 
 
+    // Audio-Gerät vorwärmen: die erste PlaySoundA-Initialisierung kostet auf einem
+    // frisch gestarteten System 100–500 ms (winmm-Geräteöffnung). Ohne diesen Aufruf
+    // würde die Verzögerung auf den ersten Prealarm-Beep fallen und ihn nach hinten
+    // verschieben. Die stille 1-s-WAV initialisiert das Audio-Subsystem.
+    // Greift nur wenn Voralarm aktiviert ist, weil nur dort der Effekt stört.
+    // Das BT-Vorwärmen kurz vor dem Hauptalarm deckt den analogen Fall ohne --prealarm ab.
+    if (preAlarmSeconds > 0 && !mute) {
+        PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
+                   NULL, SND_MEMORY | SND_ASYNC);
+    }
+
     // Die normale Timer-Schleife
     do {
         if (loop && loopCount < std::numeric_limits<long long>::max()) ++loopCount;
@@ -1822,9 +1833,13 @@ int main(int argc, char* argv[])
                     // insgesamt kuerzer als preAlarmSeconds + 2 s ist.
                     int beepCount  = static_cast<int>(
                         min(verbleibendSec, static_cast<long long>(preAlarmSeconds)));
-                    // Stille-Prewarm: bis zu 2000 ms, je nachdem wie viel Zeit bleibt.
+                    // Stille-Prewarm exakt auf den ersten Sekundentick ausrichten:
+                    // verbleibendMs (nicht gerundete verbleibendSec) verwenden, damit
+                    // der erste Beep exakt mit dem Sekundentick des Balkens zusammenfällt.
+                    // prewarmMs = verbleibendMs − beepCount x 1000 liegt mathematisch immer
+                    // in [0, 2000] (Beweis per Triggerbedingung), daher kein Cap nötig.
                     int prewarmMs  = static_cast<int>(
-                        min(2000LL, (verbleibendSec - static_cast<long long>(beepCount)) * 1000LL));
+                        verbleibendMs - static_cast<long long>(beepCount) * 1000LL);
                     if (prewarmMs < 0) prewarmMs = 0;
 
                     preAlarmWavBuf = buildPreAlarmWav(beepCount, prewarmMs);
