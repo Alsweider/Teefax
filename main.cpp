@@ -18,8 +18,6 @@
 #include <algorithm>
 
 
-#pragma comment(lib, "winmm.lib")
-
 using namespace std;
 
 namespace fs = std::filesystem;
@@ -35,7 +33,7 @@ static bool  g_consoleModeChanged  = false;
 constexpr long long MAX_MS = std::numeric_limits<long long>::max() / 4;
 
 // Ctrl-C / Console Event Handler: versucht, timeEndPeriod zurückzusetzen
-BOOL WINAPI ConsoleHandler(DWORD signal) {
+BOOL WINAPI ConsoleHandler(DWORD /*signal*/) {
     if (g_timePeriodSet.load()) {
         timeEndPeriod(1);
         g_timePeriodSet.store(false);
