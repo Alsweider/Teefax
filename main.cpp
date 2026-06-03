@@ -49,11 +49,14 @@ BOOL WINAPI ConsoleHandler(DWORD signal) {
 }
 
 // RAII-Hilfe: setzt die System-Timerauflösung auf 1 ms und sorgt für sauberes Zurücksetzen beim Verlassen
+static bool g_timePeriodOk = false;
+
 struct TimePeriodGuard {
     TimePeriodGuard() {
-        MMRESULT res = timeBeginPeriod(1);
-        g_timePeriodSet.store(true);
-        (void)res;
+        if (timeBeginPeriod(1) == TIMERR_NOERROR) {
+            g_timePeriodSet.store(true);
+            g_timePeriodOk = true;
+        }
     }
     ~TimePeriodGuard() {
         if (g_timePeriodSet.load()) {
@@ -552,49 +555,6 @@ bool isTargetTomorrow(time_t targetT) {
             targetTm.tm_mday == nowTm.tm_mday);
 }
 
-// Zum Messen bis zum nächsten täglichen Alarm
-long long millisecondsUntilNextDailyTime(const vector<tuple<int,int,int>>& times) {
-    using namespace chrono;
-
-    auto now = system_clock::now();
-    time_t tnow = system_clock::to_time_t(now);
-
-    tm local{};
-    localtime_s(&local, &tnow);
-
-    long long bestMs = MAX_MS;
-
-    for (const auto& t : times) {
-        int h, m, s;
-        tie(h, m, s) = t;
-
-        tm candidate = local;
-        candidate.tm_hour = h;
-        candidate.tm_min  = m;
-        candidate.tm_sec  = s;
-        candidate.tm_isdst = -1; // Zeitumstellung
-
-        time_t tt = mktime(&candidate);
-        if (tt == -1) continue;
-
-        auto target = system_clock::from_time_t(tt);
-
-        if (target <= now) {
-            candidate.tm_mday += 1;
-            candidate.tm_isdst = -1;
-            time_t tt_next = mktime(&candidate);
-            if (tt_next == -1) continue;
-            target = system_clock::from_time_t(tt_next);
-        }
-
-        long long diff = duration_cast<milliseconds>(target - now).count();
-
-        if (diff > 0 && diff < bestMs)
-            bestMs = diff;
-    }
-
-    return bestMs == MAX_MS ? 0 : bestMs;
-}
 
 
 chrono::system_clock::time_point nextDailyTarget(
@@ -670,16 +630,27 @@ EverySpec parseEverySpec(const string& daysStr, int h, int m, int s) {
 
     istringstream ss(daysStr);
     string token;
+    bool typeSet = false;
     while (getline(ss, token, ',')) {
         if (token.empty()) continue;
         int wd = parseWeekday(token);
         if (wd >= 0) {
+            if (typeSet && spec.type != EverySpec::Type::Weekday) {
+                spec.days.clear(); // gemischte Typen → Fehler
+                return spec;
+            }
             spec.type = EverySpec::Type::Weekday;
+            typeSet = true;
             spec.days.push_back(wd);
         } else {
             int day = safeStoi(token, -1);
             if (day >= 1 && day <= 31) {
+                if (typeSet && spec.type != EverySpec::Type::MonthDay) {
+                    spec.days.clear(); // gemischte Typen → Fehler
+                    return spec;
+                }
                 spec.type = EverySpec::Type::MonthDay;
+                typeSet = true;
                 spec.days.push_back(day);
             }
         }
@@ -1437,9 +1408,6 @@ int main(int argc, char* argv[])
                 return 1;
             }
 
-            ms = millisecondsUntilNextDailyTime(dailyTimes);
-            if (ms <= 0) ms = 1000;
-
             loop = true;
             maxLoops = -1; // I seek eternal fire
 
@@ -1721,6 +1689,10 @@ int main(int argc, char* argv[])
     // verschieben. Die stille 1-s-WAV initialisiert das Audio-Subsystem.
     // Greift nur wenn Voralarm aktiviert ist, weil nur dort der Effekt stört.
     // Das BT-Vorwärmen kurz vor dem Hauptalarm deckt den analogen Fall ohne --prealarm ab.
+    if (!g_timePeriodOk && !showLiveTime && !showStopwatch) {
+        fprintf(stderr, "Warning: timeBeginPeriod(1) failed. Sleep precision may be ~15ms instead of ~1ms.\n");
+    }
+
     if (preAlarmSeconds > 0 && !mute) {
         PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
                    NULL, SND_MEMORY | SND_ASYNC);
@@ -1975,19 +1947,6 @@ int main(int argc, char* argv[])
                 }
                 if (alarmRepeat == 0 || r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
             }
-        }
-
-        // Nächste Wartezeit berechnen (nur noch für --daily / --every nötig, --at läuft oben)
-        if (useDailyTimes) {
-            wallTarget = nextDailyTarget(dailyTimes);
-            ms = chrono::duration_cast<chrono::milliseconds>(
-                     wallTarget - chrono::system_clock::now()).count();
-            if (ms <= 0) ms = 1000;
-        } else if (useEvery) {
-            wallTarget = nextEveryTarget(everySpec);
-            ms = chrono::duration_cast<chrono::milliseconds>(
-                     wallTarget - chrono::system_clock::now()).count();
-            if (ms <= 0) ms = 1000;
         }
 
         // Konsolenmodus wiederherstellen, damit Kind-Prozesse (etwa via --cmd gestartet)
