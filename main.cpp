@@ -18,6 +18,8 @@
 #include <algorithm>
 
 
+// #pragma comment(lib, "winmm.lib") // wahrscheinlich nicht benötigt, da bereits "LIBS += -lwinmm" in .pro
+
 using namespace std;
 
 namespace fs = std::filesystem;
@@ -82,6 +84,17 @@ double safeStod(const string& s, double fallback = 0.0) {
     try {
         size_t pos = 0;
         double v = stod(s, &pos);
+        if (pos != s.size()) return fallback;
+        return v;
+    } catch (...) {
+        return fallback;
+    }
+}
+
+long long safeStoll(const string& s, long long fallback = 0) {
+    try {
+        size_t pos = 0;
+        long long v = stoll(s, &pos, 10);
         if (pos != s.size()) return fallback;
         return v;
     } catch (...) {
@@ -739,7 +752,12 @@ static vector<string> tokenizeConfigLine(const string& line) {
 // alle geparsten Tokens an 'out' an. Fehlt die Datei, passiert nichts.
 static void loadConfigArgs(vector<string>& out) {
     wchar_t exeBuf[MAX_PATH];
-    if (GetModuleFileNameW(nullptr, exeBuf, MAX_PATH) == 0) return;
+    DWORD len = GetModuleFileNameW(nullptr, exeBuf, MAX_PATH);
+    if (len == 0) return;
+    if (len >= MAX_PATH) {
+        fprintf(stderr, "Warning: path to teefax.exe is too long (>=%d chars). teefax.ini will be ignored.\n", MAX_PATH);
+        return;
+    }
 
     wstring iniPath(exeBuf);
     size_t slash = iniPath.rfind(L'\\');
@@ -772,7 +790,12 @@ static void loadConfigArgs(vector<string>& out) {
 // Pfad zur teefax.ini ermitteln (wird von mehreren Makro-Funktionen benoetigt)
 static wstring getIniPath() {
     wchar_t exeBuf[MAX_PATH];
-    if (GetModuleFileNameW(nullptr, exeBuf, MAX_PATH) == 0) return L"";
+    DWORD len = GetModuleFileNameW(nullptr, exeBuf, MAX_PATH);
+    if (len == 0) return L"";
+    if (len >= MAX_PATH) {
+        fprintf(stderr, "Warning: path to teefax.exe is too long (>=%d chars). teefax.ini will be ignored.\n", MAX_PATH);
+        return L"";
+    }
     wstring p(exeBuf);
     size_t slash = p.rfind(L'\\');
     if (slash == wstring::npos) return L"";
@@ -1020,7 +1043,7 @@ int main(int argc, char* argv[])
     bool mute = false;
     bool loop = false;
     int maxLoops = -1;
-    int alarmRepeat = 1;
+    long long alarmRepeat = 1;
     int alarmInterval = 2;
     bool useAtTime = false;
     bool useAtDateTime = false; // true wenn --at ein Datum (+ Zeit) enthält
@@ -1287,8 +1310,21 @@ int main(int argc, char* argv[])
         } else if (arg == "--msg" && i + 1 < nArgs) {
             customMsg = args[++i];
         } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < nArgs) {
-            alarmRepeat = safeStoi(args[++i], 1);
-            if (alarmRepeat < 0) alarmRepeat = 1;
+            const string& val = args[++i];
+            try {
+                size_t pos = 0;
+                alarmRepeat = stoll(val, &pos, 10);
+                if (pos != val.size() || alarmRepeat < 0) {
+                    alarmRepeat = 1;
+                    fprintf(stderr, "Warning: invalid --alarm-repeat value '%s', using 1.\n", val.c_str());
+                }
+            } catch (const std::out_of_range&) {
+                alarmRepeat = std::numeric_limits<long long>::max();
+                fprintf(stderr, "Warning: --alarm-repeat value '%s' is too large, using maximum.\n", val.c_str());
+            } catch (...) {
+                alarmRepeat = 1;
+                fprintf(stderr, "Warning: invalid --alarm-repeat value '%s', using 1.\n", val.c_str());
+            }
         } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < nArgs) {
             alarmInterval = safeStoi(args[++i], 2);
             if (alarmInterval < 1) alarmInterval = 1;
