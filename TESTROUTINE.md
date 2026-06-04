@@ -295,7 +295,7 @@ teefax 5s --mute --nomsg --focus "Editor"
 teefax 5s --mute --nomsg --focus "___nichtvorhanden___"
 ```
 
-- [ ] Warnung `Warnung: Fenster ... nicht gefunden` erscheint beim Start
+- [ ] Warnung `Warnung: Fenster ... nicht gefunden` **erscheint** beim Start
 - [ ] Nach Ablauf: Fehlermeldung, Loop (falls aktiv) wird gestoppt
 
 ### 11.4 Aktionen im Loop
