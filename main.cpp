@@ -18,7 +18,6 @@
 #include <algorithm>
 
 
-// #pragma comment(lib, "winmm.lib") // wahrscheinlich nicht benötigt, da bereits "LIBS += -lwinmm" in .pro
 
 using namespace std;
 
@@ -1250,16 +1249,29 @@ int main(int argc, char* argv[])
 
     // QuickEdit-Modus deaktivieren: verhindert, dass ein Mausklick ins Konsolenfenster
     // den Timer einfriert (Windows pausiert den Prozess, sobald Text markiert wird).
+    // Wird uebersprungen wenn kein Timer laeuft (--help, --version, keine Argumente),
+    // damit der Nutzer in der Hilfeausgabe wie gewohnt markieren und kopieren kann.
     // Der Originalzustand wird beim Beenden und bei Strg+C wiederhergestellt.
     {
-        HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-        DWORD mode = 0;
-        if (GetConsoleMode(hIn, &mode)) {
-            g_originalConsoleMode = mode;
-            g_consoleModeChanged  = true;
-            mode &= ~ENABLE_QUICK_EDIT_MODE;
-            mode |= ENABLE_EXTENDED_FLAGS;
-            SetConsoleMode(hIn, mode);
+        bool needsQuickEditOff = (argc >= 2);
+        if (needsQuickEditOff) {
+            for (const auto& a : args) {
+                if (a == "--help" || a == "-h" || a == "--version" || a == "-v") {
+                    needsQuickEditOff = false;
+                    break;
+                }
+            }
+        }
+        if (needsQuickEditOff) {
+            HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+            DWORD mode = 0;
+            if (GetConsoleMode(hIn, &mode)) {
+                g_originalConsoleMode = mode;
+                g_consoleModeChanged  = true;
+                mode &= ~ENABLE_QUICK_EDIT_MODE;
+                mode |= ENABLE_EXTENDED_FLAGS;
+                SetConsoleMode(hIn, mode);
+            }
         }
     }
 
