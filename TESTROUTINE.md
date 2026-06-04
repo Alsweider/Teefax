@@ -288,7 +288,7 @@ teefax 2s --mute --nomsg --cmd "notepad.exe"
 teefax 5s --mute --nomsg --focus "Editor"
 ```
 
-- [ ] Warnung `Warnung: Fenster ... nicht gefunden` erscheint **nicht** (Fenster ist offen)
+- [ ] **Keine** `Warnung: Fenster ... nicht gefunden` erscheint (Fenster ist offen)
 - [ ] Nach Ablauf: Notepad-Fenster erscheint im Vordergrund
 
 ```
