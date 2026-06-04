@@ -100,6 +100,18 @@ teefax 2s --alarm-repeat 3 --alarm-interval 1
 
 - [ ] Alarm ertönt 3-mal mit je ~1 Sekunde Abstand
 
+```
+teefax 2s --alarm-repeat abc
+```
+
+- [ ] Warnung auf `stderr` (`invalid --alarm-repeat value`), Alarm ertönt einmal (Fallback: 1)
+
+```
+teefax 2s --alarm-repeat -5
+```
+
+- [ ] Warnung auf `stderr`, Alarm ertönt einmal (Fallback: 1)
+
 ### 4.4 Kein Ton
 
 ```
@@ -230,6 +242,12 @@ teefax --every xyz
 ```
 
 - [ ] Fehlermeldung, Exit-Code 1
+
+```
+teefax --every mon,1
+```
+
+- [ ] Fehlermeldung (gemischte Wochentag- und Monatstag-Angabe), Exit-Code 1
 
 ---
 
