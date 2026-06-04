@@ -204,7 +204,7 @@ teefax 10s --prealarm 5 --mute --nomsg
 ```
 
 - [ ] In den letzten 5 Sekunden ertönt jede Sekunde ein kurzer Beep
-- [ ] Beep auch über Bluetooth-Kopfhörer hörbar *(bekanntes Problem, ggf. Hinweis dokumentieren)*
+- [ ] Beep auch über Bluetooth-Kopfhörer hörbar
 
 ---
 
