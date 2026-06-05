@@ -478,7 +478,7 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 ## 18. Binärdatei
 
 - [ ] Dateigröße plausibel (~1 MB ± 500 KB)
-- [ ] Icon erscheint korrekt im Explorer (16×16, 32×32 erkennbar)
+- [ ] Icon erscheint korrekt im Explorer (16×16 bis 256×256 erkennbar)
 - [ ] Dateieigenschaften → Details: Firmenname, Produktname, Beschreibung, Copyright befüllt
 - [ ] Version in den Dateieigenschaften stimmt mit `teefax --version` überein
 
