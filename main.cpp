@@ -1111,14 +1111,34 @@ int main(int argc, char* argv[])
                 return 1;
             }
 
-            // Alle verbleibenden Argumente als Makro-Body zusammensetzen
-            // (mit Anführungszeichen um Tokens mit Leerzeichen)
+            // Alle verbleibenden Argumente als Makro-Body zusammensetzen.
+            // Quoting-Regeln für die INI-Zeile:
+            // - Token enthält Leerzeichen           -> immer quoten
+            // - Token folgt auf eine Flag mit Wert-Parameter (--focus, --msg,
+            //   --open, --cmd, --at, --lang, --alarm-repeat, --alarm-interval,
+            //   --prealarm, --loop, --every, --daily) -> immer quoten,
+            //   damit beim späteren Einlesen via tokenizeConfigLine der Wert
+            //   als ein Token wiederhergestellt wird.
+            static const vector<string> valueFlags = {
+                "--focus", "-f", "--msg", "--open", "-o", "--cmd", "-c",
+                "--at", "-a", "--until", "--lang", "-la",
+                "--alarm-repeat", "-ar", "--alarm-interval", "-ai",
+                "--prealarm", "-pa", "--loop", "-l",
+                "--every", "-e", "--daily", "-d",
+            };
             string macroArgs;
+            bool nextNeedsQuotes = false;
             for (int j = i + 3; j < static_cast<int>(args.size()); ++j) {
                 if (j > i + 3) macroArgs += " ";
-                bool needsQuotes = args[j].find(' ') != string::npos;
+                const string& tok = args[j];
+                bool needsQuotes = nextNeedsQuotes || tok.find(' ') != string::npos;
+                // Prüfen ob dieses Token selbst eine wertnehmende Flag ist
+                nextNeedsQuotes = false;
+                for (const auto& vf : valueFlags) {
+                    if (tok == vf) { nextNeedsQuotes = true; break; }
+                }
                 if (needsQuotes) macroArgs += '"';
-                macroArgs += args[j];
+                macroArgs += tok;
                 if (needsQuotes) macroArgs += '"';
             }
 
