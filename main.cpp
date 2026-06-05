@@ -1694,7 +1694,7 @@ int main(int argc, char* argv[])
             string secStr = formatVerbleibend(elapsedSec);
 
             // Fenstertitel einmal pro Sekunde aktualisieren
-            if (!isPaused && elapsedSec != lastTitleSec) {
+            if (elapsedSec != lastTitleSec) {
                 lastTitleSec = elapsedSec;
                 wstring labelW = toWide(t(Str::STOPWATCH_LABEL));
                 wstring titleW = L"Teefax - " + labelW + L" - "

@@ -90,8 +90,16 @@ set T=--daily ohne Zeiten gibt Exit 1
 "%EXE%" --daily >nul 2>&1
 call :chk %errorlevel% 1
 
+set T=--daily mit ungueltigem Zeitformat gibt Exit 1
+"%EXE%" --daily xyz >nul 2>&1
+call :chk %errorlevel% 1
+
 set T=--every mit ungueltigem Argument gibt Exit 1
 "%EXE%" --every xyz >nul 2>&1
+call :chk %errorlevel% 1
+
+set T=--every mit gemischten Wochen- und Monatstagen gibt Exit 1
+"%EXE%" --every mon,1 >nul 2>&1
 call :chk %errorlevel% 1
 
 rem ── 4. Optionen ──────────────────────────────────────────────────────
@@ -106,6 +114,14 @@ call :chk %errorlevel% 0
 
 set T=--alarm-repeat 2
 "%EXE%" 1s --alarm-repeat 2 --mute --nomsg >nul 2>&1
+call :chk %errorlevel% 0
+
+set T=--alarm-repeat mit ungueltigem Wert (abc) gibt Exit 0 (Fallback)
+"%EXE%" 1s --alarm-repeat abc --mute --nomsg >nul 2>&1
+call :chk %errorlevel% 0
+
+set T=--alarm-repeat mit negativem Wert (-5) gibt Exit 0 (Fallback)
+"%EXE%" 1s --alarm-repeat -5 --mute --nomsg >nul 2>&1
 call :chk %errorlevel% 0
 
 set T=--alarm-interval 1
@@ -134,6 +150,10 @@ call :chk %errorlevel% 0
 
 set T=--open nicht existente Datei (kein Absturz erwartet)
 "%EXE%" 1s --mute --nomsg --open "C:\___teefax_nx___\nx.txt" >nul 2>&1
+call :chk %errorlevel% 0
+
+set T=--focus nicht vorhandenes Fenster (kein Absturz, Exit 0)
+"%EXE%" 1s --mute --nomsg --focus "___teefax_nx___" >nul 2>&1
 call :chk %errorlevel% 0
 
 rem ── 5. Sprachen ──────────────────────────────────────────────────────
@@ -194,12 +214,16 @@ set T=--macro remove nicht-vorhandenes Makro gibt Exit 1
 "%EXE%" --macro remove ttest_nx >nul 2>&1
 call :chk %errorlevel% 1
 
-set T=--macro add ungueliger Name (Sonderzeichen) gibt Exit 1
+set T=--macro add ungueltiger Name (Sonderzeichen) gibt Exit 1
 "%EXE%" --macro add bad-name 1s >nul 2>&1
 call :chk %errorlevel% 1
 
 set T=--macro add ohne Argumente gibt Exit 1
 "%EXE%" --macro add ttest >nul 2>&1
+call :chk %errorlevel% 1
+
+set T=--macro add ohne Name gibt Exit 1
+"%EXE%" --macro add >nul 2>&1
 call :chk %errorlevel% 1
 
 rem Aufraumen: INI entfernen, falls vom Makro-Test erzeugt
