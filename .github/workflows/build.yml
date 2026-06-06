@@ -59,9 +59,13 @@ jobs:
       # GitHub Release anlegen - nur bei Tag-Pushes, nicht bei workflow_dispatch.
       # Der Tag-Name (z. B. v0.27.5) wird automatisch als Release-Titel verwendet.
       # GITHUB_TOKEN wird von Actions automatisch bereitgestellt, kein Setup noetig.
+      # generate_release_notes: GitHub erstellt automatisch eine Zusammenfassung
+      # der Commits seit dem letzten Tag. Der Text kann nach dem Release auf
+      # GitHub manuell ergaenzt oder ueberschrieben werden.
       - name: GitHub Release erstellen
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: release\teefax.exe
           fail_on_unmatched_files: true
+          generate_release_notes: true

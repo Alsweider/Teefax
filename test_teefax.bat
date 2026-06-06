@@ -144,6 +144,10 @@ set T=--prealarm (3 Beeps sind normal)
 "%EXE%" 4s --prealarm 3 --mute --nomsg >nul 2>&1
 call :chk %errorlevel% 0
 
+set T=--prealarm laenger als Timer (kein Absturz, Exit 0)
+"%EXE%" 2s --prealarm 5 --mute --nomsg >nul 2>&1
+call :chk %errorlevel% 0
+
 set T=--cmd echo
 "%EXE%" 1s --mute --nomsg --cmd "echo teefax_smoke_cmd_ok" >nul 2>&1
 call :chk %errorlevel% 0
