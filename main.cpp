@@ -1844,21 +1844,29 @@ int main(int argc, char* argv[])
                 // Der Alarm-PlaySoundA am Durchlaufende unterbricht automatisch.
                 // preAlarmWavBuf haelt den Puffer am Leben bis der Stream endet.
                 if (preAlarmSeconds > 0 && !preAlarmStarted &&
-                    verbleibendSec > 0 && verbleibendSec <= static_cast<long long>(preAlarmSeconds) + 2)
+                    verbleibendSec > 0 && verbleibendSec <= static_cast<long long>(preAlarmSeconds) + 3)
                 {
                     preAlarmStarted = true;
                     // Anzahl verbleibender Beeps: kuerzer als preAlarmSeconds wenn der Timer
-                    // insgesamt kuerzer als preAlarmSeconds + 2 s ist.
+                    // insgesamt kuerzer als preAlarmSeconds + 3 s ist.
                     int beepCount  = static_cast<int>(
                         min(verbleibendSec, static_cast<long long>(preAlarmSeconds)));
                     // Stille-Prewarm exakt auf den ersten Sekundentick ausrichten:
                     // verbleibendMs (nicht gerundete verbleibendSec) verwenden, damit
                     // der erste Beep exakt mit dem Sekundentick des Balkens zusammenfällt.
-                    // prewarmMs = verbleibendMs − beepCount x 1000 liegt mathematisch immer
-                    // in [0, 2000] (Beweis per Triggerbedingung), daher kein Cap nötig.
+                    // Normalfall (Timer >= preAlarmSeconds + 3 s):
+                    //   verbleibendSec = ceil(verbleibendMs/1000), daher liegt
+                    //   prewarmMs = verbleibendMs − beepCount*1000 in (2000, 3000],
+                    //   d. h. mindestens 2 s BT-Aufwaermzeit sind garantiert.
+                    // Kurze Timer (Timer < preAlarmSeconds + 3 s):
+                    //   Der Trigger feuert sofort beim ersten Tick, prewarmMs
+                    //   kann dabei gegen 0 fallen. Mindestwert 500 ms sichert
+                    //   auch hier minimale BT-Codec-Aktivierungszeit.
+                    //   Beep-Synchronisation mit dem Balken ist in diesem
+                    //   Sonderfall ohnehin nicht mehr exakt moeglich.
                     int prewarmMs  = static_cast<int>(
                         verbleibendMs - static_cast<long long>(beepCount) * 1000LL);
-                    if (prewarmMs < 0) prewarmMs = 0;
+                    if (prewarmMs < 500) prewarmMs = 500;
 
                     preAlarmWavBuf = buildPreAlarmWav(beepCount, prewarmMs);
                     if (!preAlarmWavBuf.empty()) {
@@ -1980,7 +1988,9 @@ int main(int argc, char* argv[])
                             }
                         }
                     } catch (const fs::filesystem_error& e) {
-                        cout << "\nDateisystem-Fehler: " << e.what() << "\n";
+                        char buf[512];
+                        snprintf(buf, sizeof(buf), t(Str::FILE_SYSTEM_ERROR), e.what());
+                        cout << buf << "\n";
                     }
                 } else {
                     if (asyncSound) {
