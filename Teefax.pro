@@ -6,7 +6,7 @@ CONFIG -= qt
 
 LIBS += -lwinmm
 
-VERSION = 0.27.12
+VERSION = 0.27.13
 DEFINES += PRG_VERSION=\\\"$$VERSION\\\" \
 
 QMAKE_TARGET_COMPANY     = "Alsweider"

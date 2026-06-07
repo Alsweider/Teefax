@@ -1637,6 +1637,27 @@ int main(int argc, char* argv[])
         cout << buf << "\n" << flush;
     }
 
+    // Vorab-Prüfung: Zieldatei fuer --open vorhanden?
+    // URLs koennen nicht geprueft werden; Dateien, die waehrend des Timers
+    // erst erzeugt werden, erhalten ebenfalls keine Warnung (nur Hinweis).
+    if (!openFile.empty()) {
+        bool isUrl = openFile.rfind("http://", 0) == 0 ||
+                     openFile.rfind("https://", 0) == 0;
+        if (!isUrl) {
+            try {
+                if (!fs::exists(fs::path(openFile))) {
+                    char buf[256];
+                    snprintf(buf, sizeof(buf), t(Str::FILE_NOT_FOUND_WARN),
+                             toConsole(toWideArgv(openFile)).c_str());
+                    cout << buf << "\n" << flush;
+                }
+            } catch (const fs::filesystem_error&) {
+                // Pfad ungueltig oder nicht erreichbar. Warnung im Fehlerfall weglassen,
+                // openFileAfterTimer() gibt beim Ablauf eine praezise Meldung.
+            }
+        }
+    }
+
     // Schleife Direktanzeige von Zeit und Datum
     if (showLiveTime) {
         system("cls"); // Konsole bereinigen, damit nur die Zeit da steht.

@@ -24,7 +24,7 @@ enum class Str {
     NOTIFY_TITLE, NOTIFY_MSG,
 
     // Datei / Befehl
-    FILE_NOT_FOUND, FILE_OPENED, FILE_ERROR,
+    FILE_NOT_FOUND, FILE_NOT_FOUND_WARN, FILE_OPENED, FILE_ERROR,
     CMD_STARTED, CMD_ERROR,
     AUDIO_NOT_FOUND, AUDIO_PATH_ERROR,
     FILE_SYSTEM_ERROR,
@@ -85,6 +85,7 @@ static const TranslationMap LANG_DE = {
     { Str::NOTIFY_TITLE,         "Teefax" },
     { Str::NOTIFY_MSG,           "Die Zeit ist verstrichen!" },
     { Str::FILE_NOT_FOUND,       "\nDatei nicht gefunden: %s" },
+    { Str::FILE_NOT_FOUND_WARN,  "Warnung: Datei \"%s\" nicht gefunden." },
     { Str::FILE_OPENED,          "\nDatei geoeffnet: %s" },
     { Str::FILE_ERROR,           "\nFehler beim Oeffnen (Code %d): %s" },
     { Str::CMD_STARTED,          "Befehl gestartet: %s" },
@@ -194,6 +195,7 @@ static const TranslationMap LANG_FR = {
     { Str::NOTIFY_TITLE,         "Teefax" },
     { Str::NOTIFY_MSG,           "Le temps est ecoule!" },
     { Str::FILE_NOT_FOUND,       "\nFichier introuvable: %s" },
+    { Str::FILE_NOT_FOUND_WARN,  "Avertissement: fichier \"%s\" introuvable." },
     { Str::FILE_OPENED,          "\nFichier ouvert: %s" },
     { Str::FILE_ERROR,           "\nErreur a l'ouverture (code %d): %s" },
     { Str::CMD_STARTED,          "Commande lancee: %s" },
@@ -298,6 +300,7 @@ static const TranslationMap LANG_PT = {
     { Str::NOTIFY_TITLE,         "Teefax" },
     { Str::NOTIFY_MSG,           "O tempo esgotou-se!" },
     { Str::FILE_NOT_FOUND,       "\nFicheiro nao encontrado: %s" },
+    { Str::FILE_NOT_FOUND_WARN,  "Aviso: ficheiro \"%s\" nao encontrado." },
     { Str::FILE_OPENED,          "\nFicheiro aberto: %s" },
     { Str::FILE_ERROR,           "\nErro ao abrir o ficheiro (codigo %d): %s" },
     { Str::CMD_STARTED,          "Comando iniciado: %s" },
@@ -402,6 +405,7 @@ static const TranslationMap LANG_RU = {
     { Str::NOTIFY_TITLE,         "Teefax" },
     { Str::NOTIFY_MSG,           "Vremya isteklo!" },
     { Str::FILE_NOT_FOUND,       "\nFajl ne najden: %s" },
+    { Str::FILE_NOT_FOUND_WARN,  "Preduprezhdenie: fajl \"%s\" ne najden." },
     { Str::FILE_OPENED,          "\nFajl otkryt: %s" },
     { Str::FILE_ERROR,           "\nOshibka otkrytiya (kod %d): %s" },
     { Str::CMD_STARTED,          "Komanda zapushchena: %s" },
@@ -455,7 +459,7 @@ static const TranslationMap LANG_RU = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nFajl konfiguratsii: teefax.ini (ta zhe papka, chto i teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
-         "MIT License - Copyright (c) 2026 Alsweider\n"
+        "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nOshibka fajlovoj sistemy: %s" },
     { Str::TOMORROW_SUFFIX,  " (zavtra)" },
@@ -501,6 +505,7 @@ static const TranslationMap LANG_EN = {
     { Str::NOTIFY_TITLE,         "Teefax" },
     { Str::NOTIFY_MSG,           "Time is up!" },
     { Str::FILE_NOT_FOUND,       "\nFile not found: %s" },
+    { Str::FILE_NOT_FOUND_WARN,  "Warning: file \"%s\" not found." },
     { Str::FILE_OPENED,          "\nFile opened: %s" },
     { Str::FILE_ERROR,           "\nError opening file (code %d): %s" },
     { Str::CMD_STARTED,          "Command started: %s" },
@@ -559,7 +564,7 @@ static const TranslationMap LANG_EN = {
         "  teefax 5m --focus \"Notepad\"\n"
         "\nConfig file: teefax.ini (same folder as teefax.exe)\n"
         "\nhttps://github.com/Alsweider/Teefax\n"
-         "MIT License - Copyright (c) 2026 Alsweider\n"
+        "MIT License - Copyright (c) 2026 Alsweider\n"
     },
     { Str::FILE_SYSTEM_ERROR, "\nFilesystem error while opening: %s" },
     { Str::TOMORROW_SUFFIX,  " (tomorrow)" },
