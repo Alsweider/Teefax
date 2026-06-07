@@ -204,7 +204,15 @@ teefax 10s --prealarm 5 --mute --nomsg
 ```
 
 - [ ] In den letzten 5 Sekunden ertönt jede Sekunde ein kurzer Beep
-- [ ] Beep auch über Bluetooth-Kopfhörer hörbar
+- [ ] Erster Beep ertönt gleichzeitig mit dem Anzeigewechsel auf `5s` (nicht erst bei `4s`)
+- [ ] Beep auch über Bluetooth-Kopfhörer hörbar (BT-Kopfhörer aus dem Ruhezustand verwenden)
+
+```
+teefax 2s --prealarm 5 --mute --nomsg
+```
+
+- [ ] Kein Absturz (Timer kürzer als Voralarmfenster), Exit 0
+- [ ] Zwei Beeps ertönen (so viele wie die Timerzeit hergibt)
 
 ---
 
@@ -266,6 +274,12 @@ teefax 2s --mute --nomsg --open "C:\___nx___\datei.txt"
 ```
 
 - [ ] Fehlermeldung (Datei nicht gefunden), kein Absturz, Exit 0
+
+```
+teefax 5s --loop 2 --mute --nomsg --open "C:\___nx___\datei.txt"
+```
+
+- [ ] `Warnung: Datei ... nicht gefunden` erscheint **beim Start** (vor dem Balken)
 
 ### 11.2 Konsolenbefehl
 
@@ -458,6 +472,13 @@ teefax 5s --mute --nomsg
 ```
 
 - [ ] QuickEdit-Modus deaktiviert: Mausklick friert Timer **nicht** ein
+
+```
+teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
+:: Während die innere Instanz läuft, mit der Maus in die Konsole klicken
+```
+
+- [ ] Mausklick friert den äußeren Timer **nicht** ein (QuickEdit bleibt auch im Loop+Cmd-Fall deaktiviert)
 
 ```
 teefax 5s --mute --nomsg
