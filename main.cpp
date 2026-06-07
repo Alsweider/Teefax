@@ -381,6 +381,22 @@ void runConsoleCommand(const string& command) {
         return;
     }
 
+    // QuickEdit sofort nach Prozessstart im Elternprozess neu deaktivieren.
+    // Das Kind hat den originalen Konsolenmodus bereits geerbt; der Elternprozess
+    // braucht QuickEdit nicht: ein Mausklick waehrend WaitForSingleObject wuerde
+    // den Timer einfrieren. Das nachgelagerte if(loop)-Abschnitt in main() bleibt
+    // weiterhin zustaendig fuer den Fall, dass das Kind den Modus beim Beenden
+    // wiederhergestellt hat (z. B. verschachteltes teefax).
+    {
+        HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+        DWORD  mode = 0;
+        if (GetConsoleMode(hIn, &mode)) {
+            mode &= ~ENABLE_QUICK_EDIT_MODE;
+            mode |=  ENABLE_EXTENDED_FLAGS;
+            SetConsoleMode(hIn, mode);
+        }
+    }
+
     // Warten bis Prozess beendet: verhindert Ausgabe-Interleaving mit dem
     // naechsten Balken. Langlaeufer blockieren teefax, ggf. "start" nutzen.
     WaitForSingleObject(pi.hProcess, INFINITE);
