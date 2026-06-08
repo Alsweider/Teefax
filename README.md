@@ -52,7 +52,7 @@ Den Timer jederzeit beenden: Konsolenfenster schließen oder `Strg`+`C` drücken
 
 ### Windows SmartScreen
 
-Beim ersten Herunterladen kann Windows einen SmartScreen-Hinweis anzeigen: *"Der Computer wurde durch Windows geschützt"* oder *"Unbekannter Herausgeber"*. Das ist bei unsignierten quelloffenen Programmen üblich und bedeutet nicht, dass die Datei schädlich ist.
+Beim ersten Herunterladen kann Windows einen SmartScreen-Hinweis anzeigen: *"Der Computer wurde durch Windows geschützt"* oder *"Unbekannter Herausgeber"*. Das ist bei unsignierten Open-Source-Programmen üblich und bedeutet nicht, dass die Datei schädlich ist.
 
 Zum Fortsetzen auf **"Weitere Informationen" → "Trotzdem ausführen"** klicken.
 
