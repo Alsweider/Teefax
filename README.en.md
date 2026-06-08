@@ -22,14 +22,14 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 - Daily recurring alarms
 - Loop / repeat timers
 - Open a file or run a console command when the timer ends
-- Bring a program window to the foreground when the timer ends
+- Bring a programme window to the foreground when the timer ends
 - Pre-alarm: audible per-second countdown before the final signal
 - Stopwatch with centisecond resolution
 - Live clock display mode
 - Macros: save frequent argument combinations and call them by a short name
 - Suppress screensaver and standby during countdown
 - Accurate timing using `chrono::steady_clock` — not affected by system load
-- Lightweight: ~1,5 MB binary, ~0.7 MB RAM
+- Lightweight: ~1.5 MB binary, ~0.7 MB RAM
 - Languages: 🇩🇪 🇬🇧 🇫🇷 🇵🇹 🇷🇺 *(Machine-translated from German. [Found an error?](https://github.com/Alsweider/Teefax/issues))*
 
 ---
@@ -38,9 +38,33 @@ It was built as a faster, scriptable alternative to GUI timers: a single command
 
 1. Download the latest `teefax.exe` from [Releases](https://github.com/Alsweider/Teefax/releases/latest).
 2. Place it anywhere you like, e.g. `C:\Tools\Teefax\`.
-3. Optionally, add the folder to your system `PATH` so you can call `teefax` from any terminal or the Run dialog (`Win+R`).
+3. Optionally, add the folder to your system `PATH` so you can call `teefax` from any terminal or the Run dialog (`Win+R`). With PowerShell (no admin rights required, adjust the path):
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Tools\Teefax", "User")
+```
+
+Restart your terminal afterwards.
 
 To stop the timer at any time, close the console window or press `Ctrl+C`.
+
+---
+
+## Notes
+
+### Windows SmartScreen
+
+When downloading for the first time, Windows may show a SmartScreen warning: *"Windows protected your PC"* or *"Unknown publisher"*. This is common for unsigned open-source programmes and does not mean the file is harmful.
+
+To proceed, click **"More info" → "Run anyway"**.
+
+Teefax is open source, the full code is on [GitHub](https://github.com/Alsweider/Teefax). To verify independently, you can upload the `.exe` to [VirusTotal](https://www.virustotal.com) or build the programme yourself from source.
+
+### Bluetooth headphones
+
+Bluetooth devices enter a power-saving mode after a short period of inactivity. Teefax automatically activates the audio channel shortly before an alarm to ensure reliable playback. For very short timers (a few seconds), the first sound may still be slightly quieter.
+
+Some Bluetooth headphones use automatic volume adjustment (*"loudness compensation"*), which can affect the volume of pre-alarm beeps (i.e. crescendo-decrescendo). In case of problems, it is recommended to disable this setting.
 
 ---
 
@@ -119,7 +143,7 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--alarm-repeat <n>` | `-ar` | Repeat the alarm sound n times after the timer ends |
 | `--alarm-interval <s>` | `-ai` | Seconds between repeated alarms (default: 2) |
 | `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) |
-| `--open <filepath>` | `-o` | Open a file, program or URL when the timer ends |
+| `--open <filepath>` | `-o` | Open a file, programme or URL when the timer ends |
 | `--cmd <command>` | `-c` | Run a console command when the timer ends |
 | `--focus <title>` | `-f` | Bring a window to the foreground when the timer ends (partial title match, case-insensitive) |
 | `--prealarm <s>` | `-pa` | Beep every second during the last X seconds |
@@ -199,7 +223,7 @@ teefax tea
 
 ## How it works
 
-Teefax measures time intervals using [`chrono::steady_clock`](https://cplusplus.com/reference/chrono/steady_clock/) from the C++11 standard library. This clock runs monotonically, is independent of the system time, and is not affected by system load. Instead of relying on a simple `Sleep()` call, Teefax always calculates the exact target time and waits with [`this_thread::sleep_until()`](https://cplusplus.com/reference/thread/this_thread/sleep_until/) precisely until that moment. For absolute points in time (`--at`, `--daily`, `--every`), the wall clock ([`system_clock`](https://cplusplus.com/reference/chrono/system_clock/)) is used so that calendar dates and times are evaluated correctly. To ensure sleep accuracy on Windows, the system timer resolution is set to 1 ms for the duration of the program (`timeBeginPeriod`), since the default Windows resolution of approximately 15.6 ms would otherwise limit the precision of `sleep_until()`.
+Teefax measures time intervals using [`chrono::steady_clock`](https://cplusplus.com/reference/chrono/steady_clock/) from the C++11 standard library. This clock runs monotonically, is independent of the system time, and is not affected by system load. Instead of relying on a simple `Sleep()` call, Teefax always calculates the exact target time and waits with [`this_thread::sleep_until()`](https://cplusplus.com/reference/thread/this_thread/sleep_until/) precisely until that moment. For absolute points in time (`--at`, `--daily`, `--every`), the wall clock ([`system_clock`](https://cplusplus.com/reference/chrono/system_clock/)) is used so that calendar dates and times are evaluated correctly. To ensure sleep accuracy on Windows, the system timer resolution is set to 1 ms for the duration of the programme (`timeBeginPeriod`), since the default Windows resolution of approximately 15.6 ms would otherwise limit the precision of `sleep_until()`.
 
 **Precision per mode**
 

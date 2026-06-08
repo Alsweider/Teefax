@@ -1002,6 +1002,10 @@ static vector<uint8_t> buildPreAlarmWav(int count, int prewarmMs = 2000) {
     constexpr uint32_t BEEP_SAMPLES = RATE * 100 / 1000; // 100 ms = 2205 Samples
     constexpr float    FREQ         = 880.0f;
     constexpr float    PI2          = 6.28318530f;
+    // Amplitude des Voralarm-Beeps: reiner Sinuston klingt psychoakustisch lauter
+    // als ein gleich starkes Breitbandsignal; daher deutlich unter dem Pegel des
+    // eingebetteten Alarmtons halten. Bereich 0.15..0.40 je nach Geschmack.
+    constexpr float    AMPLITUDE    = 0.25f;
 
     const uint32_t prewarmSamples = static_cast<uint32_t>(prewarmMs) * RATE / 1000;
     const uint32_t cycleSamples   = RATE;                              // 1 s pro Beep-Zyklus
@@ -1027,7 +1031,7 @@ static vector<uint8_t> buildPreAlarmWav(int count, int prewarmMs = 2000) {
             float env = 1.0f;
             if (i < FADE)                     env = static_cast<float>(i)                / static_cast<float>(FADE);
             else if (i > BEEP_SAMPLES - FADE) env = static_cast<float>(BEEP_SAMPLES - i) / static_cast<float>(FADE);
-            float s = env * 0.55f * 32767.0f * sinf(PI2 * FREQ * static_cast<float>(i) / static_cast<float>(RATE));
+            float s = env * AMPLITUDE * 32767.0f * sinf(PI2 * FREQ * static_cast<float>(i) / static_cast<float>(RATE)); // Amplitude oben ändern
             samples[offset + i] = static_cast<int16_t>(s);
         }
         // Stille zwischen den Beeps ist bereits 0-initialisiert
@@ -1921,9 +1925,6 @@ int main(int argc, char* argv[])
                                            : 1.0L;
                 if (fraction < 0.0L) fraction = 0.0L;
                 if (fraction > 1.0L) fraction = 1.0L;
-                int filled = static_cast<int>(fraction * barWidth);
-                if (filled > barWidth) filled = barWidth;
-
                 string verbleibendStr = formatVerbleibend(verbleibendSec);
 
                 {
@@ -1934,21 +1935,45 @@ int main(int argc, char* argv[])
                     SetConsoleTitleW(titleW.c_str()); // Zeit im Fenstertitel anzeigen
                 }
 
-                cout << "\r";
-                char buf[128];
-                if (loop) {
-                    snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
-                    cout << buf;
-                }
-                snprintf(buf, sizeof(buf), t(Str::REMAINING), verbleibendStr.c_str());
-                cout << buf;
-                // Tomorrow-Suffix, verschwindet automatisch nach Mitternacht
-                if (wallTargetT != 0 && isTargetTomorrow(wallTargetT))
-                    cout << t(Str::TOMORROW_SUFFIX);
-                cout << " [";
+                // Prefix-Text aufbauen und Balkenbreite dynamisch anpassen.
+                // Verhindert Zeilenumbrueche in schmalen Konsolenfenstern:
+                // bei zu wenig Platz entfaellt der Balken, der Zeittext bleibt.
+                {
+                    char buf[128];
+                    string prefix;
+                    if (loop) {
+                        snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
+                        prefix += buf;
+                    }
+                    snprintf(buf, sizeof(buf), t(Str::REMAINING), verbleibendStr.c_str());
+                    prefix += buf;
+                    if (wallTargetT != 0 && isTargetTomorrow(wallTargetT))
+                        prefix += t(Str::TOMORROW_SUFFIX);
 
-                for (int i = 0; i < barWidth; ++i) cout << (i < filled ? '#' : '-');
-                cout << "]        " << flush;
+                    // Effektive Balkenbreite: Konsolenbreite − Prefix − " [" − "]        " − 2 Puffer
+                    int effectiveBar = barWidth;
+                    {
+                        CONSOLE_SCREEN_BUFFER_INFO csbi;
+                        if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+                            int w = (csbi.srWindow.Right - csbi.srWindow.Left + 1)
+                            - static_cast<int>(prefix.size()) - 13;
+                            effectiveBar = (w < 0) ? 0 : (w > barWidth ? barWidth : w);
+                        }
+                    }
+
+                    int filled = (effectiveBar > 0)
+                                     ? static_cast<int>(fraction * effectiveBar)
+                                     : 0;
+                    if (filled > effectiveBar) filled = effectiveBar;
+
+                    cout << "\r" << prefix;
+                    if (effectiveBar > 0) {
+                        cout << " [";
+                        for (int i = 0; i < effectiveBar; ++i) cout << (i < filled ? '#' : '-');
+                        cout << "]";
+                    }
+                    cout << "        " << flush;
+                }
             }
 
             // Bis zur nächsten Sekundengrenze schlafen.
@@ -1978,18 +2003,34 @@ int main(int argc, char* argv[])
             }
         }
 
-        cout << "\r";
         {
             char buf[128];
+            string prefix;
             if (loop) {
                 snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
-                cout << buf;
+                prefix += buf;
             }
             snprintf(buf, sizeof(buf), t(Str::REMAINING), "00:00");
-            cout << buf << " [";
+            prefix += buf;
+
+            int effectiveBar = barWidth;
+            {
+                CONSOLE_SCREEN_BUFFER_INFO csbi;
+                if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+                    int w = (csbi.srWindow.Right - csbi.srWindow.Left + 1)
+                    - static_cast<int>(prefix.size()) - 13;
+                    effectiveBar = (w < 0) ? 0 : (w > barWidth ? barWidth : w);
+                }
+            }
+
+            cout << "\r" << prefix;
+            if (effectiveBar > 0) {
+                cout << " [";
+                for (int i = 0; i < effectiveBar; ++i) cout << '#';
+                cout << "]";
+            }
+            cout << "        " << flush;
         }
-        for (int i = 0; i < barWidth; ++i) cout << '#';
-        cout << "]        " << flush;
 
         // \n nach dem vollen Balken:
         // - Immer beim letzten Durchlauf (TIMER_ENDED, MessageBox folgen).

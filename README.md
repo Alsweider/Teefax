@@ -36,9 +36,33 @@ Ich habe lange [Timerle](https://www.jfsoftware.de/timerle.htm) von JFSoftware v
 
 1. Die aktuelle `teefax.exe` von [Releases](https://github.com/Alsweider/Teefax/releases/latest) herunterladen.
 2. Die Datei an einem beliebigen Ort ablegen, z. B. `C:\Tools\Teefax\`.
-3. Optional: Den Ordner als `PATH`-Eintrag in den Systemvariablen ergänzen. Danach ist `teefax` direkt in der Kommandozeile und im Ausführen-Dialog (`Win+R`) verfügbar, ohne zum Ordner navigieren zu müssen. Wie bei allen CLI-Programmen ist auch das Ansprechen über eine Stapelverarbeitungsdatei (.bat) oder das Anlegen einer Verknüpfung mit den gewünschten Parametern möglich. 
+3. Optional: Den Ordner als `PATH`-Eintrag in den Systemvariablen ergänzen. Danach ist `teefax` direkt in der Kommandozeile und im Ausführen-Dialog (`Win+R`) verfügbar, ohne zum Ordner navigieren zu müssen. Mit PowerShell (kein Adminrecht erforderlich, Pfad anpassen):
+
+```powershell
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\Tools\Teefax", "User")
+```
+
+Danach das Terminal neu starten. Wie bei allen CLI-Programmen ist auch das Ansprechen über eine Stapelverarbeitungsdatei (.bat) oder das Anlegen einer Verknüpfung mit den gewünschten Parametern möglich.
 
 Den Timer jederzeit beenden: Konsolenfenster schließen oder `Strg`+`C` drücken.
+
+---
+
+## Hinweise
+
+### Windows SmartScreen
+
+Beim ersten Herunterladen kann Windows einen SmartScreen-Hinweis anzeigen: *"Der Computer wurde durch Windows geschützt"* oder *"Unbekannter Herausgeber"*. Das ist bei unsignierten quelloffenen Programmen üblich und bedeutet nicht, dass die Datei schädlich ist.
+
+Zum Fortsetzen auf **"Weitere Informationen" → "Trotzdem ausführen"** klicken.
+
+Teefax ist quelloffen, der vollständige Code liegt auf [GitHub](https://github.com/Alsweider/Teefax). Zur unabhängigen Prüfung lässt sich die `.exe` auf [VirusTotal](https://www.virustotal.com) hochladen oder das Programm selbst aus dem Quellcode kompilieren.
+
+### Bluetooth-Kopfhörer
+
+Bluetooth-Geräte wechseln nach kurzer Inaktivität in einen Energiesparmodus. Teefax aktiviert den Audiokanal automatisch kurz vor einem Alarm, damit der Ton zuverlässig wiedergegeben wird. Bei sehr kurzen Timern (wenige Sekunden) kann die erste Wiedergabe trotzdem leiser ausfallen.
+
+Einige Bluetooth-Kopfhörer verwenden eine automatische Lautstärkeanpassung (*"Kompensation bei Klangverlust"*), die die Lautstärke der Voralarm-Pieps beeinflussen kann (etwa Crescendo-Decrescendo). Bei Problemen empfiehlt es sich, diese Einstellung zu deaktivieren.
 
 ---
 
