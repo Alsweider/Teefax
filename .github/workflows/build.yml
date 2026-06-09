@@ -2,7 +2,9 @@ name: Build & Release
 
 permissions:
   contents: write
-  id-token: write  # Wird von SignPath für OIDC-Verifikation des Buildprozesses benötigt
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # Läuft automatisch bei einem neuen Version-Tag (z. B. git tag v0.27.5 && git push origin v0.27.5)
 # Manuell auslösbar über GitHub Actions → "Run workflow" (zum Testen ohne Release)
