@@ -310,7 +310,7 @@ teefax 5s --mute --nomsg --focus "___nichtvorhanden___"
 ```
 
 - [ ] `Warnung: Fenster ... nicht gefunden` **erscheint** beim Start
-- [ ] Nach Ablauf: Fehlermeldung, Loop (falls aktiv) wird gestoppt
+- [ ] Nach Ablauf: Warnung erscheint erneut, Schleife läuft weiter (kein Abbruch)
 
 ### 11.4 Aktionen im Loop
 
