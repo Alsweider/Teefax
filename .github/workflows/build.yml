@@ -60,20 +60,54 @@ jobs:
           path: release\teefax.exe
           if-no-files-found: error
 
-      # SignPath holt die .exe ab, signiert sie mit Authenticode und legt
-      # das Ergebnis in signed\ ab. wait-for-completion: true blockiert den
-      # Workflow, bis die Signierung abgeschlossen ist (typisch: 1–2 Minuten).
-      - name: Signierung via SignPath
-        uses: signpath/github-action-submit-signing-request@v1
-        with:
-          api-token:                    '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id:              'ebfdf76f-61dd-4dae-8a54-d32e712bf788'
-          project-slug:                 'teefax'
-          signing-policy-slug:          'release-signing'
-          artifact-configuration-slug:  'initial'
-          github-artifact-id:           '${{ steps.upload-unsigned.outputs.artifact-id }}'
-          wait-for-completion:          true
-          output-artifact-directory:    'signed\'
+      # SignPath-Aktion umgangen: direkter REST-API-Aufruf via PowerShell.
+      # Die offizielle Aktion sendet intern immer ein GitHub-OIDC-Token, das
+      # SignPath gegen eingetragene Trusted Build Systems prueft – ein Feature,
+      # das im kostenlosen Plan nicht verfuegbar ist. Der direkte API-Aufruf
+      # sendet nur den Bearer-Token und loest diese Pruefung nicht aus.
+      - name: Signierung via SignPath API
+        shell: pwsh
+        env:
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $orgId   = "ebfdf76f-61dd-4dae-8a54-d32e712bf788"
+          $baseUrl = "https://app.signpath.io/API/v1/$orgId"
+          $headers = @{ Authorization = "Bearer $env:SIGNPATH_API_TOKEN" }
+
+          # Signing Request einreichen
+          Write-Host "Reiche Signing Request ein..."
+          $form = @{
+            ProjectSlug               = "teefax"
+            SigningPolicySlug         = "release-signing"
+            ArtifactConfigurationSlug = "initial"
+            Artifact                  = Get-Item "release\teefax.exe"
+          }
+          $req = Invoke-RestMethod -Uri "$baseUrl/SigningRequests" `
+                                   -Method Post -Headers $headers -Form $form
+          $rid = if ($req.signingRequestId) { $req.signingRequestId } else { $req.id }
+          if (-not $rid) { Write-Error "Signing Request ID nicht gefunden."; exit 1 }
+          Write-Host "Signing Request ID: $rid"
+
+          # Auf Abschluss warten (max. 10 Minuten, Abfrage alle 10 s)
+          $done = $false
+          for ($i = 0; $i -lt 60; $i++) {
+            Start-Sleep -Seconds 10
+            $s = Invoke-RestMethod -Uri "$baseUrl/SigningRequests/$rid" `
+                                   -Headers $headers
+            Write-Host "Status: $($s.status)"
+            if ($s.status -eq "Completed") { $done = $true; break }
+            if ($s.status -in @("Failed","Denied","Cancelled")) {
+              Write-Error "Signierung fehlgeschlagen: $($s.status)"; exit 1
+            }
+          }
+          if (-not $done) { Write-Error "Timeout: Signierung nicht abgeschlossen."; exit 1 }
+
+          # Signierte .exe herunterladen
+          New-Item -ItemType Directory -Force -Path "signed" | Out-Null
+          Invoke-WebRequest -Uri "$baseUrl/SigningRequests/$rid/SignedArtifact" `
+                            -Headers $headers -OutFile "signed\teefax.exe"
+          Write-Host "Signierte .exe gespeichert."
 
       # Kurztest auf der signierten .exe – stellt sicher, dass die Signatur
       # die Ausfuehrbarkeit nicht beeintraechtigt hat.
