@@ -1313,8 +1313,8 @@ int main(int argc, char* argv[])
         cout << t(Str::USAGE_HEADER);
 
         if (!launchedFromExistingConsole()) {
-            cout << "\n" << flush;
-            system("pause"); // oder: cout << "Druecke eine Taste..."; cin.get();
+            cout << "\n" << t(Str::PRESS_ANY_KEY) << "\n" << flush;
+            _getch();
         }
 
         return 0;
@@ -1524,8 +1524,8 @@ int main(int argc, char* argv[])
         } else if (arg == "--help" || arg == "-h") {
             cout << t(Str::USAGE_HEADER);
             if (!launchedFromExistingConsole()) {
-                cout << "\n";
-                system("pause");
+                cout << "\n" << t(Str::PRESS_ANY_KEY) << "\n" << flush;
+                _getch();
             }
             return 0;
         } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.

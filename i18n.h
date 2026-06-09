@@ -56,6 +56,7 @@ enum class Str {
     MACRO_NAME_RESERVED,
     MACRO_MISSING_NAME,
     MACRO_MISSING_ARGS,
+    PRESS_ANY_KEY,
     _COUNT
 };
 
@@ -165,6 +166,7 @@ static const TranslationMap LANG_DE = {
     { Str::MACRO_NAME_RESERVED,   "Name '%s' ist reserviert und kann nicht als Makroname verwendet werden." },
     { Str::MACRO_MISSING_NAME,    "Bitte einen Makronamen angeben." },
     { Str::MACRO_MISSING_ARGS,    "Bitte Argumente fuer das Makro angeben." },
+    { Str::PRESS_ANY_KEY,         "Weiter mit beliebiger Taste ..." },
     };
 
 static const TranslationMap LANG_FR = {
@@ -270,6 +272,7 @@ static const TranslationMap LANG_FR = {
     { Str::MACRO_NAME_RESERVED,   "Le nom '%s' est reserve et ne peut pas etre utilise comme nom de macro." },
     { Str::MACRO_MISSING_NAME,    "Veuillez indiquer un nom de macro." },
     { Str::MACRO_MISSING_ARGS,    "Veuillez indiquer des arguments pour le macro." },
+    { Str::PRESS_ANY_KEY,         "Appuyez sur une touche pour continuer ..." },
     };
 
 static const TranslationMap LANG_PT = {
@@ -375,6 +378,7 @@ static const TranslationMap LANG_PT = {
     { Str::MACRO_NAME_RESERVED,   "O nome '%s' e reservado e nao pode ser usado como nome de macro." },
     { Str::MACRO_MISSING_NAME,    "Indique um nome para o macro." },
     { Str::MACRO_MISSING_ARGS,    "Indique argumentos para o macro." },
+    { Str::PRESS_ANY_KEY,         "Prima qualquer tecla para continuar ..." },
     };
 
 static const TranslationMap LANG_RU = {
@@ -480,6 +484,7 @@ static const TranslationMap LANG_RU = {
     { Str::MACRO_NAME_RESERVED,   "Imya '%s' zarezervrovano i ne mozhet ispol'zovat'sya kak imya makrosa." },
     { Str::MACRO_MISSING_NAME,    "Ukazhite imya makrosa." },
     { Str::MACRO_MISSING_ARGS,    "Ukazhite argumenty dlya makrosa." },
+    { Str::PRESS_ANY_KEY,         "Nazhmite lyubuyu klavishu dlya prodolzheniya ..." },
     };
 
 static const TranslationMap LANG_EN = {
@@ -585,6 +590,7 @@ static const TranslationMap LANG_EN = {
     { Str::MACRO_NAME_RESERVED,   "Name '%s' is reserved and cannot be used as a macro name." },
     { Str::MACRO_MISSING_NAME,    "Please provide a macro name." },
     { Str::MACRO_MISSING_ARGS,    "Please provide arguments for the macro." },
+    { Str::PRESS_ANY_KEY,         "Press any key to continue ..." },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────

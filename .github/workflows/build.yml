@@ -2,6 +2,7 @@ name: Build & Release
 
 permissions:
   contents: write
+  id-token: write  # Wird von SignPath für OIDC-Verifikation des Buildprozesses benötigt
 
 # Läuft automatisch bei einem neuen Version-Tag (z. B. git tag v0.27.5 && git push origin v0.27.5)
 # Manuell auslösbar über GitHub Actions → "Run workflow" (zum Testen ohne Release)
@@ -47,25 +48,50 @@ jobs:
         shell: cmd
         run: release\teefax.exe --version
 
-      # Artefakt hochladen - verfuegbar unter Actions -> Workflow-Run -> Artifacts.
-      # Nuetzlich zum manuellen Download auch ohne Tag/Release.
-      - name: Artefakt hochladen
+      # Unsigniertes Artefakt hochladen – wird von SignPath abgeholt und zurückgegeben.
+      # Die artifact-id wird im naechsten Schritt als Referenz benoetigt.
+      - name: Unsigniertes Artefakt hochladen
+        id: upload-unsigned
         uses: actions/upload-artifact@v4
         with:
-          name: teefax-${{ github.ref_name }}
+          name: teefax-unsigned-${{ github.ref_name }}
           path: release\teefax.exe
           if-no-files-found: error
 
-      # GitHub Release anlegen - nur bei Tag-Pushes, nicht bei workflow_dispatch.
-      # Der Tag-Name (z. B. v0.27.5) wird automatisch als Release-Titel verwendet.
-      # GITHUB_TOKEN wird von Actions automatisch bereitgestellt, kein Setup noetig.
-      # generate_release_notes: GitHub erstellt automatisch eine Zusammenfassung
-      # der Commits seit dem letzten Tag. Der Text kann nach dem Release auf
-      # GitHub manuell ergaenzt oder ueberschrieben werden.
+      # SignPath holt die .exe ab, signiert sie mit Authenticode und legt
+      # das Ergebnis in signed\ ab. wait-for-completion: true blockiert den
+      # Workflow, bis die Signierung abgeschlossen ist (typisch: 1–2 Minuten).
+      - name: Signierung via SignPath
+        uses: signpath/github-action-submit-signing-request@v1
+        with:
+          api-token:                    '${{ secrets.SIGNPATH_API_TOKEN }}'
+          organization-id:              'ebfdf76f-61dd-4dae-8a54-d32e712bf788'
+          project-slug:                 'teefax'
+          signing-policy-slug:          'release-signing'
+          artifact-configuration-slug:  'initial'
+          github-artifact-id:           '${{ steps.upload-unsigned.outputs.artifact-id }}'
+          wait-for-completion:          true
+          output-artifact-directory:    'signed\'
+
+      # Kurztest auf der signierten .exe – stellt sicher, dass die Signatur
+      # die Ausfuehrbarkeit nicht beeintraechtigt hat.
+      - name: Kurztest (signiert)
+        shell: cmd
+        run: signed\teefax.exe --version
+
+      # Signiertes Artefakt als offizielles Artefakt hochladen
+      - name: Signiertes Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: teefax-${{ github.ref_name }}
+          path: signed\teefax.exe
+          if-no-files-found: error
+
+      # GitHub Release mit der signierten .exe erstellen
       - name: GitHub Release erstellen
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: release\teefax.exe
+          files: signed\teefax.exe
           fail_on_unmatched_files: true
           generate_release_notes: true
