@@ -50,13 +50,13 @@ Den Timer jederzeit beenden: Konsolenfenster schließen oder `Strg`+`C` drücken
 
 ## Hinweise
 
-### Windows SmartScreen
+### Windows SmartScreen und Virenschutzprogramme
 
-Beim ersten Herunterladen kann Windows einen SmartScreen-Hinweis anzeigen: *"Der Computer wurde durch Windows geschützt"* oder *"Unbekannter Herausgeber"*. Das ist bei unsignierten Open-Source-Programmen üblich und bedeutet nicht, dass die Datei schädlich ist.
+Beim ersten Herunterladen kann Windows SmartScreen warnen (*„Der Computer wurde durch Windows geschützt"*). Zum Fortsetzen auf **„Weitere Informationen" → „Trotzdem ausführen"** klicken.
 
-Zum Fortsetzen auf **"Weitere Informationen" → "Trotzdem ausführen"** klicken.
+Einzelne Virenschutzprogramme können Teefax fälschlicherweise als verdächtig einstufen. Teefax verwendet Windows-Schnittstellen, die auch von Schadsoftware missbraucht werden, etwa das zeitgesteuerte Ausführen von Programmen (`--cmd`), das Öffnen von Dateien (`--open`) und die Fensterfokus-Steuerung (`--focus`). Es handelt sich um einen Fehlalarm.
 
-Teefax ist quelloffen, der vollständige Code liegt auf [GitHub](https://github.com/Alsweider/Teefax). Zur unabhängigen Prüfung lässt sich die `.exe` auf [VirusTotal](https://www.virustotal.com) hochladen oder das Programm selbst aus dem Quellcode kompilieren.
+Teefax ist quelloffen. Der vollständige Code liegt auf [GitHub](https://github.com/Alsweider/Teefax) und lässt sich unabhängig prüfen oder selbst kompilieren. Für einen schnellen Scan eignet sich [VirusTotal](https://www.virustotal.com).
 
 ### Bluetooth-Kopfhörer
 

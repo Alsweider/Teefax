@@ -52,13 +52,13 @@ To stop the timer at any time, close the console window or press `Ctrl+C`.
 
 ## Notes
 
-### Windows SmartScreen
+### Windows SmartScreen and antivirus software
 
-When downloading for the first time, Windows may show a SmartScreen warning: *"Windows protected your PC"* or *"Unknown publisher"*. This is common for unsigned open-source programmes and does not mean the file is harmful.
+When downloading for the first time, Windows SmartScreen may warn (*"Windows protected your PC"*). To proceed, click **"More info" → "Run anyway"**.
 
-To proceed, click **"More info" → "Run anyway"**.
+Some antivirus programmes may incorrectly flag Teefax as suspicious. Teefax uses Windows APIs that are also misused by malware, such as launching programmes on a schedule (`--cmd`), opening files (`--open`), and controlling window focus (`--focus`). This is a false positive.
 
-Teefax is open source, the full code is on [GitHub](https://github.com/Alsweider/Teefax). To verify independently, you can upload the `.exe` to [VirusTotal](https://www.virustotal.com) or build the programme yourself from source.
+Teefax is open source. The full code is on [GitHub](https://github.com/Alsweider/Teefax) and can be independently verified or compiled from scratch. [VirusTotal](https://www.virustotal.com) can be used for a quick scan.
 
 ### Bluetooth headphones
 

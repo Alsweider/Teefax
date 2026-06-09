@@ -1352,7 +1352,7 @@ int main(int argc, char* argv[])
                 }
             } catch (const std::out_of_range&) {
                 alarmRepeat = std::numeric_limits<long long>::max();
-                fprintf(stderr, "Warning: --alarm-repeat value '%s' is too large, using maximum.\n", val.c_str());
+                fprintf(stderr, "Warning: --alarm-repeat value '%s' is too large, using maximum (%lld).\n", val.c_str(), alarmRepeat);
             } catch (...) {
                 alarmRepeat = 1;
                 fprintf(stderr, "Warning: invalid --alarm-repeat value '%s', using 1.\n", val.c_str());
