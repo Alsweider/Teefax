@@ -30,7 +30,6 @@ enum class Str {
     FILE_SYSTEM_ERROR,
 
     // Fenster-Fokus
-    WINDOW_NOT_FOUND_ABORT,
     WINDOW_NOT_FOUND_WARN,
 
     // Hilfe
@@ -98,7 +97,6 @@ static const TranslationMap LANG_DE = {
     { Str::ERROR_NEXT_TIME, "\nFehler bei der Berechnung der naechsten Uhrzeit.\n" },
     { Str::AUDIO_NOT_FOUND,  "\nAudiodatei nicht gefunden: %s" },
     { Str::AUDIO_PATH_ERROR, "\nFehler bei Pfad-Konvertierung fuer Audiodatei: %s" },
-    { Str::WINDOW_NOT_FOUND_ABORT, "\nFenster nicht gefunden, Schleife abgebrochen: \"%s\"" },
     { Str::WINDOW_NOT_FOUND_WARN,  "Warnung: Fenster \"%s\" derzeit nicht gefunden." },
     { Str::USAGE_HEADER,
         "Verwendung:\n"
@@ -204,7 +202,6 @@ static const TranslationMap LANG_FR = {
     { Str::CMD_ERROR,            "Erreur lors de l'execution (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFichier audio introuvable: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErreur de conversion du chemin audio: %s" },
-    { Str::WINDOW_NOT_FOUND_ABORT, "\nFenetre introuvable, boucle arretee: \"%s\"" },
     { Str::WINDOW_NOT_FOUND_WARN,  "Avertissement: fenetre \"%s\" introuvable pour l'instant." },
     { Str::USAGE_HEADER,
         "Utilisation:\n"
@@ -310,7 +307,6 @@ static const TranslationMap LANG_PT = {
     { Str::CMD_ERROR,            "Erro ao executar o comando (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nFicheiro de audio nao encontrado: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nErro na conversao do caminho do audio: %s" },
-    { Str::WINDOW_NOT_FOUND_ABORT, "\nJanela nao encontrada, ciclo interrompido: \"%s\"" },
     { Str::WINDOW_NOT_FOUND_WARN,  "Aviso: janela \"%s\" nao encontrada de momento." },
     { Str::USAGE_HEADER,
         "Utilizacao:\n"
@@ -416,7 +412,6 @@ static const TranslationMap LANG_RU = {
     { Str::CMD_ERROR,            "Oshibka vypolneniya (%d): %s" },
     { Str::AUDIO_NOT_FOUND,      "\nAudiofajl ne najden: %s" },
     { Str::AUDIO_PATH_ERROR,     "\nOshibka preobrazovaniya puti audio: %s" },
-    { Str::WINDOW_NOT_FOUND_ABORT, "\nOkno ne najdeno, tsikl ostanovlen: \"%s\"" },
     { Str::WINDOW_NOT_FOUND_WARN,  "Preduprezhdenie: okno \"%s\" poka ne najdeno." },
     { Str::USAGE_HEADER,
         "Ispol'zovanie:\n"
@@ -522,7 +517,6 @@ static const TranslationMap LANG_EN = {
     { Str::ERROR_NEXT_TIME, "\nError calculating next time.\n" },
     { Str::AUDIO_NOT_FOUND,  "\nAudio file not found: %s" },
     { Str::AUDIO_PATH_ERROR, "\nPath conversion error for audio file: %s" },
-    { Str::WINDOW_NOT_FOUND_ABORT, "\nWindow not found, loop stopped: \"%s\"" },
     { Str::WINDOW_NOT_FOUND_WARN,  "Warning: window \"%s\" not found at this time." },
     { Str::USAGE_HEADER,
         "Usage:\n"

@@ -387,6 +387,8 @@ void runConsoleCommand(const string& command) {
     // den Timer einfrieren. Das nachgelagerte if(loop)-Abschnitt in main() bleibt
     // weiterhin zustaendig fuer den Fall, dass das Kind den Modus beim Beenden
     // wiederhergestellt hat (z. B. verschachteltes teefax).
+    // g_consoleModeChanged wird auf true gesetzt, damit der ConsoleHandler bei
+    // Strg+C den Originalmodus (QuickEdit an) korrekt wiederherstellt.
     {
         HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
         DWORD  mode = 0;
@@ -394,6 +396,7 @@ void runConsoleCommand(const string& command) {
             mode &= ~ENABLE_QUICK_EDIT_MODE;
             mode |=  ENABLE_EXTENDED_FLAGS;
             SetConsoleMode(hIn, mode);
+            g_consoleModeChanged = true;
         }
     }
 
