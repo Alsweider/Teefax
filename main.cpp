@@ -2111,18 +2111,17 @@ int main(int argc, char* argv[])
             }
         }
         if (!openFile.empty()) {
-            // Wie --focus: bei Fehler (Datei nicht gefunden) Schleife abbrechen.
-            if (!openFileAfterTimer(openFile) && loop) {
-                loop = false;
-            }
+            // Fehlermeldung wird von openFileAfterTimer() ausgegeben.
+            // Schleife laeuft weiter: die Datei koennte in einem spaeten Durchlauf vorhanden sein.
+            openFileAfterTimer(openFile);
         }
         if (!focusWindow.empty()) {
             if (!bringWindowToFront(focusWindow)) {
                 char buf[256];
-                snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_ABORT),
+                snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_WARN),
                          toConsole(toWideArgv(focusWindow)).c_str());
-                cout << buf;
-                loop = false;
+                cout << "\r" << buf << "                                        " << flush;
+                // Schleife laeuft weiter: das Fenster koennte in einem spaeten Durchlauf geoeffnet sein.
             }
         }
 
