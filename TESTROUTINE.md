@@ -102,15 +102,10 @@ teefax 2s --alarm-repeat 3 --alarm-interval 1
 
 ```
 teefax 2s --alarm-repeat abc
-```
-
-- [ ] Warnung auf `stderr` (`invalid --alarm-repeat value`), Alarm ertönt einmal (Fallback: 1)
-
-```
 teefax 2s --alarm-repeat -5
 ```
 
-- [ ] Warnung auf `stderr`, Alarm ertönt einmal (Fallback: 1)
+- [ ] Warnung auf `stderr` (`invalid --alarm-repeat value`), Alarm ertönt jeweils einmal (Fallback: 1)
 
 ### 4.4 Kein Ton
 
@@ -280,6 +275,7 @@ teefax 5s --loop 2 --mute --nomsg --open "C:\___nx___\datei.txt"
 ```
 
 - [ ] `Warnung: Datei ... nicht gefunden` erscheint **beim Start** (vor dem Balken)
+- [ ] Schleife läuft beide Runden durch, Fehlermeldung erscheint nach Abschluss aller Durchläufe
 
 ### 11.2 Konsolenbefehl
 
@@ -310,7 +306,14 @@ teefax 5s --mute --nomsg --focus "___nichtvorhanden___"
 ```
 
 - [ ] `Warnung: Fenster ... nicht gefunden` **erscheint** beim Start
-- [ ] Nach Ablauf: Warnung erscheint erneut, Schleife läuft weiter (kein Abbruch)
+- [ ] Nach Ablauf: Warnung erscheint erneut, Timer endet normal (kein Absturz, Exit 0)
+
+```
+teefax 5s --loop 2 --mute --nomsg --focus "___nichtvorhanden___"
+```
+
+- [ ] Warnung erscheint nach der Startmeldung und erneut nach Abschluss aller Durchläufe
+- [ ] Schleife läuft beide Runden durch (kein Abbruch)
 
 ### 11.4 Aktionen im Loop
 
@@ -459,7 +462,7 @@ INI danach wieder löschen / leeren.
 `teefax.exe` direkt per Doppelklick starten (kein Terminal):
 
 - [ ] Hilfe wird angezeigt
-- [ ] `Weiter mit beliebiger Taste...` erscheint (pause-Prompt)
+- [ ] `Weiter mit beliebiger Taste ...` erscheint (pause-Prompt)
 - [ ] Fenster schließt sich nach Tastendruck
 
 ---
