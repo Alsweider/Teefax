@@ -56,6 +56,10 @@ enum class Str {
     MACRO_MISSING_NAME,
     MACRO_MISSING_ARGS,
     PRESS_ANY_KEY,
+    WARN_ALARM_REPEAT_INVALID,
+    WARN_ALARM_REPEAT_TOO_LARGE,
+    WARN_PATH_TOO_LONG,
+    WARN_TIMER_PERIOD,
     _COUNT
 };
 
@@ -164,7 +168,11 @@ static const TranslationMap LANG_DE = {
     { Str::MACRO_NAME_RESERVED,   "Name '%s' ist reserviert und kann nicht als Makroname verwendet werden." },
     { Str::MACRO_MISSING_NAME,    "Bitte einen Makronamen angeben." },
     { Str::MACRO_MISSING_ARGS,    "Bitte Argumente fuer das Makro angeben." },
-    { Str::PRESS_ANY_KEY,         "Weiter mit beliebiger Taste ..." },
+    { Str::PRESS_ANY_KEY,               "Weiter mit beliebiger Taste ..." },
+    { Str::WARN_ALARM_REPEAT_INVALID,   "Warnung: Ungueltiger --alarm-repeat-Wert '%s', verwende 1." },
+    { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Warnung: --alarm-repeat-Wert '%s' zu gross, verwende Maximum (%lld)." },
+    { Str::WARN_PATH_TOO_LONG,          "Warnung: Pfad zu teefax.exe zu lang (>=%d Zeichen). teefax.ini wird ignoriert." },
+    { Str::WARN_TIMER_PERIOD,           "Warnung: timeBeginPeriod(1) fehlgeschlagen. Schlafpraezision ca. ~15ms statt ~1ms." },
     };
 
 static const TranslationMap LANG_FR = {
@@ -269,7 +277,11 @@ static const TranslationMap LANG_FR = {
     { Str::MACRO_NAME_RESERVED,   "Le nom '%s' est reserve et ne peut pas etre utilise comme nom de macro." },
     { Str::MACRO_MISSING_NAME,    "Veuillez indiquer un nom de macro." },
     { Str::MACRO_MISSING_ARGS,    "Veuillez indiquer des arguments pour le macro." },
-    { Str::PRESS_ANY_KEY,         "Appuyez sur une touche pour continuer ..." },
+    { Str::PRESS_ANY_KEY,               "Appuyez sur une touche pour continuer ..." },
+    { Str::WARN_ALARM_REPEAT_INVALID,   "Avertissement: valeur --alarm-repeat invalide '%s', utilise 1." },
+    { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Avertissement: valeur --alarm-repeat '%s' trop grande, utilise le maximum (%lld)." },
+    { Str::WARN_PATH_TOO_LONG,          "Avertissement: chemin vers teefax.exe trop long (>=%d caracteres). teefax.ini sera ignore." },
+    { Str::WARN_TIMER_PERIOD,           "Avertissement: timeBeginPeriod(1) echoue. Precision du sommeil ~15ms au lieu de ~1ms." },
     };
 
 static const TranslationMap LANG_PT = {
@@ -374,7 +386,11 @@ static const TranslationMap LANG_PT = {
     { Str::MACRO_NAME_RESERVED,   "O nome '%s' e reservado e nao pode ser usado como nome de macro." },
     { Str::MACRO_MISSING_NAME,    "Indique um nome para o macro." },
     { Str::MACRO_MISSING_ARGS,    "Indique argumentos para o macro." },
-    { Str::PRESS_ANY_KEY,         "Prima qualquer tecla para continuar ..." },
+    { Str::PRESS_ANY_KEY,               "Prima qualquer tecla para continuar ..." },
+    { Str::WARN_ALARM_REPEAT_INVALID,   "Aviso: valor --alarm-repeat invalido '%s', usando 1." },
+    { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Aviso: valor --alarm-repeat '%s' demasiado grande, usando maximo (%lld)." },
+    { Str::WARN_PATH_TOO_LONG,          "Aviso: caminho para teefax.exe demasiado longo (>=%d caracteres). teefax.ini sera ignorado." },
+    { Str::WARN_TIMER_PERIOD,           "Aviso: timeBeginPeriod(1) falhou. Precisao de espera ~15ms em vez de ~1ms." },
     };
 
 static const TranslationMap LANG_RU = {
@@ -479,7 +495,11 @@ static const TranslationMap LANG_RU = {
     { Str::MACRO_NAME_RESERVED,   "Imya '%s' zarezervrovano i ne mozhet ispol'zovat'sya kak imya makrosa." },
     { Str::MACRO_MISSING_NAME,    "Ukazhite imya makrosa." },
     { Str::MACRO_MISSING_ARGS,    "Ukazhite argumenty dlya makrosa." },
-    { Str::PRESS_ANY_KEY,         "Nazhmite lyubuyu klavishu dlya prodolzheniya ..." },
+    { Str::PRESS_ANY_KEY,               "Nazhmite lyubuyu klavishu dlya prodolzheniya ..." },
+    { Str::WARN_ALARM_REPEAT_INVALID,   "Preduprezhdenie: neverno znachenie --alarm-repeat '%s', ispol'zuyu 1." },
+    { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Preduprezhdenie: znachenie --alarm-repeat '%s' slishkom veliko, ispol'zuyu maksimum (%lld)." },
+    { Str::WARN_PATH_TOO_LONG,          "Preduprezhdenie: put' k teefax.exe slishkom dlinnyj (>=%d simvolov). teefax.ini budet ignorirovan." },
+    { Str::WARN_TIMER_PERIOD,           "Preduprezhdenie: timeBeginPeriod(1) ne udalsya. Tochnost' sna ~15ms vmesto ~1ms." },
     };
 
 static const TranslationMap LANG_EN = {
@@ -584,7 +604,11 @@ static const TranslationMap LANG_EN = {
     { Str::MACRO_NAME_RESERVED,   "Name '%s' is reserved and cannot be used as a macro name." },
     { Str::MACRO_MISSING_NAME,    "Please provide a macro name." },
     { Str::MACRO_MISSING_ARGS,    "Please provide arguments for the macro." },
-    { Str::PRESS_ANY_KEY,         "Press any key to continue ..." },
+    { Str::PRESS_ANY_KEY,               "Press any key to continue ..." },
+    { Str::WARN_ALARM_REPEAT_INVALID,   "Warning: invalid --alarm-repeat value '%s', using 1." },
+    { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Warning: --alarm-repeat value '%s' is too large, using maximum (%lld)." },
+    { Str::WARN_PATH_TOO_LONG,          "Warning: path to teefax.exe is too long (>=%d chars). teefax.ini will be ignored." },
+    { Str::WARN_TIMER_PERIOD,           "Warning: timeBeginPeriod(1) failed. Sleep precision may be ~15ms instead of ~1ms." },
     };
 
 // ── Spracherkennung ───────────────────────────────────────────────────

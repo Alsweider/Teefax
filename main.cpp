@@ -773,7 +773,7 @@ static void loadConfigArgs(vector<string>& out) {
     DWORD len = GetModuleFileNameW(nullptr, exeBuf, MAX_PATH);
     if (len == 0) return;
     if (len >= MAX_PATH) {
-        fprintf(stderr, "Warning: path to teefax.exe is too long (>=%d chars). teefax.ini will be ignored.\n", MAX_PATH);
+        char w[256]; snprintf(w, sizeof(w), t(Str::WARN_PATH_TOO_LONG), MAX_PATH); fprintf(stderr, "%s\n", w);
         return;
     }
 
@@ -811,7 +811,7 @@ static wstring getIniPath() {
     DWORD len = GetModuleFileNameW(nullptr, exeBuf, MAX_PATH);
     if (len == 0) return L"";
     if (len >= MAX_PATH) {
-        fprintf(stderr, "Warning: path to teefax.exe is too long (>=%d chars). teefax.ini will be ignored.\n", MAX_PATH);
+        char w[256]; snprintf(w, sizeof(w), t(Str::WARN_PATH_TOO_LONG), MAX_PATH); fprintf(stderr, "%s\n", w);
         return L"";
     }
     wstring p(exeBuf);
@@ -1351,14 +1351,14 @@ int main(int argc, char* argv[])
                 alarmRepeat = stoll(val, &pos, 10);
                 if (pos != val.size() || alarmRepeat < 0) {
                     alarmRepeat = 1;
-                    fprintf(stderr, "Warning: invalid --alarm-repeat value '%s', using 1.\n", val.c_str());
+                    { char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_INVALID), val.c_str()); fprintf(stderr, "%s\n", w); }
                 }
             } catch (const std::out_of_range&) {
                 alarmRepeat = std::numeric_limits<long long>::max();
-                fprintf(stderr, "Warning: --alarm-repeat value '%s' is too large, using maximum (%lld).\n", val.c_str(), alarmRepeat);
+                { char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_TOO_LARGE), val.c_str(), alarmRepeat); fprintf(stderr, "%s\n", w); }
             } catch (...) {
                 alarmRepeat = 1;
-                fprintf(stderr, "Warning: invalid --alarm-repeat value '%s', using 1.\n", val.c_str());
+                { char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_INVALID), val.c_str()); fprintf(stderr, "%s\n", w); }
             }
         } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < nArgs) {
             alarmInterval = safeStoi(args[++i], 2);
@@ -1780,7 +1780,7 @@ int main(int argc, char* argv[])
     // Greift nur wenn Voralarm aktiviert ist, weil nur dort der Effekt stört.
     // Das BT-Vorwärmen kurz vor dem Hauptalarm deckt den analogen Fall ohne --prealarm ab.
     if (!g_timePeriodOk && !showLiveTime && !showStopwatch) {
-        fprintf(stderr, "Warning: timeBeginPeriod(1) failed. Sleep precision may be ~15ms instead of ~1ms.\n");
+        fprintf(stderr, "%s\n", t(Str::WARN_TIMER_PERIOD));
     }
 
     if (preAlarmSeconds > 0 && !mute) {
