@@ -886,6 +886,13 @@ static bool isMacroNameValid(const string& name) {
     return true;
 }
 
+static bool isMacroSubCmdValid(const string& subcmd) {
+    return subcmd == "add" || subcmd == "remove" || subcmd == "list";
+    // if (subcmd.empty()) return false;
+    // if (subcmd != "add" && subcmd != "remove" && subcmd != "list") return false;
+    // return true;
+}
+
 // Makro in ini schreiben (neu oder ueberschreiben).
 // Bestehende "macro <name> = ..."-Zeile wird ersetzt, sonst ans Ende angehaengt.
 static void saveMacroToIni(const string& name, const string& args) {
@@ -1110,11 +1117,19 @@ int main(int argc, char* argv[])
         if (args[i] != "--macro") continue;
 
         if (i + 1 >= static_cast<int>(args.size())) {
-            cout << t(Str::MACRO_MISSING_NAME) << "\n";
+            // cout << t(Str::MACRO_MISSING_NAME) << "\n";
+            cout << t(Str::MACRO_MISSING_SUBCMD) << "\n";
             return 1;
         }
 
         string subcmd = args[i + 1];
+        char buf[256];
+
+        if (!isMacroSubCmdValid(subcmd)) {
+            snprintf(buf, sizeof(buf), t(Str::MACRO_INVALID_SUBCMD), subcmd.c_str());
+            cout << buf << "\n";
+            return 1;
+        }
 
         // ── --macro list ─────────────────────────────────────────────
         if (subcmd == "list") {
