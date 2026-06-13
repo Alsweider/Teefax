@@ -999,6 +999,27 @@ static const vector<uint8_t>& silentWav() {
     return wav;
 }
 
+// Erzeugt einen ~10 ms langen Stille-Puffer (einmalig).
+// Zweck: winmm synchron initialisieren, bevor der Voralarm-Puffer abgespielt wird.
+// Ohne diesen Aufruf kann die Audio-Initialisierung (100-500 ms auf Frischstarts)
+// in die Voralarm-Stille fallen und den ersten Beep verschlucken.
+static const vector<uint8_t>& tinyInitWav() {
+    static vector<uint8_t> wav = [](){
+        constexpr uint32_t RATE  = 22050;
+        constexpr uint32_t DSIZE = (RATE / 100) * 2; // ~10 ms, 16-bit mono = 440 Bytes
+        vector<uint8_t> w(44 + DSIZE, 0);
+        auto w16 = [&](size_t o, uint16_t v){ memcpy(w.data()+o, &v, 2); };
+        auto w32 = [&](size_t o, uint32_t v){ memcpy(w.data()+o, &v, 4); };
+        memcpy(w.data()+0,  "RIFF", 4); w32(4,  36 + DSIZE);
+        memcpy(w.data()+8,  "WAVE", 4);
+        memcpy(w.data()+12, "fmt ", 4); w32(16, 16);
+        w16(20, 1); w16(22, 1); w32(24, RATE); w32(28, RATE*2); w16(32, 2); w16(34, 16);
+        memcpy(w.data()+36, "data", 4); w32(40, DSIZE);
+        return w;
+    }();
+    return wav;
+}
+
 // Generiert einen WAV-Puffer fuer den gesamten Voralarm-Zeitraum:
 // 'prewarmMs' Millisekunden Stille (BT-Aufwaermung), danach 'count' Beeps
 // im Sekundentakt (880 Hz, 100 ms Ton + 900 ms Stille pro Zyklus).
@@ -1248,10 +1269,6 @@ int main(int argc, char* argv[])
             cout << buf << "\n";
             return 0;
         }
-
-        // Unbekannter Subbefehl
-        cout << t(Str::MACRO_MISSING_NAME) << "\n";
-        return 1;
     }
 
     // ── Makro-Expansion ───────────────────────────────────────────────
@@ -1799,6 +1816,12 @@ int main(int argc, char* argv[])
     }
 
     if (preAlarmSeconds > 0 && !mute) {
+        // Synchroner 10-ms-Aufruf: erzwingt Abschluss der winmm-Initialisierung,
+        // bevor der Voralarm-Puffer abgespielt wird. start wird erst danach
+        // gesetzt (innerhalb der do-Schleife), sodass die Timer-Praezision
+        // unveraendert bleibt.
+        PlaySoundA(reinterpret_cast<LPCSTR>(tinyInitWav().data()),
+                   NULL, SND_MEMORY | SND_SYNC);
         PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
                    NULL, SND_MEMORY | SND_ASYNC);
     }
