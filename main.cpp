@@ -2033,8 +2033,9 @@ static int runTimerLoop(TimerConfig& cfg) {
 
 int main(int argc, char* argv[])
 {
-    ios::sync_with_stdio(false);
-    cout.tie(nullptr);
+    // Macht Konsolenausgaben flüssiger
+    ios::sync_with_stdio(false); // deaktiviert Synchronisation von C++-Streams (cin, cout, cerr) mit C-Streams (stdin, stdout, stderr)
+    cin.tie(nullptr); // löst Bindung von cin an cout (kein automatisches Flush von cout vor Eingaben)
 
     // Argumentliste aufbauen: Config-Defaults (INI) + Kommandozeile
     vector<string> args;
