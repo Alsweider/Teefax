@@ -1081,70 +1081,113 @@ bool launchedFromExistingConsole() {
     return (consoleProc != GetCurrentProcessId());
 }
 
-// Hauptprogramm
-int main(int argc, char* argv[])
-{
-    //Konsolenausgaben flüssiger machen
-    ios::sync_with_stdio(false); // Trennt C++-Streams von C-Streams, beschleunigt cin/cout
-    cout.tie(nullptr); // Löst Bindung von cout an cin, verhindert automatisches Flush vor Eingabe
 
-    //Variablen definieren
-    string soundFile;
-    bool mute = false;
-    bool loop = false;
-    int maxLoops = -1;
-    long long alarmRepeat = 1;
-    int alarmInterval = 2;
-    bool useAtTime = false;
-    bool useAtDateTime = false; // true wenn --at ein Datum (+ Zeit) enthält
-    int atYear = 0, atMonth = 0, atDay = 0;
-    int atHour = 0, atMinute = 0, atSecond = 0;
-    long long ms = 0;
-    bool asyncSound = false;
-    string openFile;
-    string cmdArg;
-    string focusWindow; // Fenstertitel für --focus
-    bool showMessage = true; // Standard: MessageBox ist aktiv
-    bool noSleep = false; // Bildschirmschoner & Standby nicht unterdrücken
-    int preAlarmSeconds = 0; // Sekunden vor Schluss, in denen sekündlich gepiept wird
-    const int barWidth = 30;
-    long long loopCount = 0;
-    bool showLiveTime = false; // Für die direkte Zeitanzeige, wie der Name schon sagt.
-    bool showStopwatch = false; // Stoppuhr-Modus
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Konfigurationsstruktur ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Fasst alle geparsten Einstellungen zusammen.
+// Felder mit Laufzeit-Zustand (loopCount, atYear) werden zur Laufzeit verändert.
+struct TimerConfig {
+    // Ton
+    string    soundFile;
+    bool      mute          = false;
+    bool      asyncSound    = false;
+    long long alarmRepeat   = 1;
+    int       alarmInterval = 2;
+
+    // Zeitangabe
+    long long ms            = 0;
+    bool      useAtTime     = false;
+    bool      useAtDateTime = false;
+    int       atYear = 0, atMonth = 0, atDay = 0;
+    int       atHour = 0, atMinute = 0, atSecond = 0;
+
+    // Schleife
+    bool      loop     = false;
+    int       maxLoops = -1;
+
+    // Voralarm
+    int       preAlarmSeconds = 0;
+
+    // Benachrichtigung
+    bool      showMessage = true;
+    string    customMsg;
+
+    // Aktionen nach Ablauf
+    string    openFile;
+    string    cmdArg;
+    string    focusWindow;
+
+    // Modi
+    bool      showLiveTime  = false;
+    bool      showStopwatch = false;
+    bool      noSleep       = false;
+
+    // Täglicher / wiederkehrender Alarm
     vector<tuple<int,int,int>> dailyTimes;
-    bool useDailyTimes = false;
+    bool      useDailyTimes = false;
     EverySpec everySpec;
-    bool useEvery = false;
-    string customMsg; // benutzerdefinierte Notiz in Benachrichtigungsfenster am Schluss
+    bool      useEvery      = false;
 
-    // Kombinierte Argumentliste: Config-Defaults zuerst, dann Kommandozeile.
-    // Dadurch können alle CLI-Flags auch in teefax.ini gesetzt werden.
-    // Explizite Kommandozeilenargumente überschreiben Config-Werte automatisch
-    // (letzter Wert gewinnt bei Flags wie --lang, --alarm-repeat usw.).
-    vector<string> args;
-    loadConfigArgs(args);
-    for (int i = 1; i < argc; ++i)
-        args.push_back(argv[i]);
+    // Schleifenzustand – wird zur Laufzeit verändert
+    long long loopCount = 0;
+};
 
-    // ── --macro Verwaltungsbefehle (vor allem anderen auswerten) ─────────
-    // Sprache muss dafür schon gesetzt sein, deshalb hier ein Mini-Vorlauf.
-    for (int i = 0; i < static_cast<int>(args.size()); ++i) {
-        if ((args[i] == "--lang" || args[i] == "-la") && i + 1 < static_cast<int>(args.size())) {
-            _putenv_s("TEEFAX_LANG", args[i + 1].c_str());
-        }
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Konsolenmodus-Helfer ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Deaktiviert QuickEdit im aktuellen Konsolenfenster.
+// Verhindert, dass ein Mausklick den Timer einfriert.
+static void disableQuickEdit() {
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD  mode = 0;
+    if (GetConsoleMode(hIn, &mode)) {
+        mode &= ~ENABLE_QUICK_EDIT_MODE;
+        mode |=  ENABLE_EXTENDED_FLAGS;
+        SetConsoleMode(hIn, mode);
+        g_consoleModeChanged = true;
     }
+}
 
-    for (int i = 0; i < static_cast<int>(args.size()); ++i) {
+// Stellt den gespeicherten Originalzustand des Konsolenmodus wieder her.
+static void restoreConsoleMode() {
+    if (g_consoleModeChanged) {
+        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
+        g_consoleModeChanged = false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Argument-Vorverarbeitung ───────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Setzt TEEFAX_LANG anhand des letzten --lang-Vorkommens in der Argumentliste.
+// Wird zweimal aufgerufen: vor dem --macro-Handler (damit dessen Meldungen
+// bereits in der gewählten Sprache erscheinen) und nach der Makro-Expansion
+// (damit CLI-Argumente einen INI-Wert überschreiben können).
+static void detectLanguageFromArgs(const vector<string>& args) {
+    for (int i = 0; i + 1 < static_cast<int>(args.size()); ++i) {
+        if (args[i] == "--lang" || args[i] == "-la")
+            _putenv_s("TEEFAX_LANG", args[i + 1].c_str());
+    }
+}
+
+// Wertet --macro-Unterbefehle aus und kehrt sofort zurück.
+// Rückgabe: 0 oder 1 (Exitcode) wenn --macro gefunden wurde; -1 wenn nicht.
+static int handleMacroCommands(vector<string>& args) {
+    const int n = static_cast<int>(args.size());
+    for (int i = 0; i < n; ++i) {
         if (args[i] != "--macro") continue;
 
-        if (i + 1 >= static_cast<int>(args.size())) {
-            // cout << t(Str::MACRO_MISSING_NAME) << "\n";
+        if (i + 1 >= n) {
             cout << t(Str::MACRO_MISSING_SUBCMD) << "\n";
             return 1;
         }
 
         string subcmd = args[i + 1];
-        char buf[256];
+        char   buf[256];
 
         if (!isMacroSubCmdValid(subcmd)) {
             snprintf(buf, sizeof(buf), t(Str::MACRO_INVALID_SUBCMD), subcmd.c_str());
@@ -1152,7 +1195,7 @@ int main(int argc, char* argv[])
             return 1;
         }
 
-        // ── --macro list ─────────────────────────────────────────────
+        // ── list ──────────────────────────────────────────────────────
         if (subcmd == "list") {
             auto macros = loadMacros();
             if (macros.empty()) {
@@ -1165,57 +1208,38 @@ int main(int argc, char* argv[])
             return 0;
         }
 
-        // ── --macro remove <name> ────────────────────────────────────
+        // ── remove ────────────────────────────────────────────────────
         if (subcmd == "remove") {
-            if (i + 2 >= static_cast<int>(args.size())) {
-                cout << t(Str::MACRO_MISSING_NAME) << "\n";
-                return 1;
-            }
+            if (i + 2 >= n) { cout << t(Str::MACRO_MISSING_NAME) << "\n"; return 1; }
             string name = args[i + 2];
-            char buf[256];
             if (removeMacroFromIni(name)) {
                 snprintf(buf, sizeof(buf), t(Str::MACRO_REMOVED), name.c_str());
                 cout << buf << "\n";
+                return 0;
             } else {
                 snprintf(buf, sizeof(buf), t(Str::MACRO_NOT_FOUND), name.c_str());
                 cout << buf << "\n";
                 return 1;
             }
-            return 0;
         }
 
-        // ── --macro add <name> <args...> ─────────────────────────────
+        // ── add ───────────────────────────────────────────────────────
         if (subcmd == "add") {
-            if (i + 2 >= static_cast<int>(args.size())) {
-                cout << t(Str::MACRO_MISSING_NAME) << "\n";
-                return 1;
-            }
+            if (i + 2 >= n) { cout << t(Str::MACRO_MISSING_NAME) << "\n"; return 1; }
             string name = args[i + 2];
-            char buf[256];
 
             if (!isMacroNameValid(name)) {
                 snprintf(buf, sizeof(buf), t(Str::MACRO_INVALID_NAME), name.c_str());
-                cout << buf << "\n";
-                return 1;
+                cout << buf << "\n"; return 1;
             }
             if (isMacroNameReserved(name)) {
                 snprintf(buf, sizeof(buf), t(Str::MACRO_NAME_RESERVED), name.c_str());
-                cout << buf << "\n";
-                return 1;
+                cout << buf << "\n"; return 1;
             }
-            if (i + 3 >= static_cast<int>(args.size())) {
-                cout << t(Str::MACRO_MISSING_ARGS) << "\n";
-                return 1;
-            }
+            if (i + 3 >= n) { cout << t(Str::MACRO_MISSING_ARGS) << "\n"; return 1; }
 
-            // Alle verbleibenden Argumente als Makro-Body zusammensetzen.
-            // Quoting-Regeln für die INI-Zeile:
-            // - Token enthält Leerzeichen           -> immer quoten
-            // - Token folgt auf ein Flag mit Wert-Parameter (--focus, --msg,
-            //   --open, --cmd, --at, --lang, --alarm-repeat, --alarm-interval,
-            //   --prealarm, --loop, --every, --daily) -> immer quoten,
-            //   damit beim späteren Einlesen via tokenizeConfigLine der Wert
-            //   als ein Token wiederhergestellt wird.
+            // Alle verbleibenden Token als Makro-Body zusammenfügen.
+            // Quoting-Regeln: Token mit Leerzeichen oder nach einem Wert-Flag -> quoten.
             static const vector<string> valueFlags = {
                 "--focus", "-f", "--msg", "--open", "-o", "--cmd", "-c",
                 "--at", "-a", "--until", "--lang", "-la",
@@ -1225,15 +1249,13 @@ int main(int argc, char* argv[])
             };
             string macroArgs;
             bool nextNeedsQuotes = false;
-            for (int j = i + 3; j < static_cast<int>(args.size()); ++j) {
+            for (int j = i + 3; j < n; ++j) {
                 if (j > i + 3) macroArgs += " ";
                 const string& tok = args[j];
                 bool needsQuotes = nextNeedsQuotes || tok.find(' ') != string::npos;
-                // Prüfen ob dieses Token selbst eine Option mit Argument ist
                 nextNeedsQuotes = false;
-                for (const auto& vf : valueFlags) {
+                for (const auto& vf : valueFlags)
                     if (tok == vf) { nextNeedsQuotes = true; break; }
-                }
                 if (needsQuotes) macroArgs += '"';
                 macroArgs += tok;
                 if (needsQuotes) macroArgs += '"';
@@ -1244,15 +1266,13 @@ int main(int argc, char* argv[])
             if (macros.count(name)) {
                 snprintf(buf, sizeof(buf), t(Str::MACRO_OVERWRITE_PROMPT), name.c_str());
                 cout << buf << flush;
-                // QuickEdit kurz wiederherstellen damit cin funktioniert
-                if (g_consoleModeChanged) {
+                if (g_consoleModeChanged)
                     SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
-                }
                 string answer;
                 getline(cin, answer);
                 if (g_consoleModeChanged) {
                     HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-                    DWORD mode = 0;
+                    DWORD  mode = 0;
                     if (GetConsoleMode(hIn, &mode)) {
                         mode &= ~ENABLE_QUICK_EDIT_MODE;
                         mode |=  ENABLE_EXTENDED_FLAGS;
@@ -1261,301 +1281,199 @@ int main(int argc, char* argv[])
                 }
                 string yesChars = t(Str::MACRO_OVERWRITE_YES);
                 if (answer.empty() || yesChars.find(answer[0]) == string::npos)
-                    return 0; // abgebrochen
+                    return 0;
             }
-
             saveMacroToIni(name, macroArgs);
             snprintf(buf, sizeof(buf), t(Str::MACRO_ADDED), name.c_str());
             cout << buf << "\n";
             return 0;
         }
     }
+    return -1; // kein --macro gefunden
+}
 
-    // ── Makro-Expansion ───────────────────────────────────────────────
-    // Wenn das erste Nicht-INI-Argument ein bekannter Makroname ist,
-    // werden dessen Tokens an die Argumentliste angehaengt.
-    // Nur CLI-Argumente werden geprueft (ab Index args.size() - argc + 1),
-    // um zu verhindern, dass INI-Tokens als Makronamen gewertet werden.
-    {
-        auto macros = loadMacros();
-        int cliStart = static_cast<int>(args.size()) - (argc - 1);
-        if (cliStart < 0) cliStart = 0;
-        for (int i = cliStart; i < static_cast<int>(args.size()); ++i) {
-            const string& a = args[i];
-            if (a[0] == '-') continue; // Flags ueberspringen
-            auto it = macros.find(a);
-            if (it != macros.end()) {
-                // Makroname durch expandierte Tokens ersetzen
-                vector<string> expanded = tokenizeConfigLine(it->second);
-                args.erase(args.begin() + i);
-                args.insert(args.begin() + i, expanded.begin(), expanded.end());
-                break; // nur einmal expandieren
-            }
+// Ersetzt den ersten passenden CLI-Makronamen durch seine gespeicherten Tokens.
+// Nur CLI-Argumente werden geprüft (ab cliStart), damit INI-Tokens nicht
+// versehentlich als Makronamen ausgewertet werden.
+static void expandMacroInArgs(vector<string>& args, int argc) {
+    auto macros = loadMacros();
+    int cliStart = static_cast<int>(args.size()) - (argc - 1);
+    if (cliStart < 0) cliStart = 0;
+    for (int i = cliStart; i < static_cast<int>(args.size()); ++i) {
+        const string& a = args[i];
+        if (a[0] == '-') continue;
+        auto it = macros.find(a);
+        if (it != macros.end()) {
+            vector<string> expanded = tokenizeConfigLine(it->second);
+            args.erase(args.begin() + i);
+            args.insert(args.begin() + i, expanded.begin(), expanded.end());
+            break; // nur einmal expandieren
         }
     }
+}
 
+// Deaktiviert QuickEdit, sofern ein Timer gestartet wird.
+// Ausgenommen: --help, --version und Aufrufe ohne Argumente.
+static void setupQuickEdit(const vector<string>& args, int argc) {
+    if (argc < 2) return;
+    for (const auto& a : args)
+        if (a == "--help" || a == "-h" || a == "--version" || a == "-v") return;
+
+    HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
+    DWORD  mode = 0;
+    if (GetConsoleMode(hIn, &mode)) {
+        g_originalConsoleMode = mode;
+        g_consoleModeChanged  = true;
+        mode &= ~ENABLE_QUICK_EDIT_MODE;
+        mode |=  ENABLE_EXTENDED_FLAGS;
+        SetConsoleMode(hIn, mode);
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Argument-Parser ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Parst die kombinierte Argumentliste (INI + CLI) in cfg.
+// Rückgabe: -1 = Timer starten; 0 = Exit OK; 1 = Exit Fehler.
+static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
     const int nArgs = static_cast<int>(args.size());
 
-    // Audio priorisieren
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
-
-    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
-    TimePeriodGuard timeGuard;
-
-    // QuickEdit-Modus deaktivieren: verhindert, dass ein Mausklick ins Konsolenfenster
-    // den Timer einfriert (Windows pausiert den Prozess, sobald Text markiert wird).
-    // Wird uebersprungen wenn kein Timer laeuft (--help, --version, keine Argumente),
-    // damit der Nutzer in der Hilfeausgabe wie gewohnt markieren und kopieren kann.
-    // Der Originalzustand wird beim Beenden und bei Strg+C wiederhergestellt.
-    {
-        bool needsQuickEditOff = (argc >= 2);
-        if (needsQuickEditOff) {
-            for (const auto& a : args) {
-                if (a == "--help" || a == "-h" || a == "--version" || a == "-v") {
-                    needsQuickEditOff = false;
-                    break;
-                }
-            }
-        }
-        if (needsQuickEditOff) {
-            HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-            DWORD mode = 0;
-            if (GetConsoleMode(hIn, &mode)) {
-                g_originalConsoleMode = mode;
-                g_consoleModeChanged  = true;
-                mode &= ~ENABLE_QUICK_EDIT_MODE;
-                mode |= ENABLE_EXTENDED_FLAGS;
-                SetConsoleMode(hIn, mode);
-            }
-        }
-    }
-
-    // Sprache vorab setzen, damit currentLang() korrekt initialisiert wird.
-    // Kein break: alle --lang-Vorkommen auswerten, damit CLI-Argumente
-    // einen INI-Wert ueberschreiben koennen (letzter Wert gewinnt).
-    for (int i = 0; i < nArgs; ++i) {
-        const string& a = args[i];
-        if ((a == "--lang" || a == "-la") && i + 1 < nArgs) {
-            _putenv_s("TEEFAX_LANG", args[i + 1].c_str());
-            ++i; // Wert ueberspringen
-        }
-    }
-
-    if (argc < 2) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
-        cout << buf << ".\n\n";
-        cout << t(Str::USAGE_HEADER);
-
-        if (!launchedFromExistingConsole()) {
-            cout << "\n" << t(Str::PRESS_ANY_KEY) << "\n" << flush;
-            _getch();
-        }
-
-        return 0;
-    }
-
-    // Argument-Parsen (Config-Defaults + Kommandozeile in einem Durchlauf)
     for (int i = 0; i < nArgs; ++i) {
         const string& arg = args[i];
 
         if (arg == "--nosleep" || arg == "-ns") {
-            noSleep = true;
+            cfg.noSleep = true;
+
         } else if (arg == "--mute" || arg == "-m") {
-            mute = true;
+            cfg.mute = true;
+
         } else if (arg == "--loop" || arg == "-l") {
-            loop = true;
+            cfg.loop = true;
             if (i + 1 < nArgs) {
                 int possibleCount = safeStoi(args[i + 1], -1);
-                if (possibleCount > 0) {
-                    maxLoops = possibleCount;
-                    ++i;
-                }
+                if (possibleCount > 0) { cfg.maxLoops = possibleCount; ++i; }
             }
+
         } else if (arg == "--nomsg") {
-            showMessage = false;
+            cfg.showMessage = false;
+
         } else if (arg == "--msg" && i + 1 < nArgs) {
-            customMsg = args[++i];
+            cfg.customMsg = args[++i];
+
         } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < nArgs) {
             const string& val = args[++i];
             try {
                 size_t pos = 0;
-                alarmRepeat = stoll(val, &pos, 10);
-                if (pos != val.size() || alarmRepeat < 0) {
-                    alarmRepeat = 1;
-                    { char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_INVALID), val.c_str()); fprintf(stderr, "%s\n", w); }
+                cfg.alarmRepeat = stoll(val, &pos, 10);
+                if (pos != val.size() || cfg.alarmRepeat < 0) {
+                    cfg.alarmRepeat = 1;
+                    char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_INVALID), val.c_str()); fprintf(stderr, "%s\n", w);
                 }
             } catch (const std::out_of_range&) {
-                alarmRepeat = std::numeric_limits<long long>::max();
-                { char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_TOO_LARGE), val.c_str(), alarmRepeat); fprintf(stderr, "%s\n", w); }
+                cfg.alarmRepeat = std::numeric_limits<long long>::max();
+                char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_TOO_LARGE), val.c_str(), cfg.alarmRepeat); fprintf(stderr, "%s\n", w);
             } catch (...) {
-                alarmRepeat = 1;
-                { char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_INVALID), val.c_str()); fprintf(stderr, "%s\n", w); }
+                cfg.alarmRepeat = 1;
+                char w[256]; snprintf(w, sizeof(w), t(Str::WARN_ALARM_REPEAT_INVALID), val.c_str()); fprintf(stderr, "%s\n", w);
             }
+
         } else if ((arg == "--alarm-interval" || arg == "-ai") && i + 1 < nArgs) {
-            alarmInterval = safeStoi(args[++i], 2);
-            if (alarmInterval < 1) alarmInterval = 1;
+            cfg.alarmInterval = safeStoi(args[++i], 2);
+            if (cfg.alarmInterval < 1) cfg.alarmInterval = 1;
+
         } else if (arg == "--async" || arg == "-as") {
-            asyncSound = true;
+            cfg.asyncSound = true;
+
         } else if ((arg == "--at" || arg == "-a" || arg == "--until") && i + 1 < nArgs) {
             string first = args[++i];
-
             int year, month, day;
             int hour = 0, minute = 0, second = 0;
 
-            // Fall 1: Datum erkannt
-            if (sscanf(first.c_str(), "%d-%d-%d", &year, &month, &day) == 3)
-            {
-                // Prüfen, ob danach eine Uhrzeit folgt (kein weiterer Parameter oder beginnt mit '-')
-                if (i + 1 < nArgs && args[i + 1][0] != '-')
-                {
-                    string timeStr = args[i + 1];
-
-                    int parsed = sscanf(timeStr.c_str(),
-                                        "%d:%d:%d",
-                                        &hour, &minute, &second);
-
-                    if (parsed >= 2)
-                    {
-                        if (parsed == 2) second = 0;
-                        ++i;
-                    }
-                    else
-                    {
-                        // Keine gültige Uhrzeit, also Mitternacht verwenden
-                        hour = 0;
-                        minute = 0;
-                        second = 0;
-                    }
+            if (sscanf(first.c_str(), "%d-%d-%d", &year, &month, &day) == 3) {
+                // Fall 1: Datum erkannt – optionale Uhrzeit prüfen
+                if (i + 1 < nArgs && args[i + 1][0] != '-') {
+                    int parsed = sscanf(args[i + 1].c_str(), "%d:%d:%d", &hour, &minute, &second);
+                    if (parsed >= 2) { if (parsed == 2) second = 0; ++i; }
+                    else { hour = minute = second = 0; }
                 }
-
-                atYear   = year;
-                atMonth  = month;
-                atDay    = day;
-                atHour   = hour;
-                atMinute = minute;
-                atSecond = second;
-
-                useAtTime     = true;
-                useAtDateTime = true;
-
-                ms = millisecondsUntilDateTime(
-                    year, month, day,
-                    hour, minute, second);
-
-                if (ms == 0)
-                {
-                    cout << t(Str::ERROR_PAST_DATETIME) << "\n";
-                    return 1;
-                }
+                cfg.atYear = year; cfg.atMonth = month; cfg.atDay = day;
+                cfg.atHour = hour; cfg.atMinute = minute; cfg.atSecond = second;
+                cfg.useAtTime = cfg.useAtDateTime = true;
+                cfg.ms = millisecondsUntilDateTime(year, month, day, hour, minute, second);
+                if (cfg.ms == 0) { cout << t(Str::ERROR_PAST_DATETIME) << "\n"; return 1; }
+            } else {
+                // Fall 2: Nur Uhrzeit
+                int parsed = sscanf(first.c_str(), "%d:%d:%d", &cfg.atHour, &cfg.atMinute, &cfg.atSecond);
+                if (parsed < 2) { cout << t(Str::ERROR_INVALID_AT) << "\n"; return 1; }
+                if (parsed == 2) cfg.atSecond = 0;
+                cfg.useAtTime = true;
+                cfg.ms = millisecondsUntilTime(cfg.atHour, cfg.atMinute, cfg.atSecond);
+                if (cfg.ms == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
             }
-            else
-            {
-                // Fall 2: Nur Uhrzeit (wie bisher)
-                int parsed = sscanf(first.c_str(),
-                                    "%d:%d:%d",
-                                    &atHour, &atMinute, &atSecond);
 
-                if (parsed < 2)
-                {
-                    cout << t(Str::ERROR_INVALID_AT) << "\n";
-                    return 1;
-                }
-
-                if (parsed == 2) atSecond = 0;
-
-                useAtTime = true;
-
-                ms = millisecondsUntilTime(
-                    atHour, atMinute, atSecond);
-
-                if (ms == 0)
-                {
-                    cout << t(Str::ERROR_NEXT_TIME);
-                    return 1;
-                }
-            }
         } else if ((arg == "--open" || arg == "-o") && i + 1 < nArgs) {
-            openFile = args[++i];
+            cfg.openFile = args[++i];
+
         } else if ((arg == "--cmd" || arg == "-c") && i + 1 < nArgs) {
-            cmdArg = args[++i];
+            cfg.cmdArg = args[++i];
+
         } else if ((arg == "--focus" || arg == "-f") && i + 1 < nArgs) {
-            focusWindow = args[++i];
-        } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < nArgs) { // Sekündliches Piepsen vor Schluss
-            preAlarmSeconds = safeStoi(args[++i], 0);
-            if (preAlarmSeconds < 0) preAlarmSeconds = 0;
+            cfg.focusWindow = args[++i];
+
+        } else if ((arg == "--prealarm" || arg == "-pa") && i + 1 < nArgs) {
+            cfg.preAlarmSeconds = safeStoi(args[++i], 0);
+            if (cfg.preAlarmSeconds < 0) cfg.preAlarmSeconds = 0;
+
         } else if (arg == "--time" || arg == "-t") {
-            showLiveTime = true;
+            cfg.showLiveTime = true;
+
         } else if (arg == "--stopwatch" || arg == "-sw") {
-            showStopwatch = true;
+            cfg.showStopwatch = true;
+
         } else if (arg == "--daily" || arg == "-d") {
-            useDailyTimes = true;
-
+            cfg.useDailyTimes = true;
             while (i + 1 < nArgs && args[i + 1][0] != '-') {
-                string timeStr = args[i + 1]; // erst schauen, noch nicht erhöhen
                 int h = 0, m = 0, s = 0;
-                int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
-                if (parsed < 2) {
-                    break; // kein Zeitformat, äußere Schleife übernimmt es (etwa Sounddatei)
-                }
-                ++i; // jetzt erhöhen
-
+                int parsed = sscanf(args[i + 1].c_str(), "%d:%d:%d", &h, &m, &s);
+                if (parsed < 2) break;
+                ++i;
                 if (parsed == 2) s = 0;
-                dailyTimes.emplace_back(h, m, s);
+                cfg.dailyTimes.emplace_back(h, m, s);
             }
-
-            if (dailyTimes.empty()) {
-                cout << t(Str::ERROR_NO_DAILY_TIMES) << "\n";
-                return 1;
-            }
-
-            loop = true;
-            maxLoops = -1; // I seek eternal fire
+            if (cfg.dailyTimes.empty()) { cout << t(Str::ERROR_NO_DAILY_TIMES) << "\n"; return 1; }
+            cfg.loop = true; cfg.maxLoops = -1;
 
         } else if ((arg == "--every" || arg == "-e") && i + 1 < nArgs) {
             string daysStr = args[++i];
             int h = 0, m = 0, s = 0;
-
-            // Optionale Uhrzeit einlesen (sofern kein anderes Argument folgt)
             if (i + 1 < nArgs && args[i + 1][0] != '-') {
-                string timeStr = args[i + 1];
-                int parsed = sscanf(timeStr.c_str(), "%d:%d:%d", &h, &m, &s);
-                if (parsed >= 2) {
-                    if (parsed == 2) s = 0;
-                    ++i;
-                }
-                // Kein gültiges Zeitformat, also nicht konsumieren (evtl. Sounddatei)
+                int parsed = sscanf(args[i + 1].c_str(), "%d:%d:%d", &h, &m, &s);
+                if (parsed >= 2) { if (parsed == 2) s = 0; ++i; }
             }
-
-            everySpec = parseEverySpec(daysStr, h, m, s);
-            if (everySpec.days.empty()) {
-                char buf[256];
-                snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_EVERY), daysStr.c_str());
-                cout << buf << "\n";
-                return 1;
+            cfg.everySpec = parseEverySpec(daysStr, h, m, s);
+            if (cfg.everySpec.days.empty()) {
+                char buf[256]; snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_EVERY), daysStr.c_str());
+                cout << buf << "\n"; return 1;
             }
-            useEvery  = true;
-            loop      = true;
-            maxLoops  = -1;
-
-            auto target = nextEveryTarget(everySpec);
-            ms = chrono::duration_cast<chrono::milliseconds>(
-                     target - chrono::system_clock::now()).count();
-            if (ms <= 0) ms = 1000;
+            cfg.useEvery = true; cfg.loop = true; cfg.maxLoops = -1;
+            auto target = nextEveryTarget(cfg.everySpec);
+            cfg.ms = chrono::duration_cast<chrono::milliseconds>(
+                         target - chrono::system_clock::now()).count();
+            if (cfg.ms <= 0) cfg.ms = 1000;
 
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < nArgs) {
             ++i; // bereits im Vor-Durchlauf verarbeitet
 
         } else if (arg == "--macro") {
-            // Bereits vor dem Haupt-Parser vollstaendig behandelt (add/remove/list).
-            // Hier nur die verbleibenden Tokens ueberspringen, damit kein Fehler entsteht.
-            if (i + 1 < nArgs) ++i; // Subbefehl (add/remove/list)
+            // Bereits vollständig behandelt; verbleibende Tokens überspringen.
+            if (i + 1 < nArgs) ++i; // Subbefehl
             if (i + 1 < nArgs) ++i; // Name
-            if (i + 1 < nArgs) ++i; // evtl. Args (fuer "add")
+            if (i + 1 < nArgs) ++i; // Args (bei "add")
 
         } else if (arg == "--version" || arg == "-v") {
-            cout << PRG_VERSION << "\n";
-            return 0;
+            cout << PRG_VERSION << "\n"; return 0;
+
         } else if (arg == "--help" || arg == "-h") {
             cout << t(Str::USAGE_HEADER);
             if (!launchedFromExistingConsole()) {
@@ -1563,343 +1481,430 @@ int main(int argc, char* argv[])
                 _getch();
             }
             return 0;
-        } else if (arg[0] == '-') { // Falls Parameter mit "-" falsch eingegeben wurde. Muss am Ende aller --Parameter stehen.
+
+        } else if (arg[0] == '-') {
             char buf[256];
             snprintf(buf, sizeof(buf), t(Str::ERROR_UNKNOWN_OPTION), arg.c_str());
-            cout << buf << "\n";
-            return 1;
-        } else if (!useAtTime) {
+            cout << buf << "\n"; return 1;
+
+        } else if (!cfg.useAtTime) {
             long long possible = parseTime(arg);
             if (possible > 0) {
-                if (ms > MAX_MS - possible) ms = MAX_MS;
-                else ms += possible;
+                if (cfg.ms > MAX_MS - possible) cfg.ms = MAX_MS;
+                else cfg.ms += possible;
             } else if (isStandaloneUnit(arg)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), t(Str::ERROR_DETACHED_UNIT), arg.c_str());
-                cout << buf << "\n";
-                return 1;
-            } else if (soundFile.empty()) {
-                soundFile = arg;
+                cout << buf << "\n"; return 1;
+            } else if (cfg.soundFile.empty()) {
+                cfg.soundFile = arg;
             }
-        } else if (soundFile.empty()){
-            soundFile = arg;
+
+        } else if (cfg.soundFile.empty()) {
+            cfg.soundFile = arg;
         }
     }
+    return -1; // weiter zum Timer
+}
 
-    if (!useAtTime && !useDailyTimes && !useEvery && !showLiveTime && !showStopwatch && ms <= 0) {
-        cout << t(Str::ERROR_NO_TIME) << "\n";
-        return 1;
-    }
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Startmeldung ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
 
-    if (ms > MAX_MS) ms = MAX_MS;
+static void printStartMessage(const TimerConfig& cfg) {
+    char buf[256];
+    snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+    cout << buf;
 
-    // Bildschirrmschoner erlauben bzw. unterdrücken
-    if (noSleep){
-        preventSleep(true);
-    }
+    if (cfg.useAtTime) {
+        if (cfg.useAtDateTime) {
+            snprintf(buf, sizeof(buf), t(Str::TIMER_AT_DATETIME),
+                     cfg.atYear, cfg.atMonth, cfg.atDay,
+                     cfg.atHour, cfg.atMinute, cfg.atSecond);
+        } else {
+            snprintf(buf, sizeof(buf), t(Str::TIMER_AT_TIME),
+                     cfg.atHour, cfg.atMinute, cfg.atSecond);
+        }
+        cout << buf;
+        auto   atWallTarget = chrono::system_clock::now() + chrono::milliseconds(cfg.ms);
+        time_t atTargetT    = chrono::system_clock::to_time_t(atWallTarget);
+        if (isTargetTomorrow(atTargetT))
+            cout << t(Str::TOMORROW_SUFFIX);
 
-    if (!showLiveTime && !showStopwatch){ // Wenn nur die Zeit angezeigt wird oder Stoppuhr läuft, Folgendes weglassen
-        char buf[256];
+    } else if (cfg.useDailyTimes) {
+        cout << t(Str::TIMER_DAILY);
 
-        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+    } else if (cfg.useEvery) {
+        string daysStr = formatEveryDays(cfg.everySpec);
+        snprintf(buf, sizeof(buf), t(Str::TIMER_EVERY),
+                 daysStr.c_str(), cfg.everySpec.hour, cfg.everySpec.minute, cfg.everySpec.second);
         cout << buf;
 
-        if (useAtTime) {
-            char buf[256];
-            if (useAtDateTime) {
-                snprintf(buf, sizeof(buf), t(Str::TIMER_AT_DATETIME),
-                         atYear, atMonth, atDay, atHour, atMinute, atSecond);
-            } else {
-                snprintf(buf, sizeof(buf), t(Str::TIMER_AT_TIME),
-                         atHour, atMinute, atSecond);
-            }
-            cout << buf;
+    } else {
+        // Countdown: Dauer + absolute Zielzeit anhängen
+        string timerStr = formatVerbleibend(cfg.ms / 1000);
+        snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
+        cout << buf;
 
-            // Prüfen ob Ziel morgen liegt (prima bei reiner Uhrzeit oder nahem Datum)
-            auto atWallTarget = chrono::system_clock::now()
-                                + chrono::milliseconds(ms);
-            time_t atTargetT = chrono::system_clock::to_time_t(atWallTarget);
-            if (isTargetTomorrow(atTargetT))
-                cout << t(Str::TOMORROW_SUFFIX);
-
-        } else {
-            // hier Umrechnung in passende Einheiten
-            string timerStr = formatVerbleibend(ms / 1000); // ms -> Sekunden
-
-            if (useDailyTimes) {
-                cout << t(Str::TIMER_DAILY);
-            } else if (useEvery) {
-                char buf[256];
-                string daysStr = formatEveryDays(everySpec);
-                snprintf(buf, sizeof(buf), t(Str::TIMER_EVERY),
-                         daysStr.c_str(), everySpec.hour, everySpec.minute, everySpec.second);
-                cout << buf;
-            } else {
-                char buf[256];
-                snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
-                cout << buf;
-
-                // absolute Zielzeit berechnen und anhängen
-                auto targetWall = chrono::system_clock::now() + chrono::milliseconds(ms);
-                time_t targetT = chrono::system_clock::to_time_t(targetWall);
-                tm targetTm{};
-                localtime_s(&targetTm, &targetT);
-                char tbuf[64];
-                snprintf(tbuf, sizeof(tbuf), t(Str::TIMER_TARGET),
-                         targetTm.tm_hour, targetTm.tm_min, targetTm.tm_sec);
-                cout << tbuf;
-            }
-        }
-        if (asyncSound) {
-            cout << t(Str::ASYNC_SUFFIX);
-        }
-        if (!focusWindow.empty()) {
-            char buf[256];
-            snprintf(buf, sizeof(buf), t(Str::FOCUS_TARGET),
-                     toConsole(toWideArgv(focusWindow)).c_str());
-            cout << buf;
-        }
-        if (!openFile.empty()) {
-            char buf[256];
-            snprintf(buf, sizeof(buf), t(Str::OPEN_TARGET),
-                     toConsole(toWideArgv(openFile)).c_str());
-            cout << buf;
-        }
-        cout << "\n";
+        auto   targetWall = chrono::system_clock::now() + chrono::milliseconds(cfg.ms);
+        time_t targetT    = chrono::system_clock::to_time_t(targetWall);
+        tm     targetTm{};
+        localtime_s(&targetTm, &targetT);
+        char tbuf[64];
+        snprintf(tbuf, sizeof(tbuf), t(Str::TIMER_TARGET),
+                 targetTm.tm_hour, targetTm.tm_min, targetTm.tm_sec);
+        cout << tbuf;
     }
 
-    // Vorab-Prüfung: Fenster jetzt schon vorhanden?
-    if (!focusWindow.empty() && !findWindowByTitle(focusWindow)) {
+    if (cfg.asyncSound)
+        cout << t(Str::ASYNC_SUFFIX);
+    if (!cfg.focusWindow.empty()) {
+        snprintf(buf, sizeof(buf), t(Str::FOCUS_TARGET),
+                 toConsole(toWideArgv(cfg.focusWindow)).c_str());
+        cout << buf;
+    }
+    if (!cfg.openFile.empty()) {
+        snprintf(buf, sizeof(buf), t(Str::OPEN_TARGET),
+                 toConsole(toWideArgv(cfg.openFile)).c_str());
+        cout << buf;
+    }
+    cout << "\n";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Vorab-Prüfungen ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Prüft vor dem Timer-Start, ob Fenster und Datei bereits erreichbar sind.
+// Warnungen erscheinen einmalig nach der Startmeldung.
+static void doPreChecks(const TimerConfig& cfg) {
+    if (!cfg.focusWindow.empty() && !findWindowByTitle(cfg.focusWindow)) {
         char buf[256];
         snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_WARN),
-                 toConsole(toWideArgv(focusWindow)).c_str());
+                 toConsole(toWideArgv(cfg.focusWindow)).c_str());
         cout << buf << "\n" << flush;
     }
 
-    // Vorab-Prüfung: Zieldatei fuer --open vorhanden?
-    // URLs koennen nicht geprueft werden; Dateien, die waehrend des Timers
-    // erst erzeugt werden, erhalten ebenfalls keine Warnung (nur Hinweis).
-    if (!openFile.empty()) {
-        bool isUrl = openFile.rfind("http://", 0) == 0 ||
-                     openFile.rfind("https://", 0) == 0;
+    if (!cfg.openFile.empty()) {
+        bool isUrl = cfg.openFile.rfind("http://", 0) == 0 ||
+                     cfg.openFile.rfind("https://", 0) == 0;
         if (!isUrl) {
             try {
-                if (!fs::exists(fs::path(openFile))) {
+                if (!fs::exists(fs::path(cfg.openFile))) {
                     char buf[256];
                     snprintf(buf, sizeof(buf), t(Str::FILE_NOT_FOUND_WARN),
-                             toConsole(toWideArgv(openFile)).c_str());
+                             toConsole(toWideArgv(cfg.openFile)).c_str());
                     cout << buf << "\n" << flush;
                 }
             } catch (const fs::filesystem_error&) {
-                // Pfad ungueltig oder nicht erreichbar. Warnung im Fehlerfall weglassen,
-                // openFileAfterTimer() gibt beim Ablauf eine praezise Meldung.
+                // Pfad ungültig; openFileAfterTimer() gibt beim Ablauf eine präzise Meldung.
             }
         }
     }
+}
 
-    // Schleife Direktanzeige von Zeit und Datum
-    if (showLiveTime) {
-        system("cls"); // Konsole bereinigen, damit nur die Zeit da steht.
-        while (true) {
-            auto now = chrono::system_clock::now();
-            time_t tnow = chrono::system_clock::to_time_t(now);
-            tm local{};
-            localtime_s(&local, &tnow);
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Interaktive Modi ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
 
-            // cout << "\r" << put_time(&local, "%Y-%m-%d %H:%M:%S") << flush;
-            char timebuf[32];
-            strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &local);
-            cout << "\r" << timebuf << flush;
-            char titlebuf[48];
-            snprintf(titlebuf, sizeof(titlebuf), "Teefax - %s", timebuf);
-            SetConsoleTitleA(titlebuf);
+static int runLiveClockMode() {
+    system("cls");
+    while (true) {
+        auto   now   = chrono::system_clock::now();
+        time_t tnow  = chrono::system_clock::to_time_t(now);
+        tm     local{};
+        localtime_s(&local, &tnow);
 
-            // Berechne Millisekunden bis zur nächsten Sekunde
-            auto next = chrono::time_point_cast<chrono::seconds>(now) + chrono::seconds(1);
-            this_thread::sleep_until(next);
-        }
-        return 0; // Programm wird über Strg+C beendet
+        char timebuf[32];
+        strftime(timebuf, sizeof(timebuf), "%Y-%m-%d %H:%M:%S", &local);
+        cout << "\r" << timebuf << flush;
+
+        char titlebuf[48];
+        snprintf(titlebuf, sizeof(titlebuf), "Teefax - %s", timebuf);
+        SetConsoleTitleA(titlebuf);
+
+        auto next = chrono::time_point_cast<chrono::seconds>(now) + chrono::seconds(1);
+        this_thread::sleep_until(next);
     }
+    return 0; // via Strg+C
+}
 
-    // Stoppuhr-Modus
-    if (showStopwatch) {
-        char buf[256];
-        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
-        cout << buf << " (" << t(Str::STOPWATCH_LABEL) << ")\n";
-        cout << t(Str::STOPWATCH_HINT) << "\n";
+static int runStopwatchMode() {
+    char buf[256];
+    snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+    cout << buf << " (" << t(Str::STOPWATCH_LABEL) << ")\n";
+    cout << t(Str::STOPWATCH_HINT) << "\n";
 
-        auto start   = chrono::steady_clock::now();
-        bool isPaused = false;
-        chrono::steady_clock::time_point pauseStart;
-        long long frozenMs     = 0;  // Anzeige einfrieren bei Pause
-        long long lastTitleSec = -1; // Fenstertitel nur einmal pro Sekunde
+    auto  start        = chrono::steady_clock::now();
+    bool  isPaused     = false;
+    chrono::steady_clock::time_point pauseStart;
+    long long frozenMs     = 0;
+    long long lastTitleSec = -1;
 
-        while (true) {
-            // Tasteneingabe prüfen (nicht-blockierend)
-            if (_kbhit()) {
-                int key = _getch();
-                if (key == ' ' || key == 'p' || key == 'P') {
-                    if (!isPaused) {
-                        isPaused  = true;
-                        pauseStart = chrono::steady_clock::now();
-                        frozenMs  = chrono::duration_cast<chrono::milliseconds>(
-                                       pauseStart - start).count();
-                    } else {
-                        // Startpunkt um Pausendauer verschieben, Elapsed bleibt korrekt
-                        start    += chrono::steady_clock::now() - pauseStart;
-                        isPaused  = false;
-                    }
-                } else if (key == 'r' || key == 'R') {
-                    auto now     = chrono::steady_clock::now();
-                    start        = now;
-                    pauseStart   = now;
-                    isPaused     = true;
-                    frozenMs     = 0;
-                    lastTitleSec = -1;
+    while (true) {
+        if (_kbhit()) {
+            int key = _getch();
+            if (key == ' ' || key == 'p' || key == 'P') {
+                if (!isPaused) {
+                    isPaused   = true;
+                    pauseStart = chrono::steady_clock::now();
+                    frozenMs   = chrono::duration_cast<chrono::milliseconds>(
+                                   pauseStart - start).count();
+                } else {
+                    start    += chrono::steady_clock::now() - pauseStart;
+                    isPaused  = false;
                 }
-            }
-
-            long long elapsedMs = isPaused
-                                      ? frozenMs
-                                      : chrono::duration_cast<chrono::milliseconds>(
-                                            chrono::steady_clock::now() - start).count();
-
-            long long elapsedSec = elapsedMs / 1000;
-            int       cs         = static_cast<int>((elapsedMs % 1000) / 10);
-
-            string secStr = formatVerbleibend(elapsedSec);
-
-            // Fenstertitel einmal pro Sekunde aktualisieren
-            if (elapsedSec != lastTitleSec) {
-                lastTitleSec = elapsedSec;
-                wstring labelW = toWide(t(Str::STOPWATCH_LABEL));
-                wstring titleW = L"Teefax - " + labelW + L" - "
-                                 + wstring(secStr.begin(), secStr.end());
-                SetConsoleTitleW(titleW.c_str());
-            }
-
-            char timebuf[64];
-            snprintf(timebuf, sizeof(timebuf), "%s.%02d", secStr.c_str(), cs);
-
-            char dispbuf[128];
-            snprintf(dispbuf, sizeof(dispbuf), t(Str::ELAPSED), timebuf);
-
-            // Pausenanzeige anhängen bzw. wegwischen (feste Breite durch Leerzeichen)
-            char linebuf[256];
-            if (isPaused)
-                snprintf(linebuf, sizeof(linebuf), "%s %s", dispbuf, t(Str::STOPWATCH_PAUSED));
-            else
-                snprintf(linebuf, sizeof(linebuf), "%s", dispbuf);
-            cout << "\r" << linebuf << "            " << flush;
-
-            if (isPaused) {
-                this_thread::sleep_for(chrono::milliseconds(10));
-            } else {
-                // Nächste 10ms-Grenze relativ zum Startpunkt. Echte Zentisekunden, ohne Drift
-                auto nextTick = start
-                                + chrono::milliseconds(((elapsedMs / 10) + 1) * 10);
-                this_thread::sleep_until(nextTick);
+            } else if (key == 'r' || key == 'R') {
+                auto now   = chrono::steady_clock::now();
+                start      = now;
+                pauseStart = now;
+                isPaused   = true;
+                frozenMs   = 0;
+                lastTitleSec = -1;
             }
         }
-        return 0; // Programm wird über Strg+C beendet
+
+        long long elapsedMs = isPaused
+                                  ? frozenMs
+                                  : chrono::duration_cast<chrono::milliseconds>(
+                                        chrono::steady_clock::now() - start).count();
+        long long elapsedSec = elapsedMs / 1000;
+        int       cs         = static_cast<int>((elapsedMs % 1000) / 10);
+        string    secStr     = formatVerbleibend(elapsedSec);
+
+        if (elapsedSec != lastTitleSec) {
+            lastTitleSec = elapsedSec;
+            wstring titleW = L"Teefax - " + toWide(t(Str::STOPWATCH_LABEL)) + L" - "
+                             + wstring(secStr.begin(), secStr.end());
+            SetConsoleTitleW(titleW.c_str());
+        }
+
+        char timebuf[64];
+        snprintf(timebuf, sizeof(timebuf), "%s.%02d", secStr.c_str(), cs);
+        char dispbuf[128];
+        snprintf(dispbuf, sizeof(dispbuf), t(Str::ELAPSED), timebuf);
+
+        char linebuf[256];
+        if (isPaused)
+            snprintf(linebuf, sizeof(linebuf), "%s %s", dispbuf, t(Str::STOPWATCH_PAUSED));
+        else
+            snprintf(linebuf, sizeof(linebuf), "%s", dispbuf);
+        cout << "\r" << linebuf << "            " << flush;
+
+        if (isPaused)
+            this_thread::sleep_for(chrono::milliseconds(10));
+        else {
+            // Nächste 10ms-Grenze relativ zum Startpunkt – keine Drift
+            auto nextTick = start + chrono::milliseconds(((elapsedMs / 10) + 1) * 10);
+            this_thread::sleep_until(nextTick);
+        }
     }
+    return 0; // via Strg+C
+}
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Fortschrittsbalken ─────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
 
-    // Audio-Gerät vorwärmen: die erste PlaySoundA-Initialisierung kostet auf einem
-    // frisch gestarteten System 100–500 ms (winmm-Geräteöffnung). Ohne diesen Aufruf
-    // würde die Verzögerung auf den ersten Prealarm-Beep fallen und ihn nach hinten
-    // verschieben. Die stille 1-s-WAV initialisiert das Audio-Subsystem.
-    // Greift nur wenn Voralarm aktiviert ist, weil nur dort der Effekt stört.
-    // Das BT-Vorwärmen kurz vor dem Hauptalarm deckt den analogen Fall ohne --prealarm ab.
-    if (!g_timePeriodOk && !showLiveTime && !showStopwatch) {
-        fprintf(stderr, "%s\n", t(Str::WARN_TIMER_PERIOD));
+// Berechnet die verfügbare Balkenbreite anhand der Konsolenbreite.
+// Verhindert Zeilenumbrüche in schmalen Fenstern; gibt 0 zurück wenn kein Platz.
+static int calcEffectiveBarWidth(int prefixLen, int maxBarWidth) {
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
+        int w = (csbi.srWindow.Right - csbi.srWindow.Left + 1) - prefixLen - 13;
+        if (w < 0) return 0;
+        return (w > maxBarWidth) ? maxBarWidth : w;
     }
+    return maxBarWidth;
+}
 
-    if (preAlarmSeconds > 0 && !mute) {
-        // Synchroner 10-ms-Aufruf: erzwingt Abschluss der winmm-Initialisierung,
-        // bevor der Voralarm-Puffer abgespielt wird. start wird erst danach
-        // gesetzt (innerhalb der do-Schleife), sodass die Timer-Praezision
-        // unveraendert bleibt.
+// Baut den Präfix-Text auf: ggf. Schleifenzähler + verbleibende Zeit + "morgen"-Suffix.
+static string buildBarPrefix(bool loop, long long loopCount,
+                             const string& verbleibendStr, time_t wallTargetT) {
+    char   buf[128];
+    string prefix;
+    if (loop) {
+        snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
+        prefix += buf;
+    }
+    snprintf(buf, sizeof(buf), t(Str::REMAINING), verbleibendStr.c_str());
+    prefix += buf;
+    if (wallTargetT != 0 && isTargetTomorrow(wallTargetT))
+        prefix += t(Str::TOMORROW_SUFFIX);
+    return prefix;
+}
+
+// Zeichnet einen Fortschrittsbalken. filled == total ergibt einen vollen Balken.
+static void renderBar(const string& prefix, int filled, int total) {
+    cout << "\r" << prefix;
+    if (total > 0) {
+        cout << " [";
+        for (int i = 0; i < total; ++i) cout << (i < filled ? '#' : '-');
+        cout << "]";
+    }
+    cout << "        " << flush;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Alarm und Aktionen nach Ablauf ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Spielt den Alarmton entsprechend der Konfiguration ab (mit Wiederholungen).
+static void playAlarmSound(const TimerConfig& cfg) {
+    for (long long r = 0; cfg.alarmRepeat == 0 || r < cfg.alarmRepeat; ++r) {
+        if (!cfg.soundFile.empty()) {
+            try {
+                fs::path p(cfg.soundFile);
+                if (!fs::exists(p) || !fs::is_regular_file(p)) {
+                    char buf[512];
+                    snprintf(buf, sizeof(buf), t(Str::AUDIO_NOT_FOUND),
+                             toConsole(toWideArgv(cfg.soundFile)).c_str());
+                    cout << buf << "\n";
+                } else {
+                    wstring widePath = toWideArgv(cfg.soundFile);
+                    if (!widePath.empty()) {
+                        UINT flags = SND_FILENAME | (cfg.asyncSound ? SND_ASYNC : SND_SYNC);
+                        PlaySoundW(widePath.c_str(), NULL, flags);
+                    } else {
+                        char buf[512];
+                        snprintf(buf, sizeof(buf), t(Str::AUDIO_PATH_ERROR),
+                                 toConsole(toWideArgv(cfg.soundFile)).c_str());
+                        cout << buf << "\n";
+                    }
+                }
+            } catch (const fs::filesystem_error& e) {
+                char buf[512];
+                snprintf(buf, sizeof(buf), t(Str::FILE_SYSTEM_ERROR), e.what());
+                cout << buf << "\n";
+            }
+        } else {
+            if (cfg.asyncSound) {
+                thread([](){
+                    PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_ASYNC);
+                }).detach();
+            } else {
+                PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_SYNC);
+            }
+        }
+        if (cfg.alarmRepeat == 0 || r < cfg.alarmRepeat - 1)
+            this_thread::sleep_for(chrono::seconds(cfg.alarmInterval));
+    }
+}
+
+// Führt --cmd, --open und --focus nach Ablauf des Timers aus.
+static void runPostActions(const TimerConfig& cfg) {
+    if (!cfg.cmdArg.empty())
+        runConsoleCommand(cfg.cmdArg);
+
+    if (!cfg.openFile.empty())
+        openFileAfterTimer(cfg.openFile);
+
+    if (!cfg.focusWindow.empty()) {
+        if (!bringWindowToFront(cfg.focusWindow)) {
+            char buf[256];
+            snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_WARN),
+                     toConsole(toWideArgv(cfg.focusWindow)).c_str());
+            cout << "\r" << buf << "                                        " << flush;
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Audio-Vorwärmung ───────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Initialisiert das Audio-Subsystem synchron, damit die winmm-Geräteöffnung
+// (100–500 ms auf Frischstarts) nicht in den ersten Voralarm-Beep fällt.
+// Greift nur wenn --prealarm aktiv ist; ohne Voralarm übernimmt der
+// BT-Prewarm kurz vor dem Hauptalarm die Codec-Aktivierung.
+static void doAudioPrewarm(const TimerConfig& cfg) {
+    if (cfg.preAlarmSeconds > 0 && !cfg.mute) {
         PlaySoundA(reinterpret_cast<LPCSTR>(tinyInitWav().data()),
                    NULL, SND_MEMORY | SND_SYNC);
         PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
                    NULL, SND_MEMORY | SND_ASYNC);
     }
+}
 
-    // Die normale Timer-Schleife
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Haupttimer-Schleife ────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Führt den Timer aus (ggf. mehrere Durchläufe bei --loop / --daily / --every).
+// Rückgabe: 0 bei normalem Abschluss; 1 bei Fehler (z. B. Zielzeit in Vergangenheit).
+static int runTimerLoop(TimerConfig& cfg) {
+    using namespace chrono;
+    constexpr int BAR_WIDTH = 30;
+
     do {
-        if (loop && loopCount < std::numeric_limits<long long>::max()) ++loopCount;
+        if (cfg.loop && cfg.loopCount < std::numeric_limits<long long>::max())
+            ++cfg.loopCount;
 
-        // Für --daily und --at: absoluten Wanduhr-Zielzeitpunkt frisch bestimmen
-        chrono::system_clock::time_point wallTarget;
-        if (useDailyTimes) {
-            wallTarget = nextDailyTarget(dailyTimes);
-        } else if (useEvery) {
-            wallTarget = nextEveryTarget(everySpec);
-        } else if (useAtTime) {
+        // ── Zielzeitpunkt für diesen Durchlauf bestimmen ──────────────
+        system_clock::time_point wallTarget;
+
+        if (cfg.useDailyTimes) {
+            wallTarget = nextDailyTarget(cfg.dailyTimes);
+        } else if (cfg.useEvery) {
+            wallTarget = nextEveryTarget(cfg.everySpec);
+        } else if (cfg.useAtTime) {
             long long nextMs;
-            if (useAtDateTime && loopCount > 1) {
-                // Jedes Jahr am selben Kalenderdatum zur selben Uhrzeit wiederholen.
-                // Sonderfall 29. Feb: mktime normalisiert auf 1. März in Nicht-Schaltjahren.
-                atYear += 1;
-                nextMs = millisecondsUntilDateTime(atYear, atMonth, atDay, atHour, atMinute, atSecond);
+            if (cfg.useAtDateTime && cfg.loopCount > 1) {
+                // Jährliche Wiederholung (29. Feb: mktime normalisiert auf 1. März).
+                cfg.atYear += 1;
+                nextMs = millisecondsUntilDateTime(cfg.atYear, cfg.atMonth, cfg.atDay,
+                                                   cfg.atHour, cfg.atMinute, cfg.atSecond);
             } else {
-                nextMs = useAtDateTime
-                             ? millisecondsUntilDateTime(atYear, atMonth, atDay, atHour, atMinute, atSecond)
-                             : millisecondsUntilTime(atHour, atMinute, atSecond);
+                nextMs = cfg.useAtDateTime
+                             ? millisecondsUntilDateTime(cfg.atYear, cfg.atMonth, cfg.atDay,
+                                                         cfg.atHour, cfg.atMinute, cfg.atSecond)
+                             : millisecondsUntilTime(cfg.atHour, cfg.atMinute, cfg.atSecond);
             }
             if (nextMs == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
-            ms = nextMs;
-            if (ms > MAX_MS) ms = MAX_MS;
-            // Ziel als absoluter system_clock-Zeitpunkt, NTP-Korrekturen werden automatisch berücksichtigt.
-            wallTarget = chrono::system_clock::now() + chrono::milliseconds(ms);
+            cfg.ms = (nextMs > MAX_MS) ? MAX_MS : nextMs;
+            // Absoluter Wanduhr-Zielzeitpunkt: NTP-Korrekturen wirken automatisch.
+            wallTarget = system_clock::now() + milliseconds(cfg.ms);
         }
 
-        long long totalMsThisRound = (useDailyTimes || useEvery || useAtTime)
-                                         ? chrono::duration_cast<chrono::milliseconds>(
-                                               wallTarget - chrono::system_clock::now()).count()
-                                         : ms;
+        const bool wallMode = cfg.useDailyTimes || cfg.useEvery || cfg.useAtTime;
 
-        // Wanduhr-Ziel als time_t für Tomorrow-Anzeige
-        time_t wallTargetT = 0;
-        if (useDailyTimes || useEvery || useAtTime) {
-            wallTargetT = chrono::system_clock::to_time_t(wallTarget);
-        }
+        long long totalMsThisRound = wallMode
+                                         ? duration_cast<milliseconds>(wallTarget - system_clock::now()).count()
+                                         : cfg.ms;
 
-        auto start = chrono::steady_clock::now();
-        auto end   = start + chrono::milliseconds(totalMsThisRound);
+        // Wanduhr-Ziel als time_t für die "morgen"-Anzeige im Balken
+        time_t wallTargetT = wallMode ? system_clock::to_time_t(wallTarget) : 0;
 
-        // customMsg einmalig in wstring konvertieren. Aendert sich eh nie waehrend des Durchlaufs.
+        auto start = steady_clock::now();
+        auto end   = start + milliseconds(totalMsThisRound);
+
+        // Benutzerdefinierte Notiz für Fenstertitel vorbereiten (einmalig pro Durchlauf)
         wstring customMsgW;
-        if (!customMsg.empty()) {
-            customMsgW = toWideArgv(customMsg);
-            const size_t maxLen = 30;
-            if (customMsgW.size() > maxLen)
-                customMsgW = customMsgW.substr(0, maxLen) + L"...";
+        if (!cfg.customMsg.empty()) {
+            customMsgW = toWideArgv(cfg.customMsg);
+            if (customMsgW.size() > 30) customMsgW = customMsgW.substr(0, 30) + L"...";
         }
 
-        long long lastVerbleibendSec = -1;
-        bool soundPrewarmed  = false; // Bluetooth-Prewarm: einmalig pro Durchlauf
-        bool preAlarmStarted = false; // Voralarm-WAV: einmalig pro Durchlauf gestartet
-        vector<uint8_t> preAlarmWavBuf; // Haelt den Voralarm-Puffer am Leben (SND_MEMORY | SND_ASYNC)
+        // ── Tick-Schleife: Fortschrittsbalken und Voralarm ────────────
+        long long       lastVerbleibendSec = -1;
+        bool            soundPrewarmed     = false; // BT-Prewarm: einmalig pro Durchlauf
+        bool            preAlarmStarted    = false; // Voralarm-WAV: einmalig pro Durchlauf
+        vector<uint8_t> preAlarmWavBuf;             // hält Voralarm-Puffer am Leben (SND_ASYNC)
 
         while (true) {
-            auto nowSteady = chrono::steady_clock::now();
-            auto nowWall   = chrono::system_clock::now();
+            auto nowSteady = steady_clock::now();
+            auto nowWall   = system_clock::now();
 
-            bool done = false;
             long long verbleibendMs = 0;
+            bool      done          = false;
 
-            if (useDailyTimes || useEvery || useAtTime) {
-                verbleibendMs = chrono::duration_cast<chrono::milliseconds>(
-                                    wallTarget - nowWall).count();
+            if (wallMode) {
+                verbleibendMs = duration_cast<milliseconds>(wallTarget - nowWall).count();
                 if (verbleibendMs <= 0) done = true;
             } else {
-                verbleibendMs = chrono::duration_cast<chrono::milliseconds>(
-                                    end - nowSteady).count();
+                verbleibendMs = duration_cast<milliseconds>(end - nowSteady).count();
                 if (nowSteady >= end) done = true;
             }
-
             if (done) break;
             if (verbleibendMs < 0) verbleibendMs = 0;
 
@@ -1908,291 +1913,205 @@ int main(int argc, char* argv[])
             if (verbleibendSec != lastVerbleibendSec) {
                 lastVerbleibendSec = verbleibendSec;
 
-                // BT-PREWARM (nur ohne Voralarm): Stille-Loop 2 s vor dem Alarm starten.
-                // Bei aktivem Voralarm entfaellt das. Die Voralarm-WAV unten
-                // enthaelt bereits Stille am Anfang und haelt BT durchgehend warm.
-                if (!mute && !asyncSound && !soundPrewarmed && preAlarmSeconds == 0 &&
-                    verbleibendSec > 0 && verbleibendSec <= 2)
+                // BT-Vorwärmung kurz vor Ablauf (nur ohne Voralarm).
+                // Mit aktivem Voralarm übernimmt die Voralarm-WAV die Codec-Aktivierung.
+                if (!cfg.mute && !cfg.asyncSound && !soundPrewarmed &&
+                    cfg.preAlarmSeconds == 0 && verbleibendSec > 0 && verbleibendSec <= 2)
                 {
                     soundPrewarmed = true;
                     PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
                                NULL, SND_MEMORY | SND_ASYNC | SND_LOOP);
                 }
 
-                // VORALARM: Einmalig pro Durchlauf einen WAV-Puffer aufbauen und abspielen.
-                // Der Puffer enthaelt Stille (BT-Prewarm) gefolgt von allen Beeps.
-                // Ein kontinuierlicher Audio-Stream ohne Unterbrechung.
-                // Kein SND_LOOP: der Puffer endet nach dem letzten Beep von selbst.
-                // Der Alarm-PlaySoundA am Durchlaufende unterbricht automatisch.
-                // preAlarmWavBuf haelt den Puffer am Leben bis der Stream endet.
-                if (preAlarmSeconds > 0 && !preAlarmStarted &&
-                    verbleibendSec > 0 && verbleibendSec <= static_cast<long long>(preAlarmSeconds) + 3)
+                // Voralarm: einmalig pro Durchlauf aufbauen und starten.
+                // Der WAV-Puffer enthält Stille (BT-Prewarm) gefolgt von allen Beeps
+                // als kontinuierlichen Stream – kein SND_LOOP, endet nach letztem Beep.
+                if (cfg.preAlarmSeconds > 0 && !preAlarmStarted &&
+                    verbleibendSec > 0 && verbleibendSec <= static_cast<long long>(cfg.preAlarmSeconds) + 3)
                 {
                     preAlarmStarted = true;
-                    // Anzahl verbleibender Beeps: kuerzer als preAlarmSeconds wenn der Timer
-                    // insgesamt kuerzer als preAlarmSeconds + 3 s ist.
-                    int beepCount  = static_cast<int>(
-                        min(verbleibendSec, static_cast<long long>(preAlarmSeconds)));
-                    // Stille-Prewarm exakt auf den ersten Sekundentick ausrichten:
-                    // verbleibendMs (nicht gerundete verbleibendSec) verwenden, damit
-                    // der erste Beep exakt mit dem Sekundentick des Balkens zusammenfällt.
-                    // Normalfall (Timer >= preAlarmSeconds + 3 s):
-                    //   verbleibendSec = ceil(verbleibendMs/1000), daher liegt
-                    //   prewarmMs = verbleibendMs − beepCount*1000 in (2000, 3000],
-                    //   d. h. mindestens 2 s BT-Aufwaermzeit sind garantiert.
-                    // Kurze Timer (Timer < preAlarmSeconds + 3 s):
-                    //   Der Trigger feuert sofort beim ersten Tick, prewarmMs
-                    //   kann dabei gegen 0 fallen. Mindestwert 500 ms sichert
-                    //   auch hier minimale BT-Codec-Aktivierungszeit.
-                    //   Beep-Synchronisation mit dem Balken ist in diesem
-                    //   Sonderfall ohnehin nicht mehr exakt moeglich.
-                    int prewarmMs  = static_cast<int>(
+                    int beepCount = static_cast<int>(
+                        min(verbleibendSec, static_cast<long long>(cfg.preAlarmSeconds)));
+                    // Stille-Prewarm auf den ersten Sekundentick ausrichten.
+                    // Mindest 500 ms: sichert BT-Codec-Aktivierung auch bei kurzen Timern.
+                    int prewarmMs = static_cast<int>(
                         verbleibendMs - static_cast<long long>(beepCount) * 1000LL);
                     if (prewarmMs < 500) prewarmMs = 500;
-
                     preAlarmWavBuf = buildPreAlarmWav(beepCount, prewarmMs);
-                    if (!preAlarmWavBuf.empty()) {
+                    if (!preAlarmWavBuf.empty())
                         PlaySoundA(reinterpret_cast<LPCSTR>(preAlarmWavBuf.data()),
                                    NULL, SND_MEMORY | SND_ASYNC);
-                    }
                 }
 
-                long long totalMs = totalMsThisRound;
-
-                long long elapsedMs = totalMs - verbleibendMs;
+                // Fortschrittsbalken aktualisieren
+                long long  elapsedMs = totalMsThisRound - verbleibendMs;
                 if (elapsedMs < 0) elapsedMs = 0;
-                long double fraction = (totalMs > 0)
-                                           ? (static_cast<long double>(elapsedMs) / static_cast<long double>(totalMs))
+                long double fraction = (totalMsThisRound > 0)
+                                           ? static_cast<long double>(elapsedMs) / static_cast<long double>(totalMsThisRound)
                                            : 1.0L;
                 if (fraction < 0.0L) fraction = 0.0L;
                 if (fraction > 1.0L) fraction = 1.0L;
+
                 string verbleibendStr = formatVerbleibend(verbleibendSec);
-
+                string prefix         = buildBarPrefix(cfg.loop, cfg.loopCount,
+                                               verbleibendStr, wallTargetT);
+                // Fenstertitel einmal pro Sekunde
                 {
-                    // verbleibendStr enthaelt nur ASCII (Ziffern + y/mo/d/h/m/s)
                     wstring titleW = L"Teefax - " + wstring(verbleibendStr.begin(), verbleibendStr.end());
-                    if (!customMsgW.empty())
-                        titleW += L" | " + customMsgW;
-                    SetConsoleTitleW(titleW.c_str()); // Zeit im Fenstertitel anzeigen
+                    if (!customMsgW.empty()) titleW += L" | " + customMsgW;
+                    SetConsoleTitleW(titleW.c_str());
                 }
 
-                // Prefix-Text aufbauen und Balkenbreite dynamisch anpassen.
-                // Verhindert Zeilenumbrueche in schmalen Konsolenfenstern:
-                // bei zu wenig Platz entfaellt der Balken, der Zeittext bleibt.
-                {
-                    char buf[128];
-                    string prefix;
-                    if (loop) {
-                        snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
-                        prefix += buf;
-                    }
-                    snprintf(buf, sizeof(buf), t(Str::REMAINING), verbleibendStr.c_str());
-                    prefix += buf;
-                    if (wallTargetT != 0 && isTargetTomorrow(wallTargetT))
-                        prefix += t(Str::TOMORROW_SUFFIX);
-
-                    // Effektive Balkenbreite: Konsolenbreite − Prefix − " [" − "]        " − 2 Puffer
-                    int effectiveBar = barWidth;
-                    {
-                        CONSOLE_SCREEN_BUFFER_INFO csbi;
-                        if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-                            int w = (csbi.srWindow.Right - csbi.srWindow.Left + 1)
-                            - static_cast<int>(prefix.size()) - 13;
-                            effectiveBar = (w < 0) ? 0 : (w > barWidth ? barWidth : w);
-                        }
-                    }
-
-                    int filled = (effectiveBar > 0)
-                                     ? static_cast<int>(fraction * effectiveBar)
-                                     : 0;
-                    if (filled > effectiveBar) filled = effectiveBar;
-
-                    cout << "\r" << prefix;
-                    if (effectiveBar > 0) {
-                        cout << " [";
-                        for (int i = 0; i < effectiveBar; ++i) cout << (i < filled ? '#' : '-');
-                        cout << "]";
-                    }
-                    cout << "        " << flush;
-                }
+                int effBar = calcEffectiveBarWidth(static_cast<int>(prefix.size()), BAR_WIDTH);
+                int filled = (effBar > 0)
+                                 ? min(static_cast<int>(fraction * effBar), effBar) : 0;
+                renderBar(prefix, filled, effBar);
             }
 
             // Bis zur nächsten Sekundengrenze schlafen.
-            // Wandzeitmodi (--at, --daily, --every):
-            //   Zielpunkt wird aus wallTarget (system_clock) berechnet,
-            //   der eigentliche Schlaf läuft aber auf steady_clock.
-            //   So bleiben NTP-Vorwärtskorrekturen wirksam, während
-            //   Rückwärtssprünge den Thread nicht einfrieren.
-            //   Obergrenze 1,5s: nach einem Rückwärtssprung wird spätestens
-            //   dann neu ausgewertet, damit die Anzeige nicht einfriert.
-            // Countdown-Modus (5m, 1h30m ...):
-            //   sleep_until auf steady_clock direkt, also kein Drift möglich.
+            // Wandzeitmodi: Schlaf auf steady_clock, NTP-Vorwärtskorrekturen wirken.
+            //   Obergrenze 1,5 s verhindert Einfrieren bei NTP-Rückwärtssprüngen.
+            // Countdown-Modus: sleep_until direkt auf steady_clock, kein Drift.
             if (verbleibendSec >= 1) {
-                if (useDailyTimes || useEvery || useAtTime) {
-                    auto nextWallTick   = wallTarget - chrono::seconds(verbleibendSec - 1);
-                    auto durationToTick = nextWallTick - chrono::system_clock::now();
-                    if (durationToTick > chrono::milliseconds(1500))
-                        durationToTick = chrono::milliseconds(1500);
-                    if (durationToTick > chrono::milliseconds(0))
-                        this_thread::sleep_until(
-                            chrono::steady_clock::now() +
-                            chrono::duration_cast<chrono::milliseconds>(durationToTick));
+                if (wallMode) {
+                    auto nextWallTick   = wallTarget - seconds(verbleibendSec - 1);
+                    auto durationToTick = nextWallTick - system_clock::now();
+                    if (durationToTick > milliseconds(1500))
+                        durationToTick = milliseconds(1500);
+                    if (durationToTick > milliseconds(0))
+                        this_thread::sleep_until(steady_clock::now() +
+                                                 duration_cast<milliseconds>(durationToTick));
                 } else {
-                    this_thread::sleep_until(
-                        end - chrono::seconds(verbleibendSec - 1));
+                    this_thread::sleep_until(end - seconds(verbleibendSec - 1));
                 }
             }
         }
+        // ── Ende Tick-Schleife ────────────────────────────────────────
 
+        // Vollständiger Balken am Ende des Durchlaufs
         {
-            char buf[128];
-            string prefix;
-            if (loop) {
-                snprintf(buf, sizeof(buf), t(Str::LOOP_PREFIX), loopCount);
-                prefix += buf;
-            }
-            snprintf(buf, sizeof(buf), t(Str::REMAINING), "00:00");
-            prefix += buf;
-
-            int effectiveBar = barWidth;
-            {
-                CONSOLE_SCREEN_BUFFER_INFO csbi;
-                if (GetConsoleScreenBufferInfo(GetStdHandle(STD_OUTPUT_HANDLE), &csbi)) {
-                    int w = (csbi.srWindow.Right - csbi.srWindow.Left + 1)
-                    - static_cast<int>(prefix.size()) - 13;
-                    effectiveBar = (w < 0) ? 0 : (w > barWidth ? barWidth : w);
-                }
-            }
-
-            cout << "\r" << prefix;
-            if (effectiveBar > 0) {
-                cout << " [";
-                for (int i = 0; i < effectiveBar; ++i) cout << '#';
-                cout << "]";
-            }
-            cout << "        " << flush;
+            string prefix = buildBarPrefix(cfg.loop, cfg.loopCount, "00:00", 0);
+            int effBar    = calcEffectiveBarWidth(static_cast<int>(prefix.size()), BAR_WIDTH);
+            renderBar(prefix, effBar, effBar);
         }
 
-        // \n nach dem vollen Balken:
-        // - Immer beim letzten Durchlauf (TIMER_ENDED, MessageBox folgen).
-        // - Immer wenn --cmd aktiv ist: CMD_STARTED und Prozessausgabe sollen
-        //   auf eigenen Zeilen stehen, nicht neben dem Balken.
-        // - --open und --focus: kein eigenes \n noetig (kein Konsolentext bei Erfolg;
-        //   Fehler steuern \n selbst via \r/printErr bzw. Abbruchmeldung).
-        bool isLastIteration = !loop || (maxLoops != -1 && loopCount >= maxLoops);
-        bool hasPostOutput   = !cmdArg.empty();
-        if (isLastIteration || hasPostOutput)
+        // Zeilenumbruch: immer beim letzten Durchlauf; immer wenn --cmd folgt,
+        // damit CMD_STARTED und Prozessausgabe auf eigenen Zeilen stehen.
+        bool isLastIteration = !cfg.loop || (cfg.maxLoops != -1 && cfg.loopCount >= cfg.maxLoops);
+        if (isLastIteration || !cfg.cmdArg.empty())
             cout << "\n" << flush;
 
-        if (!mute) {
-            for (long long r = 0; alarmRepeat == 0 || r < alarmRepeat; ++r) {
-                if (!soundFile.empty()) {
-                    try {
-                        fs::path p(soundFile);
-                        if (!fs::exists(p) || !fs::is_regular_file(p)) {
-                            char buf[512];
-                            snprintf(buf, sizeof(buf), t(Str::AUDIO_NOT_FOUND),
-                                     toConsole(toWideArgv(soundFile)).c_str());
-                            cout << buf << "\n";
-                        } else {
-                            wstring widePath = toWideArgv(soundFile);
-                            if (!widePath.empty()) {
-                                UINT flags = SND_FILENAME | (asyncSound ? SND_ASYNC : SND_SYNC);
-                                PlaySoundW(widePath.c_str(), NULL, flags);
-                            } else {
-                                char buf[512];
-                                snprintf(buf, sizeof(buf), t(Str::AUDIO_PATH_ERROR),
-                                         toConsole(toWideArgv(soundFile)).c_str());
-                                cout << buf << "\n";
-                            }
-                        }
-                    } catch (const fs::filesystem_error& e) {
-                        char buf[512];
-                        snprintf(buf, sizeof(buf), t(Str::FILE_SYSTEM_ERROR), e.what());
-                        cout << buf << "\n";
-                    }
-                } else {
-                    if (asyncSound) {
-                        thread([](){
-                            PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_ASYNC);
-                        }).detach();
-                    } else {
-                        PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_SYNC);
-                    }
-                }
-                if (alarmRepeat == 0 || r < alarmRepeat - 1) this_thread::sleep_for(chrono::seconds(alarmInterval));
-            }
-        }
+        if (!cfg.mute) playAlarmSound(cfg);
 
-        // Konsolenmodus wiederherstellen, damit Kind-Prozesse (etwa via --cmd gestartet)
-        // die originale Einstellung erben und sie beim Beenden korrekt zurücksetzen können.
-        if (g_consoleModeChanged) {
-            SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
-            g_consoleModeChanged = false;
-        }
+        // Konsolenmodus wiederherstellen, damit Kindprozesse den Originalzustand erben.
+        restoreConsoleMode();
 
-        // Datei öffnen oder Konsolenbefehl ausführen
-        if (!cmdArg.empty()) {
-            runConsoleCommand(cmdArg);
-        }
+        runPostActions(cfg);
 
-        // QuickEdit nach jedem Durchlauf neu deaktivieren.
-        // Bei --cmd: das Kind hat ggf. den Originalzustand (QuickEdit an) beim Beenden
-        // wiederhergestellt. Bei --daily / --every ohne --cmd: die Wiederherstellung oben
-        // schaltet QuickEdit ebenfalls zurück. In beiden Fällen muss es hier erneut
-        // abgeschaltet werden, damit der Timer in Schleifen durchgehend QuickEdit-frei bleibt.
-        if (loop) {
-            HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-            DWORD mode = 0;
-            if (GetConsoleMode(hIn, &mode)) {
-                mode &= ~ENABLE_QUICK_EDIT_MODE;
-                mode |=  ENABLE_EXTENDED_FLAGS;
-                SetConsoleMode(hIn, mode);
-                g_consoleModeChanged = true;
-            }
-        }
-        if (!openFile.empty()) {
-            // Fehlermeldung wird von openFileAfterTimer() ausgegeben.
-            // Schleife laeuft weiter: die Datei koennte in einem spaeten Durchlauf vorhanden sein.
-            openFileAfterTimer(openFile);
-        }
-        if (!focusWindow.empty()) {
-            if (!bringWindowToFront(focusWindow)) {
-                char buf[256];
-                snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_WARN),
-                         toConsole(toWideArgv(focusWindow)).c_str());
-                cout << "\r" << buf << "                                        " << flush;
-                // Schleife laeuft weiter: das Fenster koennte in einem spaeten Durchlauf geoeffnet sein.
-            }
-        }
+        // QuickEdit für den nächsten Durchlauf neu deaktivieren.
+        // --cmd-Kindprozesse und restoreConsoleMode() schalten QuickEdit zurück;
+        // bei --daily/--every ohne --cmd tut restoreConsoleMode() dasselbe.
+        if (cfg.loop) disableQuickEdit();
 
-        // Fenstertitel zurücksetzen, bevor die Benachrichtigung den Fokus/Thread blockiert.
+        // Fenstertitel zurücksetzen, bevor die Benachrichtigung den Thread blockiert.
         SetConsoleTitleA("Teefax");
-
-        // Benachrichtigung, Zeit abgelaufen
-        if (showMessage) {
+        if (cfg.showMessage) {
             wstring notifyText = toWide(t(Str::NOTIFY_MSG));
-            if (!customMsg.empty())
-                notifyText += L"\n\n" + toWideArgv(customMsg); // benutzerdefinierte Notiz anhängen
-            showNotification(
-                toWide(t(Str::NOTIFY_TITLE)),
-                notifyText
-                );
+            if (!cfg.customMsg.empty())
+                notifyText += L"\n\n" + toWideArgv(cfg.customMsg);
+            showNotification(toWide(t(Str::NOTIFY_TITLE)), notifyText);
         }
 
-    } while (loop && (maxLoops == -1 || loopCount < maxLoops));
-    cout << t(Str::TIMER_ENDED);
-
-    // Bildschirmschoner wieder erlauben
-    if (noSleep){
-        preventSleep(false);
-    }
-
-    // Konsolenmodus wiederherstellen
-    if (g_consoleModeChanged) {
-        SetConsoleMode(GetStdHandle(STD_INPUT_HANDLE), g_originalConsoleMode);
-        g_consoleModeChanged = false;
-    }
+    } while (cfg.loop && (cfg.maxLoops == -1 || cfg.loopCount < cfg.maxLoops));
 
     return 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ── Hauptprogramm ──────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+int main(int argc, char* argv[])
+{
+    ios::sync_with_stdio(false);
+    cout.tie(nullptr);
+
+    // Argumentliste aufbauen: Config-Defaults (INI) + Kommandozeile
+    vector<string> args;
+    loadConfigArgs(args);
+    for (int i = 1; i < argc; ++i) args.push_back(argv[i]);
+
+    // Sprache frühzeitig setzen (--macro-Meldungen nutzen sie bereits)
+    detectLanguageFromArgs(args);
+
+    // --macro: auswerten und bei Treffer sofort beenden
+    {
+        int result = handleMacroCommands(args);
+        if (result >= 0) return result;
+    }
+
+    // Makro-Expansion: ersten passenden CLI-Makronamen ersetzen
+    expandMacroInArgs(args, argc);
+
+    // Systemprioritäten, Signal-Handler, Timer-Auflösung
+    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
+    SetConsoleCtrlHandler(ConsoleHandler, TRUE);
+    TimePeriodGuard timeGuard;
+
+    // QuickEdit deaktivieren (außer bei --help, --version, ohne Argumente)
+    setupQuickEdit(args, argc);
+
+    // Sprache erneut setzen: expandierte Makros und CLI überschreiben den INI-Wert
+    detectLanguageFromArgs(args);
+
+    // Ohne Argumente: Hilfe anzeigen
+    if (argc < 2) {
+        char buf[256];
+        snprintf(buf, sizeof(buf), t(Str::STARTED), PRG_VERSION);
+        cout << buf << ".\n\n" << t(Str::USAGE_HEADER);
+        if (!launchedFromExistingConsole()) {
+            cout << "\n" << t(Str::PRESS_ANY_KEY) << "\n" << flush;
+            _getch();
+        }
+        return 0;
+    }
+
+    // Argumente parsen
+    TimerConfig cfg;
+    {
+        int result = parseArguments(args, cfg);
+        if (result >= 0) return result;
+    }
+
+    // Grundlegende Validierung
+    if (!cfg.useAtTime && !cfg.useDailyTimes && !cfg.useEvery &&
+        !cfg.showLiveTime && !cfg.showStopwatch && cfg.ms <= 0) {
+        cout << t(Str::ERROR_NO_TIME) << "\n";
+        return 1;
+    }
+    if (cfg.ms > MAX_MS) cfg.ms = MAX_MS;
+
+    if (cfg.noSleep) preventSleep(true);
+
+    if (!cfg.showLiveTime && !cfg.showStopwatch)
+        printStartMessage(cfg);
+    doPreChecks(cfg);
+
+    // Interaktive Modi laufen bis Strg+C
+    if (cfg.showLiveTime)  return runLiveClockMode();
+    if (cfg.showStopwatch) return runStopwatchMode();
+
+    if (!g_timePeriodOk)
+        fprintf(stderr, "%s\n", t(Str::WARN_TIMER_PERIOD));
+
+    doAudioPrewarm(cfg);
+
+    // Timer ausführen
+    int result = runTimerLoop(cfg);
+
+    if (result == 0) cout << t(Str::TIMER_ENDED);
+    if (cfg.noSleep) preventSleep(false);
+    restoreConsoleMode();
+
+    return result;
 }
