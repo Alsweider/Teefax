@@ -871,7 +871,7 @@ static bool isMacroNameReserved(const string& name) {
         "--open","-o","--cmd","-c","--focus","-f","--prealarm","-pa",
         "--time","-t","--stopwatch","-sw","--daily","-d","--every","-e",
         "--nosleep","-ns","--lang","-la","--version","-v","--help","-h",
-        "--macro"
+        "--macro","--for"
     };
     for (const auto& r : reserved)
         if (name == r) return true;
@@ -1129,6 +1129,10 @@ struct TimerConfig {
     bool      useDailyTimes = false;
     EverySpec everySpec;
     bool      useEvery      = false;
+
+    // --for: Gesamtlaufzeit der Schleife begrenzen
+    long long forMs  = 0;     // 0 = deaktiviert
+    bool      useFor = false;
 
     // Schleifenzustand – wird zur Laufzeit verändert
     long long loopCount = 0;
@@ -1461,6 +1465,10 @@ static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
             cfg.ms = chrono::duration_cast<chrono::milliseconds>(
                          target - chrono::system_clock::now()).count();
             if (cfg.ms <= 0) cfg.ms = 1000;
+
+        } else if (arg == "--for" && i + 1 < nArgs) {
+            long long parsed = parseTime(args[++i]);
+            if (parsed > 0) { cfg.forMs = parsed; cfg.useFor = true; }
 
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < nArgs) {
             ++i; // bereits im Vor-Durchlauf verarbeitet
@@ -1836,7 +1844,58 @@ static int runTimerLoop(TimerConfig& cfg) {
     using namespace chrono;
     constexpr int BAR_WIDTH = 30;
 
+    // wallMode aendert sich nie zwischen Durchlaeufen - einmalig vor der Schleife bestimmen.
+    const bool wallMode = cfg.useDailyTimes || cfg.useEvery || cfg.useAtTime;
+
+    // --for: Gesamtstartzeit; steady_clock, damit NTP-Korrekturen keinen Einfluss haben.
+    const auto forStart = steady_clock::now();
+
+    // Hilfsfunktion: wuerde ein weiterer Countdown-Durchlauf die --for-Zeit ueberschreiten?
+    // Wanduhr-Modi werden am Schleifenkopf gesondert behandelt (Zielzeit unbekannt bis zur Berechnung).
+    auto forWouldStop = [&]() -> bool {
+        if (!cfg.useFor || wallMode) return false;
+        auto elapsed = duration_cast<milliseconds>(steady_clock::now() - forStart).count();
+        return (cfg.forMs - elapsed) < cfg.ms;
+    };
+
     do {
+        // --for (Option C):
+        // Countdown: naechste Iteration laeuft ueber --for-Grenze hinaus?
+        // Wanduhr:   liegt der naechste Zielzeitpunkt noch innerhalb der --for-Zeit?
+        if (cfg.useFor) {
+            auto forElapsed = duration_cast<milliseconds>(steady_clock::now() - forStart).count();
+            if (!wallMode) {
+                if ((cfg.forMs - forElapsed) < cfg.ms) break;
+            } else {
+                if (forElapsed >= cfg.forMs) break;
+                // Naechsten Zielzeitpunkt vorausberechnen (non-destructive, kein Seiteneffekt)
+                system_clock::time_point nextTarget;
+                if (cfg.useDailyTimes) {
+                    nextTarget = nextDailyTarget(cfg.dailyTimes);
+                } else if (cfg.useEvery) {
+                    nextTarget = nextEveryTarget(cfg.everySpec);
+                } else {
+                    // --at --loop: Zeitangabe -> naechstes Vorkommen; Datumsangabe -> naechstes Jahr
+                    long long msTmp;
+                    if (!cfg.useAtDateTime) {
+                        msTmp = millisecondsUntilTime(cfg.atHour, cfg.atMinute, cfg.atSecond);
+                    } else {
+                        int peekYear = cfg.atYear + (cfg.loopCount > 0 ? 1 : 0);
+                        msTmp = millisecondsUntilDateTime(peekYear, cfg.atMonth, cfg.atDay,
+                                                          cfg.atHour, cfg.atMinute, cfg.atSecond);
+                    }
+                    if (msTmp < 0) msTmp = 0;
+                    nextTarget = system_clock::now() + milliseconds(msTmp);
+                }
+                auto msToNext = duration_cast<milliseconds>(nextTarget - system_clock::now()).count();
+                if (msToNext < 0) msToNext = 0;
+                if (forElapsed + msToNext > cfg.forMs) {
+                    cout << "\n" << t(Str::FOR_TARGET_OUTSIDE);
+                    break;
+                }
+            }
+        }
+
         if (cfg.loop && cfg.loopCount < std::numeric_limits<long long>::max())
             ++cfg.loopCount;
 
@@ -1865,8 +1924,6 @@ static int runTimerLoop(TimerConfig& cfg) {
             // Absoluter Wanduhr-Zielzeitpunkt: NTP-Korrekturen wirken automatisch.
             wallTarget = system_clock::now() + milliseconds(cfg.ms);
         }
-
-        const bool wallMode = cfg.useDailyTimes || cfg.useEvery || cfg.useAtTime;
 
         long long totalMsThisRound = wallMode
                                          ? duration_cast<milliseconds>(wallTarget - system_clock::now()).count()
@@ -1997,7 +2054,9 @@ static int runTimerLoop(TimerConfig& cfg) {
 
         // Zeilenumbruch: immer beim letzten Durchlauf; immer wenn --cmd folgt,
         // damit CMD_STARTED und Prozessausgabe auf eigenen Zeilen stehen.
-        bool isLastIteration = !cfg.loop || (cfg.maxLoops != -1 && cfg.loopCount >= cfg.maxLoops);
+        bool isLastIteration = !cfg.loop
+                               || (cfg.maxLoops != -1 && cfg.loopCount >= cfg.maxLoops)
+                               || forWouldStop();
         if (isLastIteration || !cfg.cmdArg.empty())
             cout << "\n" << flush;
 
@@ -2022,7 +2081,9 @@ static int runTimerLoop(TimerConfig& cfg) {
             showNotification(toWide(t(Str::NOTIFY_TITLE)), notifyText);
         }
 
-    } while (cfg.loop && (cfg.maxLoops == -1 || cfg.loopCount < cfg.maxLoops));
+    } while (cfg.loop
+             && (cfg.maxLoops == -1 || cfg.loopCount < cfg.maxLoops)
+             && !forWouldStop());
 
     return 0;
 }
@@ -2091,6 +2152,11 @@ int main(int argc, char* argv[])
         return 1;
     }
     if (cfg.ms > MAX_MS) cfg.ms = MAX_MS;
+
+    if (cfg.useFor && !cfg.loop) {
+        cout << t(Str::ERROR_FOR_REQUIRES_LOOP) << "\n";
+        return 1;
+    }
 
     if (cfg.noSleep) preventSleep(true);
 

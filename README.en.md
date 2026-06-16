@@ -135,6 +135,7 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 |---|---|---|
 | `--mute` | `-m` | No alarm sound |
 | `--loop [count]` | `-l` | Repeat the timer (fixed count optional, otherwise infinite) |
+| `--for <duration>` | | Stop loop after total elapsed time (requires `--loop`, `--daily` or `--every`) |
 | `--at HH:MM[:SS]` | `-a` | Count down to a specific time of day (alias: `--until`) |
 | `--at YYYY-MM-DD` | `-a` | Count down to a specific date (midnight) |
 | `--at YYYY-MM-DD HH:MM` | `-a` | Count down to a specific date and time |
@@ -183,6 +184,7 @@ teefax 5m "C:\Sounds\gong.wav"
 # Loop
 teefax 10s --loop           # repeat forever
 teefax 3m --loop 5          # repeat 5 times
+teefax 10s --loop --for 2m  # repeat until 2 minutes total have elapsed
 
 # Silent timer (no sound, no popup)
 teefax 20s --mute --nomsg

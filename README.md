@@ -133,6 +133,7 @@ Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 3
 |---|---|---|
 | `--mute` | `-m` | Kein Weckton |
 | `--loop [Anzahl]` | `-l` | Timer wiederholen (feste Anzahl optional, sonst unbegrenzt) |
+| `--for <Dauer>` | | Schleife nach Gesamtlaufzeit beenden (erfordert `--loop`, `--daily` oder `--every`) |
 | `--at HH:MM[:SS]` | `-a` | Bis zu einer bestimmten Uhrzeit zählen (Alias: `--until`) |
 | `--at YYYY-MM-DD` | `-a` | Bis zu einem bestimmten Datum zählen (Mitternacht) |
 | `--at YYYY-MM-DD HH:MM` | `-a` | Datum und Uhrzeit kombiniert |
@@ -181,6 +182,7 @@ teefax 5m "C:\Klänge\gong.wav"
 # Schleifen
 teefax 10s --loop           # unbegrenzt wiederholen
 teefax 3m --loop 5          # 5-mal wiederholen
+teefax 10s --loop --for 2m  # wiederholen, bis 2 Minuten Gesamtlaufzeit erreicht sind
 
 # Stiller Timer (kein Ton, kein Popup)
 teefax 20s --mute --nomsg

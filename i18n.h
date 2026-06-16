@@ -58,6 +58,8 @@ enum class Str {
     MACRO_MISSING_SUBCMD,
     MACRO_MISSING_ARGS,
     PRESS_ANY_KEY,
+    ERROR_FOR_REQUIRES_LOOP,
+    FOR_TARGET_OUTSIDE,
     WARN_ALARM_REPEAT_INVALID,
     WARN_ALARM_REPEAT_TOO_LARGE,
     WARN_PATH_TOO_LONG,
@@ -110,6 +112,7 @@ static const TranslationMap LANG_DE = {
         "Optionen:\n"
         "  -m,  --mute                 Kein Weckton abspielen\n"
         "  -l,  --loop [Anzahl]        Wiederhole den Timer\n"
+        "       --for <Dauer>          Schleife nach Gesamtlaufzeit beenden\n"
         "  -ar, --alarm-repeat <n>     Anzahl der Weckton-Wiederholungen (Standard: 1)\n"
         "  -ai, --alarm-interval <s>   Abstand in Sekunden (Standard: 2)\n"
         "  -a,  --at HH:MM[:SS]        Starte bis zur angegebenen Uhrzeit (Alias: --until)\n"
@@ -173,6 +176,8 @@ static const TranslationMap LANG_DE = {
     { Str::MACRO_MISSING_SUBCMD,  "Bitte ein Makrokommando angeben." },
     { Str::MACRO_MISSING_ARGS,    "Bitte Argumente fuer das Makro angeben." },
     { Str::PRESS_ANY_KEY,               "Weiter mit beliebiger Taste ..." },
+    { Str::ERROR_FOR_REQUIRES_LOOP,     "--for erfordert --loop, --daily oder --every." },
+    { Str::FOR_TARGET_OUTSIDE,          "Schleife beendet: naechster Termin liegt ausserhalb der --for-Zeit." },
     { Str::WARN_ALARM_REPEAT_INVALID,   "Warnung: Ungueltiger --alarm-repeat-Wert '%s', verwende 1." },
     { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Warnung: --alarm-repeat-Wert '%s' zu gross, verwende Maximum (%lld)." },
     { Str::WARN_PATH_TOO_LONG,          "Warnung: Pfad zu teefax.exe zu lang (>=%d Zeichen). teefax.ini wird ignoriert." },
@@ -221,6 +226,7 @@ static const TranslationMap LANG_FR = {
         "Options:\n"
         "  -m,  --mute                 Pas de son d'alarme\n"
         "  -l,  --loop [nombre]        Repeter le compteur\n"
+        "       --for <duree>          Arreter la boucle apres la duree totale\n"
         "  -ar, --alarm-repeat <n>     Repetitions de l'alarme (defaut: 1)\n"
         "  -ai, --alarm-interval <s>   Intervalle en secondes (defaut: 2)\n"
         "  -a,  --at HH:MM[:SS]        Compter jusqu'a l'heure indiquee (alias: --until)\n"
@@ -284,6 +290,8 @@ static const TranslationMap LANG_FR = {
     { Str::MACRO_MISSING_SUBCMD,  "Veuillez indiquer une commande de macro." },
     { Str::MACRO_MISSING_ARGS,    "Veuillez indiquer des arguments pour le macro." },
     { Str::PRESS_ANY_KEY,               "Appuyez sur une touche pour continuer ..." },
+    { Str::ERROR_FOR_REQUIRES_LOOP,     "--for necessite --loop, --daily ou --every." },
+    { Str::FOR_TARGET_OUTSIDE,          "Boucle terminee: la prochaine echeance est en dehors de la plage --for." },
     { Str::WARN_ALARM_REPEAT_INVALID,   "Avertissement: valeur --alarm-repeat invalide '%s', utilise 1." },
     { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Avertissement: valeur --alarm-repeat '%s' trop grande, utilise le maximum (%lld)." },
     { Str::WARN_PATH_TOO_LONG,          "Avertissement: chemin vers teefax.exe trop long (>=%d caracteres). teefax.ini sera ignore." },
@@ -332,6 +340,7 @@ static const TranslationMap LANG_PT = {
         "Opcoes:\n"
         "  -m,  --mute                 Sem som de alarme\n"
         "  -l,  --loop [numero]        Repetir o temporizador\n"
+        "       --for <duracao>        Parar o ciclo apos a duracao total\n"
         "  -ar, --alarm-repeat <n>     Repeticoes do alarme (padrao: 1)\n"
         "  -ai, --alarm-interval <s>   Intervalo em segundos (padrao: 2)\n"
         "  -a,  --at HH:MM[:SS]        Contar ate a hora indicada (alias: --until)\n"
@@ -395,6 +404,8 @@ static const TranslationMap LANG_PT = {
     { Str::MACRO_MISSING_SUBCMD,  "Por favor indique um comando de macro." },
     { Str::MACRO_MISSING_ARGS,    "Indique argumentos para o macro." },
     { Str::PRESS_ANY_KEY,               "Prima qualquer tecla para continuar ..." },
+    { Str::ERROR_FOR_REQUIRES_LOOP,     "--for requer --loop, --daily ou --every." },
+    { Str::FOR_TARGET_OUTSIDE,          "Ciclo terminado: o proximo horario esta fora do intervalo --for." },
     { Str::WARN_ALARM_REPEAT_INVALID,   "Aviso: valor --alarm-repeat invalido '%s', usando 1." },
     { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Aviso: valor --alarm-repeat '%s' demasiado grande, usando maximo (%lld)." },
     { Str::WARN_PATH_TOO_LONG,          "Aviso: caminho para teefax.exe demasiado longo (>=%d caracteres). teefax.ini sera ignorado." },
@@ -443,6 +454,7 @@ static const TranslationMap LANG_RU = {
         "Optsii:\n"
         "  -m,  --mute                 Bez zvuka\n"
         "  -l,  --loop [kolichestvo]   Povtorit' tajmer\n"
+        "       --for <vremya>         Ostanovit' petlyu po istechenii obshhego vremeni\n"
         "  -ar, --alarm-repeat <n>     Povtoreniya signala (po umolchaniyu: 1)\n"
         "  -ai, --alarm-interval <s>   Interval v sekundakh (po umolchaniyu: 2)\n"
         "  -a,  --at HH:MM[:SS]        Otschet do ukazannogo vremeni (alias: --until)\n"
@@ -506,6 +518,8 @@ static const TranslationMap LANG_RU = {
     { Str::MACRO_MISSING_SUBCMD,  "Pozhaluysta ukazhite makrokomandu." },
     { Str::MACRO_MISSING_ARGS,    "Ukazhite argumenty dlya makrosa." },
     { Str::PRESS_ANY_KEY,               "Nazhmite lyubuyu klavishu dlya prodolzheniya ..." },
+    { Str::ERROR_FOR_REQUIRES_LOOP,     "--for trebuet --loop, --daily ili --every." },
+    { Str::FOR_TARGET_OUTSIDE,          "Petlya zavershena: sleduyushchij termin vne diapazona --for." },
     { Str::WARN_ALARM_REPEAT_INVALID,   "Preduprezhdenie: neverno znachenie --alarm-repeat '%s', ispol'zuyu 1." },
     { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Preduprezhdenie: znachenie --alarm-repeat '%s' slishkom veliko, ispol'zuyu maksimum (%lld)." },
     { Str::WARN_PATH_TOO_LONG,          "Preduprezhdenie: put' k teefax.exe slishkom dlinnyj (>=%d simvolov). teefax.ini budet ignorirovan." },
@@ -554,6 +568,7 @@ static const TranslationMap LANG_EN = {
         "Options:\n"
         "  -m,  --mute                 No alarm sound\n"
         "  -l,  --loop [count]         Repeat the timer\n"
+        "       --for <duration>       Stop loop after total elapsed time\n"
         "  -ar, --alarm-repeat <n>     Alarm repetitions (default: 1)\n"
         "  -ai, --alarm-interval <s>   Interval in seconds (default: 2)\n"
         "  -a,  --at HH:MM[:SS]        Count to specified time (alias: --until)\n"
@@ -617,6 +632,8 @@ static const TranslationMap LANG_EN = {
     { Str::MACRO_MISSING_SUBCMD,  "Please specify a macro command." },
     { Str::MACRO_MISSING_ARGS,    "Please provide arguments for the macro." },
     { Str::PRESS_ANY_KEY,               "Press any key to continue ..." },
+    { Str::ERROR_FOR_REQUIRES_LOOP,     "--for requires --loop, --daily or --every." },
+    { Str::FOR_TARGET_OUTSIDE,          "Loop ended: next scheduled time is outside the --for window." },
     { Str::WARN_ALARM_REPEAT_INVALID,   "Warning: invalid --alarm-repeat value '%s', using 1." },
     { Str::WARN_ALARM_REPEAT_TOO_LARGE, "Warning: --alarm-repeat value '%s' is too large, using maximum (%lld)." },
     { Str::WARN_PATH_TOO_LONG,          "Warning: path to teefax.exe is too long (>=%d chars). teefax.ini will be ignored." },
@@ -649,7 +666,7 @@ inline const TranslationMap& currentLang() {
     return lang;
 }
 
-// t() = translate – liefert den Rohstring für snprintf/printf
+// t() = translate - liefert den Rohstring für snprintf/printf
 inline const char* t(Str id) {
     const auto& m = currentLang();
     auto it = m.find(id);

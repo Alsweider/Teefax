@@ -190,6 +190,33 @@ teefax 2s --loop --mute --nomsg
 - [ ] Timer läuft unbegrenzt
 - [ ] `Strg+C` beendet das Programm sauber (kein hängender Prozess)
 
+```
+teefax 1s --loop --for 5s --mute --nomsg
+```
+
+- [ ] Timer läuft mehrfach durch und endet nach ca. 5 Sekunden Gesamtlaufzeit automatisch (4–5 Durchläufe)
+- [ ] Exit-Code 0
+
+```
+teefax 5s --loop --for 7s --mute --nomsg
+```
+
+- [ ] Genau 1 Durchlauf (5s); zweiter Durchlauf startet nicht, da er die 7s-Grenze überschreiten würde
+- [ ] Exit-Code 0
+
+```
+teefax --daily HH:MM --for 1m    (HH:MM ca. 2 Minuten in der Zukunft)
+```
+
+- [ ] Programm beendet sich sofort mit `Zaehler beendet.`, da der nächste Termin außerhalb der --for-Zeit liegt
+- [ ] Exit-Code 0
+
+```
+teefax 1s --for 3s --mute --nomsg
+```
+
+- [ ] Fehlermeldung (`--for erfordert --loop ...`), Exit-Code 1
+
 ---
 
 ## 8. Voralarm (--prealarm)

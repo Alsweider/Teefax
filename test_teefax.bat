@@ -108,6 +108,14 @@ set T=--loop 2 Durchlaeufe
 "%EXE%" 1s --loop 2 --mute --nomsg >nul 2>&1
 call :chk %errorlevel% 0
 
+set T=--for begrenzt Schleife (1s --loop --for 3s)
+"%EXE%" 1s --loop --for 3s --mute --nomsg >nul 2>&1
+call :chk %errorlevel% 0
+
+set T=--for ohne --loop gibt Exit 1
+"%EXE%" 1s --for 3s --mute --nomsg >nul 2>&1
+call :chk %errorlevel% 1
+
 set T=--loop mit Zaehler (--loop 3)
 "%EXE%" 500ms --loop 3 --mute --nomsg >nul 2>&1
 call :chk %errorlevel% 0
