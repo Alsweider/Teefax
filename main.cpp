@@ -1864,17 +1864,17 @@ static int runTimerLoop(TimerConfig& cfg) {
     auto forWouldStop = [&]() -> bool {
         if (!cfg.useFor || wallMode) return false;
         auto elapsed = duration_cast<milliseconds>(steady_clock::now() - forStart).count();
-        return (cfg.forMs - elapsed) < cfg.ms;
+        return elapsed >= cfg.forMs;
     };
 
     do {
         // --for (Option C):
-        // Countdown: naechste Iteration laeuft ueber --for-Grenze hinaus?
+        // Countdown: ist die --for-Zeit bereits abgelaufen? Dann keinen weiteren Durchlauf starten.
         // Wanduhr:   liegt der naechste Zielzeitpunkt noch innerhalb der --for-Zeit?
         if (cfg.useFor) {
             auto forElapsed = duration_cast<milliseconds>(steady_clock::now() - forStart).count();
             if (!wallMode) {
-                if ((cfg.forMs - forElapsed) < cfg.ms) break;
+                if (forElapsed >= cfg.forMs) break;
             } else {
                 if (forElapsed >= cfg.forMs) break;
                 // Naechsten Zielzeitpunkt vorausberechnen (non-destructive, kein Seiteneffekt)

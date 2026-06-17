@@ -201,7 +201,7 @@ teefax 1s --loop --for 5s --mute --nomsg
 teefax 5s --loop --for 7s --mute --nomsg
 ```
 
-- [ ] Genau 1 Durchlauf (5s); zweiter Durchlauf startet nicht, da er die 7s-Grenze überschreiten würde
+- [ ] Genau 2 Durchläufe (5s + 5s = ~10s); zweiter Durchlauf startet bei ~5s, also noch innerhalb der 7s-Grenze
 - [ ] Exit-Code 0
 
 ```
