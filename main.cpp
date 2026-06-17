@@ -1467,8 +1467,17 @@ static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
             if (cfg.ms <= 0) cfg.ms = 1000;
 
         } else if (arg == "--for" && i + 1 < nArgs) {
-            long long parsed = parseTime(args[++i]);
-            if (parsed > 0) { cfg.forMs = parsed; cfg.useFor = true; }
+            const string& forVal = args[++i];
+            long long parsed = parseTime(forVal);
+            if (parsed > 0) {
+                cfg.forMs  = parsed;
+                cfg.useFor = true;
+            } else {
+                char buf[256];
+                snprintf(buf, sizeof(buf), t(Str::ERROR_INVALID_FOR), forVal.c_str());
+                cout << buf << "\n";
+                return 1;
+            }
 
         } else if ((arg == "--lang" || arg == "-la") && i + 1 < nArgs) {
             ++i; // bereits im Vor-Durchlauf verarbeitet

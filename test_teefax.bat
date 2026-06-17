@@ -116,6 +116,10 @@ set T=--for ohne --loop gibt Exit 1
 "%EXE%" 1s --for 3s --mute --nomsg >nul 2>&1
 call :chk %errorlevel% 1
 
+set T=--for mit ungueltigem Wert gibt Exit 1
+"%EXE%" 1s --loop --for xyz --mute --nomsg >nul 2>&1
+call :chk %errorlevel% 1
+
 set T=--loop mit Zaehler (--loop 3)
 "%EXE%" 500ms --loop 3 --mute --nomsg >nul 2>&1
 call :chk %errorlevel% 0
