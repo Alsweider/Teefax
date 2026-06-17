@@ -130,7 +130,7 @@ long long unitToMilliseconds(double value, const string& unitPart) {
     else {
         char buf[256];
         snprintf(buf, sizeof(buf), t(Str::ERROR_UNKNOWN_UNIT), unitPart.c_str());
-        cout << buf;
+        cout << buf << "\n";
         return 0;
     }
 }
@@ -1868,7 +1868,7 @@ static int runTimerLoop(TimerConfig& cfg) {
     };
 
     do {
-        // --for (Option C):
+        // --for:
         // Countdown: ist die --for-Zeit bereits abgelaufen? Dann keinen weiteren Durchlauf starten.
         // Wanduhr:   liegt der naechste Zielzeitpunkt noch innerhalb der --for-Zeit?
         if (cfg.useFor) {
@@ -2151,19 +2151,24 @@ int main(int argc, char* argv[])
     TimerConfig cfg;
     {
         int result = parseArguments(args, cfg);
-        if (result >= 0) return result;
+        if (result >= 0) {
+            restoreConsoleMode();
+            return result;
+        }
     }
 
     // Grundlegende Validierung
     if (!cfg.useAtTime && !cfg.useDailyTimes && !cfg.useEvery &&
         !cfg.showLiveTime && !cfg.showStopwatch && cfg.ms <= 0) {
         cout << t(Str::ERROR_NO_TIME) << "\n";
+        restoreConsoleMode();
         return 1;
     }
     if (cfg.ms > MAX_MS) cfg.ms = MAX_MS;
 
     if (cfg.useFor && !cfg.loop) {
         cout << t(Str::ERROR_FOR_REQUIRES_LOOP) << "\n";
+        restoreConsoleMode();
         return 1;
     }
 
