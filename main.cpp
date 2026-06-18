@@ -1306,12 +1306,12 @@ static void expandMacroInArgs(vector<string>& args, int argc) {
 
     // Flags, deren naechstes Token ein freier Wert ist (kein Makroname)
     static const vector<string> valueFlags = {
-        "--msg",           "--cmd",    "--open",   "-o",
+        "--msg",           "--cmd",    "-c",       "--open",   "-o",
         "--focus",         "-f",       "--at",     "-a",   "--until",
         "--lang",          "-la",      "--for",
         "--alarm-repeat",  "-ar",      "--alarm-interval", "-ai",
         "--prealarm",      "-pa",      "--loop",   "-l",
-        "--every",         "-e"
+        "--every",         "-e",       "--daily",  "-d"
     };
 
     bool skipNext = false;
