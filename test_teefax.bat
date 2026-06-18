@@ -226,6 +226,12 @@ set T=--macro remove loescht Makro (Exit 0)
 "%EXE%" --macro remove ttest >nul 2>&1
 call :chk %errorlevel% 0
 
+set T=--msg-Wert wird nicht als Makro expandiert
+"%EXE%" --macro add ttest 500ms --mute --nomsg >nul 2>&1
+"%EXE%" 1s --mute --msg "ttest" --nomsg >nul 2>&1
+call :chk %errorlevel% 0
+"%EXE%" --macro remove ttest >nul 2>&1
+
 set T=--macro remove nicht-vorhandenes Makro gibt Exit 1
 "%EXE%" --macro remove ttest_nx >nul 2>&1
 call :chk %errorlevel% 1

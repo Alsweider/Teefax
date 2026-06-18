@@ -1303,9 +1303,26 @@ static void expandMacroInArgs(vector<string>& args, int argc) {
     auto macros = loadMacros();
     int cliStart = static_cast<int>(args.size()) - (argc - 1);
     if (cliStart < 0) cliStart = 0;
+
+    // Flags, deren naechstes Token ein freier Wert ist (kein Makroname)
+    static const vector<string> valueFlags = {
+        "--msg",           "--cmd",    "--open",   "-o",
+        "--focus",         "-f",       "--at",     "-a",   "--until",
+        "--lang",          "-la",      "--for",
+        "--alarm-repeat",  "-ar",      "--alarm-interval", "-ai",
+        "--prealarm",      "-pa",      "--loop",   "-l",
+        "--every",         "-e"
+    };
+
+    bool skipNext = false;
     for (int i = cliStart; i < static_cast<int>(args.size()); ++i) {
         const string& a = args[i];
-        if (a[0] == '-') continue;
+        if (skipNext) { skipNext = false; continue; }
+        if (a[0] == '-') {
+            for (const auto& vf : valueFlags)
+                if (a == vf) { skipNext = true; break; }
+            continue;
+        }
         auto it = macros.find(a);
         if (it != macros.end()) {
             vector<string> expanded = tokenizeConfigLine(it->second);
