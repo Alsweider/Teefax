@@ -226,9 +226,15 @@ set T=--macro remove loescht Makro (Exit 0)
 "%EXE%" --macro remove ttest >nul 2>&1
 call :chk %errorlevel% 0
 
-set T=--msg-Wert wird nicht als Makro expandiert
-"%EXE%" --macro add ttest 500ms --mute --nomsg >nul 2>&1
-"%EXE%" 1s --mute --msg "ttest" --nomsg >nul 2>&1
+set T=--msg-Wert wird nicht als Makro expandiert (Exit 1 bei Expansion)
+"%EXE%" --macro add ttest dummy --xyzunknown >nul 2>&1
+"%EXE%" 1s --mute --msg ttest --nomsg >nul 2>&1
+call :chk %errorlevel% 0
+"%EXE%" --macro remove ttest >nul 2>&1
+
+set T=-c-Wert wird nicht als Makro expandiert (Exit 1 bei Expansion)
+"%EXE%" --macro add ttest dummy --xyzunknown >nul 2>&1
+"%EXE%" 1s --mute --nomsg -c ttest >nul 2>&1
 call :chk %errorlevel% 0
 "%EXE%" --macro remove ttest >nul 2>&1
 
