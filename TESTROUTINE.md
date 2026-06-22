@@ -524,6 +524,21 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 
 - [ ] Beide Instanzen beenden sich, keine Zombie-Prozesse
 
+### 17.1 Eco-Modus
+
+```
+teefax 5s --mute --nomsg --eco
+```
+
+- [ ] Timer läuft durch, Exit-Code 0
+- [ ] Keine Fehlermeldung (kein falscher `WARN_TIMER_PERIOD`-Hinweis auf stderr)
+
+```
+teefax 5s --eco --prealarm 3 --nomsg
+```
+
+- [ ] Voralarm ertönt, Timer endet sauber
+
 ---
 
 ## 18. Binärdatei
@@ -555,6 +570,7 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 | Makro-System | ☐ OK ☐ Fehler |
 | Doppelklick | ☐ OK ☐ Fehler |
 | Sonderfälle | ☐ OK ☐ Fehler |
+| Eco-Modus | ☐ OK ☐ Fehler |
 | Binärdatei | ☐ OK ☐ Fehler |
 
 **Freigabe:** ☐ Release OK &nbsp;&nbsp; ☐ Nicht freigegeben | offene Punkte: ___________

@@ -152,6 +152,7 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--msg <text>` | | Add a custom note to the notification popup |
 | `--time` | `-t` | Live date & time display (clock mode, exit with Ctrl+C) |
 | `--nosleep` | `-ns` | Prevent screensaver and standby |
+| `--eco` | | Power-saving mode: no `timeBeginPeriod`, normal thread priority. Recommended on battery or older Windows |
 | `--lang <lang>` | `-la` | Set language: `de`, `en`, `fr`, `pt`, `ru` |
 | `--version` | `-v` | Show version number |
 | `--help` | `-h` | Show help |

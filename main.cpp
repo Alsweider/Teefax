@@ -7,6 +7,16 @@
 #include <ctime>
 #include <windows.h>
 #include <mmsystem.h>
+
+// SDK-Kompatibilitaet: PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
+// erst ab Windows SDK 10.0.22000 (Windows 11) definiert.
+// Numerischer Wert laut Microsoft-Dokumentation unveraendert.
+#ifndef PROCESS_POWER_THROTTLING_CURRENT_VERSION
+#define PROCESS_POWER_THROTTLING_CURRENT_VERSION 1
+#endif
+#ifndef PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION
+#define PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION 0x4
+#endif
 #include <filesystem>
 #include <limits>
 #include <cctype>
@@ -16,6 +26,7 @@
 #include <sstream> // Für --every Parsing/Formatierung
 #include <conio.h> // _kbhit(), _getch() für Stoppuhr-Pause
 #include <algorithm>
+#include <optional>
 
 
 
@@ -62,6 +73,21 @@ struct TimePeriodGuard {
             timeEndPeriod(1);
             g_timePeriodSet.store(false);
         }
+    }
+};
+
+// RAII-Hilfe: hebt die Thread-Priorität auf TIME_CRITICAL für die Dauer des Timer-Laufs.
+// Verringert den Aufwachversatz von ~1-3 ms auf ~0,5-1 ms, da der Thread beim Weckruf
+// des Schedulers bevorzugt sofort ausgeführt wird. Kein CPU-Mehrverbrauch, weil der
+// Thread die überwiegende Zeit in sleep_until schläft.
+struct PriorityGuard {
+    int oldPriority;
+    PriorityGuard() {
+        oldPriority = GetThreadPriority(GetCurrentThread());
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+    }
+    ~PriorityGuard() {
+        SetThreadPriority(GetCurrentThread(), oldPriority);
     }
 };
 
@@ -520,6 +546,19 @@ void preventSleep(bool enable)
 #else
     // Platzhalter für Linux/macOS
 #endif
+}
+
+// Verhindert, dass Windows 10/11 auf Akkubetrieb timeBeginPeriod(1) stillschweigend
+// zurückdreht (Power Throttling). Kein RAM-, kein CPU-Mehrverbrauch: der Kernel
+// setzt lediglich ein Flag im Prozesskontrollblock.
+// Nur im Normalmodus aufrufen; im --eco-Modus ist timeBeginPeriod ohnehin deaktiviert.
+static void applyPowerThrottlingExemption() {
+    PROCESS_POWER_THROTTLING_STATE pts = {};
+    pts.Version     = PROCESS_POWER_THROTTLING_CURRENT_VERSION;
+    pts.ControlMask = PROCESS_POWER_THROTTLING_IGNORE_TIMER_RESOLUTION;
+    pts.StateMask   = 0; // 0 = Drosselung abschalten
+    SetProcessInformation(GetCurrentProcess(),
+                          ProcessPowerThrottling, &pts, sizeof(pts));
 }
 
 
@@ -1123,6 +1162,7 @@ struct TimerConfig {
     bool      showLiveTime  = false;
     bool      showStopwatch = false;
     bool      noSleep       = false;
+    bool      eco           = false;
 
     // Täglicher / wiederkehrender Alarm
     vector<tuple<int,int,int>> dailyTimes;
@@ -1365,6 +1405,9 @@ static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
 
         if (arg == "--nosleep" || arg == "-ns") {
             cfg.noSleep = true;
+
+        } else if (arg == "--eco") {
+            cfg.eco = true;
 
         } else if (arg == "--mute" || arg == "-m") {
             cfg.mute = true;
@@ -1870,6 +1913,12 @@ static int runTimerLoop(TimerConfig& cfg) {
     using namespace chrono;
     constexpr int BAR_WIDTH = 30;
 
+    // TIME_CRITICAL nur im Normalmodus: verbessert Aufwach-Präzision ohne CPU-Last,
+    // da der Thread nahezu die gesamte Zeit in sleep_until schläft.
+    // Im --eco-Modus bleibt die Priorität bei ABOVE_NORMAL (aus main()).
+    std::optional<PriorityGuard> prioGuard;
+    if (!cfg.eco) prioGuard.emplace();
+
     // wallMode aendert sich nie zwischen Durchlaeufen - einmalig vor der Schleife bestimmen.
     const bool wallMode = cfg.useDailyTimes || cfg.useEvery || cfg.useAtTime;
 
@@ -2141,10 +2190,14 @@ int main(int argc, char* argv[])
     // Makro-Expansion: ersten passenden CLI-Makronamen ersetzen
     expandMacroInArgs(args, argc);
 
-    // Systemprioritäten, Signal-Handler, Timer-Auflösung
+    // Systemprioritäten und Signal-Handler
     SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_ABOVE_NORMAL);
     SetConsoleCtrlHandler(ConsoleHandler, TRUE);
-    TimePeriodGuard timeGuard;
+
+    // Timer-Auflösung: erst nach Parsing aktivieren (--eco kann sie deaktivieren).
+    // optional<TimePeriodGuard> lebt bis zum Ende von main() und ruft
+    // timeEndPeriod sauber über den Destruktor auf.
+    std::optional<TimePeriodGuard> timeGuard;
 
     // QuickEdit deaktivieren (außer bei --help, --version, ohne Argumente)
     setupQuickEdit(args, argc);
@@ -2189,6 +2242,13 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Normalmodus: Timer-Auflösung auf 1 ms setzen und Power-Throttling-Schutz aktivieren.
+    // Eco-Modus: beides deaktiviert; Windows-Standard (~15,6 ms) bleibt erhalten.
+    if (!cfg.eco) {
+        timeGuard.emplace();
+        applyPowerThrottlingExemption();
+    }
+
     if (cfg.noSleep) preventSleep(true);
 
     if (!cfg.showLiveTime && !cfg.showStopwatch)
@@ -2199,7 +2259,9 @@ int main(int argc, char* argv[])
     if (cfg.showLiveTime)  return runLiveClockMode();
     if (cfg.showStopwatch) return runStopwatchMode();
 
-    if (!g_timePeriodOk)
+    // Im Eco-Modus wurde timeBeginPeriod bewusst nicht aufgerufen;
+    // die Warnung soll nur bei unerwarteten Fehlern im Normalmodus erscheinen.
+    if (!cfg.eco && !g_timePeriodOk)
         fprintf(stderr, "%s\n", t(Str::WARN_TIMER_PERIOD));
 
     doAudioPrewarm(cfg);

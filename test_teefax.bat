@@ -144,6 +144,10 @@ set T=--nosleep
 "%EXE%" 1s --mute --nomsg --nosleep >nul 2>&1
 call :chk %errorlevel% 0
 
+set T=--eco (Energiesparmodus, Exit 0)
+"%EXE%" 1s --mute --nomsg --eco >nul 2>&1
+call :chk %errorlevel% 0
+
 set T=--msg mit Text
 "%EXE%" 1s --mute --nomsg --msg "Testnotiz OK" >nul 2>&1
 call :chk %errorlevel% 0

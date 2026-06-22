@@ -150,6 +150,7 @@ Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 3
 | `--msg <Text>` | | Eigene Notiz im Benachrichtigungsfenster |
 | `--time` | `-t` | Direktanzeige von Datum und Uhrzeit (Beenden mit Strg+C) |
 | `--nosleep` | `-ns` | Bildschirmschoner und Standby unterdrücken |
+| `--eco` | | Energiesparmodus: kein `timeBeginPeriod`, normale Threadpriorität. Empfohlen für Akkubetrieb und älteres Windows |
 | `--lang <Sprache>` | `-la` | Sprache festlegen: `de`, `en`, `fr`, `pt`, `ru` |
 | `--version` | `-v` | Versionsnummer anzeigen |
 | `--help` | `-h` | Hilfe anzeigen |
