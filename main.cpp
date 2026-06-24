@@ -1869,15 +1869,24 @@ static void playAlarmSound(const TimerConfig& cfg) {
 }
 
 // Führt --cmd, --open und --focus nach Ablauf des Timers aus.
-static void runPostActions(const TimerConfig& cfg) {
+// warnOnFail steuert, ob Fehlermeldungen fuer --open und --focus ausgegeben werden.
+// In Schleifen-Zwischendurchlaeufen gilt false: die Aktion wird trotzdem versucht,
+// eine Fehlermeldung erscheint aber erst beim letzten Durchlauf, um die Ausgabe
+// nicht zu zerstueckeln. --cmd ist ausgenommen: dessen Ausgabe erscheint stets.
+static void runPostActions(const TimerConfig& cfg, bool warnOnFail) {
     if (!cfg.cmdArg.empty())
         runConsoleCommand(cfg.cmdArg);
 
-    if (!cfg.openFile.empty())
-        openFileAfterTimer(cfg.openFile);
+    if (!cfg.openFile.empty()) {
+        bool ok = openFileAfterTimer(cfg.openFile);
+        // openFileAfterTimer gibt Fehlermeldungen per \r aus; bei warnOnFail=false
+        // bereits gedruckte Reste mit Leerzeichen ueberschreiben.
+        if (!ok && !warnOnFail)
+            cout << "\r                                                                " << flush;
+    }
 
     if (!cfg.focusWindow.empty()) {
-        if (!bringWindowToFront(cfg.focusWindow)) {
+        if (!bringWindowToFront(cfg.focusWindow) && warnOnFail) {
             char buf[256];
             snprintf(buf, sizeof(buf), t(Str::WINDOW_NOT_FOUND_WARN),
                      toConsole(toWideArgv(cfg.focusWindow)).c_str());
@@ -2140,7 +2149,7 @@ static int runTimerLoop(TimerConfig& cfg) {
         // Konsolenmodus wiederherstellen, damit Kindprozesse den Originalzustand erben.
         restoreConsoleMode();
 
-        runPostActions(cfg);
+        runPostActions(cfg, isLastIteration);
 
         // QuickEdit für den nächsten Durchlauf neu deaktivieren.
         // --cmd-Kindprozesse und restoreConsoleMode() schalten QuickEdit zurück;

@@ -339,7 +339,8 @@ teefax 5s --mute --nomsg --focus "___nichtvorhanden___"
 teefax 5s --loop 2 --mute --nomsg --focus "___nichtvorhanden___"
 ```
 
-- [ ] Warnung erscheint nach der Startmeldung und erneut nach Abschluss aller Durchläufe
+- [ ] Warnung erscheint nach der Startmeldung und **einmalig** nach Abschluss aller Durchläufe
+- [ ] Zwischen den Durchläufen erscheint **keine** zusätzliche Warnung
 - [ ] Schleife läuft beide Runden durch (kein Abbruch)
 
 ### 11.4 Aktionen im Loop
