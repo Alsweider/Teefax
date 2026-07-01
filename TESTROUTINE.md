@@ -226,8 +226,18 @@ teefax 10s --prealarm 5 --mute --nomsg
 ```
 
 - [ ] In den letzten 5 Sekunden ertönt jede Sekunde ein kurzer Beep
-- [ ] Erster Beep ertönt gleichzeitig mit dem Anzeigewechsel auf `5s` (nicht erst bei `4s`)
+- [ ] Erster Beep ertönt gleichzeitig mit dem Anzeigewechsel auf `5s` (nicht erst bei `4s`), **auch mit `--mute`** (Regressionstest: Treiber-Vorwärmung darf nicht an `--mute` gekoppelt sein)
+- [ ] Letzter Beep endet **ohne Knacken oder Klicklaut** (Regressionstest: saubere Beendigung der Wiedergabe)
 - [ ] Beep auch über Bluetooth-Kopfhörer hörbar (BT-Kopfhörer aus dem Ruhezustand verwenden)
+
+```
+teefax 10s --prealarm 5 --nomsg
+```
+
+(ohne `--mute`, damit auch der Hauptalarm hörbar ist)
+
+- [ ] Voralarm-Beeps wie oben, **kein Knacken** zwischen letztem Beep und Hauptalarm
+- [ ] Hauptalarm setzt unmittelbar nach dem letzten Beep ein, kein Aussetzer
 
 ```
 teefax 2s --prealarm 5 --mute --nomsg
@@ -235,6 +245,7 @@ teefax 2s --prealarm 5 --mute --nomsg
 
 - [ ] Kein Absturz (Timer kürzer als Voralarmfenster), Exit 0
 - [ ] Zwei Beeps ertönen (so viele wie die Timerzeit hergibt)
+- [ ] Kein Knacken nach dem letzten Beep
 
 ---
 
@@ -539,6 +550,41 @@ teefax 5s --eco --prealarm 3 --nomsg
 ```
 
 - [ ] Voralarm ertönt, Timer endet sauber
+
+### 17.2 Sehr lange Timer und weit entfernte Daten
+
+```
+teefax 5000yr --mute --nomsg
+```
+
+- [ ] Timer startet ohne Absturz oder Fehlermeldung
+- [ ] Countdown-Anzeige zeigt `5000y` (Remaining / Verbleibend), **nicht** ~50 Jahre oder andere fehlerhafte Werte
+- [ ] Fortschrittsbalken erscheint und aktualisiert sich jede Sekunde
+- [ ] Keine Zielzeit `(bis HH:MM:SS)` in der Startmeldung (nur bei < 24 h sinnvoll)
+- [ ] `Strg+C` beendet sauber, Exit-Code 0
+
+```
+teefax --at 5000-01-01 --mute --nomsg
+```
+
+- [ ] Timer startet ohne Absturz oder Fehlermeldung
+- [ ] Verbleibende Zeit zeigt ~2975 Jahre (nicht ~50 Jahre), exakter Wert abhängig vom aktuellen Datum
+- [ ] `Strg+C` beendet sauber, Exit-Code 0
+
+```
+teefax --at 10999-12-12 --mute --nomsg
+```
+
+- [ ] Timer startet ohne Absturz oder Fehlermeldung
+- [ ] Verbleibende Zeit zeigt ~8974 Jahre + ~5 Jahre aus den Schaltjahren (nicht ~205 Jahre)
+- [ ] `Strg+C` beendet sauber, Exit-Code 0
+
+```
+teefax --at 2200-06-01 --mute --nomsg
+```
+
+- [ ] Verbleibende Zeit zeigt ~174 Jahre (keinen verfälschten Wert aus dem Nanosekunden-Überlauf)
+- [ ] `Strg+C` beendet sauber
 
 ---
 

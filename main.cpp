@@ -249,6 +249,60 @@ string toConsole(const wstring& wstr) {
     return str;
 }
 
+// ── Julianische Tageszahl und mktime-freie Zeitdifferenz ─────────────
+
+// Gregorianisches Datum → Julianische Tageszahl nach Richards (2013).
+// Gültig für alle positiven Jahre im proleptischen gregorianischen Kalender,
+// weit jenseits des mktime-Bereichs auf Windows (~Jahr 3001).
+static long long toJulianDayNumber(int year, int month, int day) {
+    long long a = (14LL - month) / 12LL;
+    long long y = (long long)year + 4800LL - a;
+    long long m = (long long)month + 12LL * a - 3LL;
+    return (long long)day
+           + (153LL * m + 2LL) / 5LL
+           + 365LL * y
+           + y / 4LL
+           - y / 100LL
+           + y / 400LL
+           - 32045LL;
+}
+
+// Millisekunden bis zu einem weit in der Zukunft liegenden Datum.
+// Fallback für millisecondsUntilDateTime(), wenn mktime() scheitert.
+// Ignoriert Sommerzeitübergänge am Zielzeitpunkt (bei Jahrtausenden irrelevant).
+static long long millisecondsUntilDateTimeFar(int year, int month, int day,
+                                              int hour, int minute, int second)
+{
+    using namespace chrono;
+    auto   now   = system_clock::now();
+    time_t tnow  = system_clock::to_time_t(now);
+    tm     local{};
+    if (localtime_s(&local, &tnow) != 0) return 0;
+
+    long long jdnNow    = toJulianDayNumber(local.tm_year + 1900,
+                                         local.tm_mon  + 1,
+                                         local.tm_mday);
+    long long jdnTarget = toJulianDayNumber(year, month, day);
+    long long dayDiff   = jdnTarget - jdnNow;
+
+    long long secNow    = (long long)local.tm_hour * 3600LL
+                       + (long long)local.tm_min  * 60LL
+                       + (long long)local.tm_sec;
+    long long secTarget = (long long)hour   * 3600LL
+                          + (long long)minute * 60LL
+                          + (long long)second;
+
+    long long totalSec = dayDiff * 86400LL + secTarget - secNow;
+
+    // Sub-Sekunden-Anteil der aktuellen Zeit abziehen
+    long long msNow   = duration_cast<milliseconds>(
+                          now.time_since_epoch()).count() % 1000LL;
+    long long totalMs = totalSec * 1000LL - msNow;
+
+    if (totalMs <= 0) return 0;
+    return clampMs(static_cast<long double>(totalMs));
+}
+
 // Berechnet Millisekunden bis zur nächsten angegebenen Uhrzeit
 long long millisecondsUntilTime(int hour, int minute, int second = 0) {
     using namespace chrono;
@@ -290,18 +344,29 @@ long long millisecondsUntilDateTime(int year, int month, int day,
     target_tm.tm_isdst = -1; // Sommerzeit automatisch bestimmen
 
     time_t target_t = mktime(&target_tm);
+
+    // mktime scheitert auf Windows UCRT für Jahre > ~3000 (gibt -1 zurück).
+    // Fallback auf JDN-basierte Berechnung ohne Systemfunktionen.
     if (target_t == -1)
-        return 0;
+        return millisecondsUntilDateTimeFar(year, month, day, hour, minute, second);
 
-    auto target = system_clock::from_time_t(target_t);
-
-    if (target <= now)
+    // system_clock::from_time_t() wird bewusst NICHT verwendet: MinGW nutzt intern
+    // Nanosekunden (int64_t), womit der Wertebereich nur bis ~Jahr 2262 reicht.
+    // Für Jahre ab 2262 überläuft from_time_t() still und liefert einen falschen
+    // time_point. Stattdessen: time_t-Differenz in Sekunden, dann ms umrechnen.
+    time_t tnow = system_clock::to_time_t(now);
+    if (target_t <= tnow)
         return 0; // Zeitpunkt liegt in der Vergangenheit
 
-    long long diff =
-        duration_cast<milliseconds>(target - now).count();
+    long long diffSec = static_cast<long long>(target_t)
+                        - static_cast<long long>(tnow);
 
-    return clampMs(static_cast<long double>(diff));
+    // Sub-Sekunden-Anteil abziehen (epochen-unabhängig)
+    long long msNow   = duration_cast<milliseconds>(
+                          now.time_since_epoch()).count() % 1000LL;
+    long long totalMs = diffSec * 1000LL - msNow;
+    if (totalMs <= 0) return 0;
+    return clampMs(static_cast<long double>(totalMs));
 }
 
 
@@ -606,6 +671,11 @@ string formatVerbleibend(long long totalSec) {
 
 // Ja, das sagt dir halt, ob die Zielzeit (--at) auf den morgigen Tag fällt.
 bool isTargetTomorrow(time_t targetT) {
+    // localtime_s scheitert auf Windows für time_t-Werte jenseits ~Jahr 3001.
+    // Für solche Daten ist der "morgen"-Hinweis ohnehin nicht anwendbar.
+    constexpr time_t SAFE_MAX_T = 32503680000LL; // ~Jahr 3001
+    if (targetT <= 0 || targetT > SAFE_MAX_T) return false;
+
     time_t tnow = time(nullptr);
 
     tm nowTm{};
@@ -1618,19 +1688,24 @@ static void printStartMessage(const TimerConfig& cfg) {
         cout << buf;
 
     } else {
-        // Countdown: Dauer + absolute Zielzeit anhängen
+        // Countdown: Dauer anzeigen.
+        // Zielzeit (HH:MM:SS) nur bei < 24 Stunden: bei längeren Timern ohne Aussagekraft;
+        // außerdem wäre localtime_s für weit-zukünftige time_t-Werte nicht zuverlässig.
         string timerStr = formatVerbleibend(cfg.ms / 1000);
         snprintf(buf, sizeof(buf), t(Str::TIMER_COUNTER), timerStr.c_str());
         cout << buf;
 
-        auto   targetWall = chrono::system_clock::now() + chrono::milliseconds(cfg.ms);
-        time_t targetT    = chrono::system_clock::to_time_t(targetWall);
-        tm     targetTm{};
-        localtime_s(&targetTm, &targetT);
-        char tbuf[64];
-        snprintf(tbuf, sizeof(tbuf), t(Str::TIMER_TARGET),
-                 targetTm.tm_hour, targetTm.tm_min, targetTm.tm_sec);
-        cout << tbuf;
+        if (cfg.ms < 86400000LL) {
+            auto   targetWall = chrono::system_clock::now() + chrono::milliseconds(cfg.ms);
+            time_t targetT    = chrono::system_clock::to_time_t(targetWall);
+            tm     targetTm{};
+            if (localtime_s(&targetTm, &targetT) == 0) {
+                char tbuf[64];
+                snprintf(tbuf, sizeof(tbuf), t(Str::TIMER_TARGET),
+                         targetTm.tm_hour, targetTm.tm_min, targetTm.tm_sec);
+                cout << tbuf;
+            }
+        }
     }
 
     if (cfg.asyncSound)
@@ -1863,8 +1938,17 @@ static void playAlarmSound(const TimerConfig& cfg) {
                 PlaySoundA(reinterpret_cast<LPCSTR>(sound_data), NULL, SND_MEMORY | SND_SYNC);
             }
         }
-        if (cfg.alarmRepeat == 0 || r < cfg.alarmRepeat - 1)
+        if (cfg.alarmRepeat == 0 || r < cfg.alarmRepeat - 1) {
+            // Nachlauf-Stille: hält den Audio-Pipeline aktiv, bis der BT-Kopfhörer
+            // den Rest des Alarmtons aus seinem Puffer vollständig abgespielt hat.
+            // SND_ASYNC blockiert nicht; das Programm kann normal weiterlaufen.
+            // Die Stille endet nach 1 s von selbst, oder der nächste Tick-Loop-
+            // BT-Prewarm ersetzt sie (bei --loop).
+            if (!cfg.mute && !cfg.asyncSound)
+                PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
+                           NULL, SND_MEMORY | SND_ASYNC);
             this_thread::sleep_for(chrono::seconds(cfg.alarmInterval));
+        }
     }
 }
 
@@ -1903,8 +1987,10 @@ static void runPostActions(const TimerConfig& cfg, bool warnOnFail) {
 // (100–500 ms auf Frischstarts) nicht in den ersten Voralarm-Beep fällt.
 // Greift nur wenn --prealarm aktiv ist; ohne Voralarm übernimmt der
 // BT-Prewarm kurz vor dem Hauptalarm die Codec-Aktivierung.
+// Laeuft auch bei --mute: der Voralarm-Beep ist unabhaengig vom Hauptalarm-Mute
+// und benoetigt denselben Treiber-Vorlauf, sonst kommt der erste Beep zu spaet.
 static void doAudioPrewarm(const TimerConfig& cfg) {
-    if (cfg.preAlarmSeconds > 0 && !cfg.mute) {
+    if (cfg.preAlarmSeconds > 0) {
         PlaySoundA(reinterpret_cast<LPCSTR>(tinyInitWav().data()),
                    NULL, SND_MEMORY | SND_SYNC);
         PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
@@ -1952,26 +2038,26 @@ static int runTimerLoop(TimerConfig& cfg) {
                 if (forElapsed >= cfg.forMs) break;
             } else {
                 if (forElapsed >= cfg.forMs) break;
-                // Naechsten Zielzeitpunkt vorausberechnen (non-destructive, kein Seiteneffekt)
-                system_clock::time_point nextTarget;
+                // Naechsten Zielzeitpunkt vorausberechnen (non-destructive, kein Seiteneffekt).
+                // Fuer --at mit weit zukunftigen Daten wird msToNext direkt aus
+                // millisecondsUntilDateTime() bezogen, um system_clock-Ueberlauf zu vermeiden.
+                long long msToNext = 0;
                 if (cfg.useDailyTimes) {
-                    nextTarget = nextDailyTarget(cfg.dailyTimes);
+                    auto nextTarget = nextDailyTarget(cfg.dailyTimes);
+                    msToNext = duration_cast<milliseconds>(nextTarget - system_clock::now()).count();
                 } else if (cfg.useEvery) {
-                    nextTarget = nextEveryTarget(cfg.everySpec);
+                    auto nextTarget = nextEveryTarget(cfg.everySpec);
+                    msToNext = duration_cast<milliseconds>(nextTarget - system_clock::now()).count();
                 } else {
                     // --at --loop: Zeitangabe -> naechstes Vorkommen; Datumsangabe -> naechstes Jahr
-                    long long msTmp;
                     if (!cfg.useAtDateTime) {
-                        msTmp = millisecondsUntilTime(cfg.atHour, cfg.atMinute, cfg.atSecond);
+                        msToNext = millisecondsUntilTime(cfg.atHour, cfg.atMinute, cfg.atSecond);
                     } else {
                         int peekYear = cfg.atYear + (cfg.loopCount > 0 ? 1 : 0);
-                        msTmp = millisecondsUntilDateTime(peekYear, cfg.atMonth, cfg.atDay,
-                                                          cfg.atHour, cfg.atMinute, cfg.atSecond);
+                        msToNext = millisecondsUntilDateTime(peekYear, cfg.atMonth, cfg.atDay,
+                                                             cfg.atHour, cfg.atMinute, cfg.atSecond);
                     }
-                    if (msTmp < 0) msTmp = 0;
-                    nextTarget = system_clock::now() + milliseconds(msTmp);
                 }
-                auto msToNext = duration_cast<milliseconds>(nextTarget - system_clock::now()).count();
                 if (msToNext < 0) msToNext = 0;
                 if (forElapsed + msToNext > cfg.forMs) {
                     cout << "\n" << t(Str::FOR_TARGET_OUTSIDE);
@@ -1985,6 +2071,12 @@ static int runTimerLoop(TimerConfig& cfg) {
 
         // ── Zielzeitpunkt für diesen Durchlauf bestimmen ──────────────
         system_clock::time_point wallTarget;
+
+        // Maximale Millisekunden, die sicher zu system_clock::now() addiert werden können.
+        // MinGW: system_clock intern nanosekunden (int64_t), max ab 1970 ~292 Jahre → ~Jahr 2262.
+        // Conservative 100 Jahre: system_clock::now() (2026) + 100y bleibt in jedem Fall
+        // unterhalb von INT64_MAX Nanosekunden, unabhaengig von der Implementierung.
+        constexpr long long WALL_SAFE_MS = 3'153'600'000'000LL; // 100 * 365 * 86400 * 1000
 
         if (cfg.useDailyTimes) {
             wallTarget = nextDailyTarget(cfg.dailyTimes);
@@ -2005,11 +2097,21 @@ static int runTimerLoop(TimerConfig& cfg) {
             }
             if (nextMs == 0) { cout << t(Str::ERROR_NEXT_TIME); return 1; }
             cfg.ms = (nextMs > MAX_MS) ? MAX_MS : nextMs;
-            // Absoluter Wanduhr-Zielzeitpunkt: NTP-Korrekturen wirken automatisch.
-            wallTarget = system_clock::now() + milliseconds(cfg.ms);
+            // wallTarget: bei cfg.ms <= WALL_SAFE_MS korrekt setzbar.
+            // Bei cfg.ms > WALL_SAFE_MS wuerde system_clock::now() + milliseconds(cfg.ms)
+            // ueberlaufen (MinGW Nanosekunden-system_clock). wallTarget wird daher auf
+            // WALL_SAFE_MS begrenzt; fuer die Restzeit-Berechnung im Tick-Loop wird
+            // stattdessen cfg.ms mit steady_clock-Arithmetik genutzt.
+            {
+                long long safeMs = (cfg.ms > WALL_SAFE_MS) ? WALL_SAFE_MS : cfg.ms;
+                wallTarget = system_clock::now() + milliseconds(safeMs);
+            }
         }
 
-        long long totalMsThisRound = wallMode
+        // Fuer nahe Wanduhr-Ziele (daily, every, --at < 100 Jahre): wallTarget-Differenz.
+        // Fuer weit-zukuenftige --at-Daten: cfg.ms direkt (wallTarget ist begrenzt, taugt
+        // nicht als Restzeit-Referenz).
+        long long totalMsThisRound = (wallMode && cfg.ms <= WALL_SAFE_MS)
                                          ? duration_cast<milliseconds>(wallTarget - system_clock::now()).count()
                                          : cfg.ms;
 
@@ -2017,7 +2119,10 @@ static int runTimerLoop(TimerConfig& cfg) {
         time_t wallTargetT = wallMode ? system_clock::to_time_t(wallTarget) : 0;
 
         auto start = steady_clock::now();
-        auto end   = start + milliseconds(totalMsThisRound);
+        // 'end' als absoluter steady_clock-Zeitpunkt entfällt: würde bei
+        // totalMsThisRound jenseits der Nanosekunden-Reichweite von steady_clock
+        // (~292 Jahre) überlaufen. Countdown-Modus verwendet stattdessen
+        // Elapsed-Time-Arithmetik (nowSteady - start).
 
         // Benutzerdefinierte Notiz für Fenstertitel vorbereiten (einmalig pro Durchlauf)
         wstring customMsgW;
@@ -2039,12 +2144,17 @@ static int runTimerLoop(TimerConfig& cfg) {
             long long verbleibendMs = 0;
             bool      done          = false;
 
-            if (wallMode) {
+            if (wallMode && cfg.ms <= WALL_SAFE_MS) {
+                // Nahe Wanduhr-Ziele: wallTarget ist korrekt, NTP-Korrekturen wirken.
                 verbleibendMs = duration_cast<milliseconds>(wallTarget - nowWall).count();
                 if (verbleibendMs <= 0) done = true;
             } else {
-                verbleibendMs = duration_cast<milliseconds>(end - nowSteady).count();
-                if (nowSteady >= end) done = true;
+                // Countdown-Arithmetik: fuer reine Countdown-Timer und fuer weit-zukuenftige
+                // --at-Daten (cfg.ms > WALL_SAFE_MS), bei denen wallTarget bewusst begrenzt
+                // wurde und daher nicht als Restzeit-Referenz taugt.
+                long long steadyElapsedMs = duration_cast<milliseconds>(nowSteady - start).count();
+                verbleibendMs = totalMsThisRound - steadyElapsedMs;
+                if (verbleibendMs <= 0) done = true;
             }
             if (done) break;
             if (verbleibendMs < 0) verbleibendMs = 0;
@@ -2056,7 +2166,7 @@ static int runTimerLoop(TimerConfig& cfg) {
 
                 // BT-Vorwärmung kurz vor Ablauf (nur ohne Voralarm).
                 // Mit aktivem Voralarm übernimmt die Voralarm-WAV die Codec-Aktivierung.
-                if (!cfg.mute && !cfg.asyncSound && !soundPrewarmed &&
+                if (!cfg.mute && !soundPrewarmed &&
                     cfg.preAlarmSeconds == 0 && verbleibendSec > 0 && verbleibendSec <= 2)
                 {
                     soundPrewarmed = true;
@@ -2110,11 +2220,12 @@ static int runTimerLoop(TimerConfig& cfg) {
             }
 
             // Bis zur nächsten Sekundengrenze schlafen.
-            // Wandzeitmodi: Schlaf auf steady_clock, NTP-Vorwärtskorrekturen wirken.
-            //   Obergrenze 1,5 s verhindert Einfrieren bei NTP-Rückwärtssprüngen.
-            // Countdown-Modus: sleep_until direkt auf steady_clock, kein Drift.
+            // Nahe Wanduhr-Ziele (cfg.ms <= WALL_SAFE_MS): wall-clock-basierter Schlaf;
+            //   NTP-Korrekturen wirken; Obergrenze 1,5 s verhindert Einfrieren bei Sprüngen.
+            // Countdown und weit-zukuenftige --at-Daten: steady_clock-relativer Schlaf,
+            //   kein Ueberlauf, kein Drift.
             if (verbleibendSec >= 1) {
-                if (wallMode) {
+                if (wallMode && cfg.ms <= WALL_SAFE_MS) {
                     auto nextWallTick   = wallTarget - seconds(verbleibendSec - 1);
                     auto durationToTick = nextWallTick - system_clock::now();
                     if (durationToTick > milliseconds(1500))
@@ -2123,11 +2234,29 @@ static int runTimerLoop(TimerConfig& cfg) {
                         this_thread::sleep_until(steady_clock::now() +
                                                  duration_cast<milliseconds>(durationToTick));
                 } else {
-                    this_thread::sleep_until(end - seconds(verbleibendSec - 1));
+                    // Millisekunden bis zur nächsten vollen Sekundengrenze (immer 1..1000 ms).
+                    // nowSteady + kleiner Wert bleibt weit unterhalb der steady_clock-Reichweite.
+                    long long msUntilNextTick = verbleibendMs - (verbleibendSec - 1) * 1000LL;
+                    this_thread::sleep_until(nowSteady + milliseconds(msUntilNextTick));
                 }
             }
         }
         // ── Ende Tick-Schleife ────────────────────────────────────────
+
+        // Voralarm-Stream explizit beenden: der WAV-Puffer ist rechnerisch auf das
+        // Timer-Ende ausgelegt, läuft aber durch die Laufzeit von buildPreAlarmWav()
+        // und dem PlaySoundA-Aufruf selbst um einige Millisekunden über das Ende
+        // hinaus. PlaySoundA(nullptr, ...) stoppt jede laufende Wiedergabe sauber,
+        // statt sie beim Programmende abrupt mitten in der Stille abzuschneiden
+        // (Ursache des Knackens). Ohne aktiven Voralarm ist der Aufruf wirkungslos.
+        if (preAlarmStarted) {
+            PlaySoundA(nullptr, nullptr, 0); // Voralarm sauber stoppen (vermeidet Knacken)
+            // Sofort Stille-Loop starten, damit der BT-Codec aktiv bleibt,
+            // bis playAlarmSound() den eigentlichen Alarmton startet.
+            if (!cfg.mute)
+                PlaySoundA(reinterpret_cast<LPCSTR>(silentWav().data()),
+                           NULL, SND_MEMORY | SND_ASYNC | SND_LOOP);
+        }
 
         // Vollständiger Balken am Ende des Durchlaufs
         {
