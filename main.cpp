@@ -44,6 +44,14 @@ static bool  g_consoleModeChanged  = false;
 // Maximale Millisekunden (wir nutzen die maximale long long, etwas konservativ geclamped)
 constexpr long long MAX_MS = std::numeric_limits<long long>::max() / 4;
 
+// Sichere Obergrenze fuer direkte chrono-Arithmetik auf einen system_clock::time_point.
+// MinGW: system_clock ist intern nanosekunden-basiert (int64_t), Reichweite ab 1970 nur
+// rund 292 Jahre (~Jahr 2262). "system_clock::now() + milliseconds(x)" ueberlaeuft daher
+// bereits deutlich vor MAX_MS. 100 Jahre sind ein konservativer Sicherheitsabstand, der
+// in jedem Fall unterhalb der tatsaechlichen Ueberlaufgrenze bleibt. Datei-weit definiert,
+// da sowohl printStartMessage() als auch runTimerLoop() dieselbe Grenze benoetigen.
+constexpr long long WALL_SAFE_MS = 3'153'600'000'000LL; // 100 * 365 * 86400 * 1000
+
 // Ctrl-C / Console Event Handler: versucht, timeEndPeriod zurückzusetzen
 BOOL WINAPI ConsoleHandler(DWORD /*signal*/) {
     if (g_timePeriodSet.load()) {
@@ -1673,10 +1681,18 @@ static void printStartMessage(const TimerConfig& cfg) {
                      cfg.atHour, cfg.atMinute, cfg.atSecond);
         }
         cout << buf;
-        auto   atWallTarget = chrono::system_clock::now() + chrono::milliseconds(cfg.ms);
-        time_t atTargetT    = chrono::system_clock::to_time_t(atWallTarget);
-        if (isTargetTomorrow(atTargetT))
-            cout << t(Str::TOMORROW_SUFFIX);
+        // Nur innerhalb der sicheren Reichweite direkt auf system_clock::time_point
+        // rechnen (siehe WALL_SAFE_MS). Jenseits davon wuerde "now() + milliseconds(cfg.ms)"
+        // beim Umrechnen auf die intern nanosekunden-basierte MinGW-Implementierung
+        // ueberlaufen (Vorzeichen-Ueberlauf, unbestimmtes Verhalten). Der "(morgen)"-Hinweis
+        // ist bei einem so fernen Ziel ohnehin gegenstandslos, daher wird er schlicht
+        // ausgelassen statt mit einer riskanten Rechnung erzwungen.
+        if (cfg.ms <= WALL_SAFE_MS) {
+            auto   atWallTarget = chrono::system_clock::now() + chrono::milliseconds(cfg.ms);
+            time_t atTargetT    = chrono::system_clock::to_time_t(atWallTarget);
+            if (isTargetTomorrow(atTargetT))
+                cout << t(Str::TOMORROW_SUFFIX);
+        }
 
     } else if (cfg.useDailyTimes) {
         cout << t(Str::TIMER_DAILY);
@@ -2076,7 +2092,8 @@ static int runTimerLoop(TimerConfig& cfg) {
         // MinGW: system_clock intern nanosekunden (int64_t), max ab 1970 ~292 Jahre → ~Jahr 2262.
         // Conservative 100 Jahre: system_clock::now() (2026) + 100y bleibt in jedem Fall
         // unterhalb von INT64_MAX Nanosekunden, unabhaengig von der Implementierung.
-        constexpr long long WALL_SAFE_MS = 3'153'600'000'000LL; // 100 * 365 * 86400 * 1000
+        // WALL_SAFE_MS ist datei-weit definiert (siehe Kopf der Datei), da printStartMessage()
+        // dieselbe Grenze fuer denselben Zweck benoetigt.
 
         if (cfg.useDailyTimes) {
             wallTarget = nextDailyTarget(cfg.dailyTimes);
@@ -2118,6 +2135,16 @@ static int runTimerLoop(TimerConfig& cfg) {
         // Wanduhr-Ziel als time_t für die "morgen"-Anzeige im Balken
         time_t wallTargetT = wallMode ? system_clock::to_time_t(wallTarget) : 0;
 
+        // Weit-zukuenftiges --at-Datum (jenseits WALL_SAFE_MS): hier wird die Restzeit
+        // NICHT ueber steady_clock-Elapsed-Arithmetik gezaehlt (Quarzdrift von 10-50 ppm
+        // summiert sich ueber Jahrhunderte/Jahrtausende auf Tage bis Wochen Abweichung
+        // von der tatsaechlichen Wanduhrzeit), sondern bei jedem Sekundentick frisch aus
+        // millisecondsUntilDateTime() neu berechnet. Diese Funktion ist bereits ueberlauf-
+        // sicher (JDN-Fallback via millisecondsUntilDateTimeFar() jenseits des mktime-
+        // Bereichs) und liest bei jedem Aufruf die aktuelle Systemzeit – somit bleibt der
+        // Countdown wanduhrgenau, unabhaengig davon, wie fern das Ziel liegt.
+        const bool farAtMode = cfg.useAtDateTime && cfg.ms > WALL_SAFE_MS;
+
         auto start = steady_clock::now();
         // 'end' als absoluter steady_clock-Zeitpunkt entfällt: würde bei
         // totalMsThisRound jenseits der Nanosekunden-Reichweite von steady_clock
@@ -2148,10 +2175,15 @@ static int runTimerLoop(TimerConfig& cfg) {
                 // Nahe Wanduhr-Ziele: wallTarget ist korrekt, NTP-Korrekturen wirken.
                 verbleibendMs = duration_cast<milliseconds>(wallTarget - nowWall).count();
                 if (verbleibendMs <= 0) done = true;
+            } else if (farAtMode) {
+                // Weit-zukuenftiges --at-Datum: Restzeit bei jedem Tick frisch aus der
+                // Wanduhr neu berechnen, statt sie ueber steady_clock aufzuaddieren.
+                // Kosten: ein zusaetzlicher mktime()/JDN-Aufruf pro Sekunde – vernachlaessigbar.
+                verbleibendMs = millisecondsUntilDateTime(cfg.atYear, cfg.atMonth, cfg.atDay,
+                                                          cfg.atHour, cfg.atMinute, cfg.atSecond);
+                if (verbleibendMs <= 0) done = true;
             } else {
-                // Countdown-Arithmetik: fuer reine Countdown-Timer und fuer weit-zukuenftige
-                // --at-Daten (cfg.ms > WALL_SAFE_MS), bei denen wallTarget bewusst begrenzt
-                // wurde und daher nicht als Restzeit-Referenz taugt.
+                // Countdown-Arithmetik: reine Countdown-Timer (teefax 5m, 1h30m, ...).
                 long long steadyElapsedMs = duration_cast<milliseconds>(nowSteady - start).count();
                 verbleibendMs = totalMsThisRound - steadyElapsedMs;
                 if (verbleibendMs <= 0) done = true;
