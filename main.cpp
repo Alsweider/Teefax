@@ -262,9 +262,12 @@ string toConsole(const wstring& wstr) {
 // Gregorianisches Datum → Julianische Tageszahl nach Richards (2013).
 // Gültig für alle positiven Jahre im proleptischen gregorianischen Kalender,
 // weit jenseits des mktime-Bereichs auf Windows (~Jahr 3001).
-static long long toJulianDayNumber(int year, int month, int day) {
+// 'year' als long long: erlaubt Zielangaben im Milliarden-Jahre-Bereich, ohne bereits
+// beim Einlesen der Jahreszahl auf den 32-Bit-int-Wertebereich (~2,147 Milliarden) begrenzt
+// zu sein. Die Funktion selbst bleibt bis weit jenseits von 10^16 Jahren überlaufsicher.
+static long long toJulianDayNumber(long long year, int month, int day) {
     long long a = (14LL - month) / 12LL;
-    long long y = (long long)year + 4800LL - a;
+    long long y = year + 4800LL - a;
     long long m = (long long)month + 12LL * a - 3LL;
     return (long long)day
            + (153LL * m + 2LL) / 5LL
@@ -278,7 +281,9 @@ static long long toJulianDayNumber(int year, int month, int day) {
 // Millisekunden bis zu einem weit in der Zukunft liegenden Datum.
 // Fallback für millisecondsUntilDateTime(), wenn mktime() scheitert.
 // Ignoriert Sommerzeitübergänge am Zielzeitpunkt (bei Jahrtausenden irrelevant).
-static long long millisecondsUntilDateTimeFar(int year, int month, int day,
+// 'year' als long long (siehe toJulianDayNumber): erlaubt Zielangaben im Milliarden-
+// Jahre-Bereich, ohne bereits an der int-Grenze (~2,147 Milliarden Jahre) zu scheitern.
+static long long millisecondsUntilDateTimeFar(long long year, int month, int day,
                                               int hour, int minute, int second)
 {
     using namespace chrono;
@@ -300,15 +305,25 @@ static long long millisecondsUntilDateTimeFar(int year, int month, int day,
                           + (long long)minute * 60LL
                           + (long long)second;
 
-    long long totalSec = dayDiff * 86400LL + secTarget - secNow;
+    // Ab hier in long double weiterrechnen statt in long long: bei Zielen im Milliarden-
+    // Jahre-Bereich wuerde "dayDiff * 86400LL" (Sekunden) und erst recht die anschliessende
+    // Umrechnung in Millisekunden ("* 1000LL") den long-long-Wertebereich sprengen
+    // (Vorzeichenueberlauf, unbestimmtes Verhalten – rechnerisch nachgewiesen: bereits ab
+    // rund 292 Millionen Jahren kippt "totalSec * 1000LL" ins Negative und taeuscht faelsch-
+    // lich ein bereits vergangenes Datum vor). long double hat einen praktisch unerschoepf-
+    // lichen Exponentenbereich; clampMs() faengt jede Groessenordnung sicher und
+    // deterministisch auf MAX_MS ab, statt lautlos zu ueberlaufen.
+    long double totalSecLD = static_cast<long double>(dayDiff) * 86400.0L
+                             + static_cast<long double>(secTarget)
+                             - static_cast<long double>(secNow);
 
     // Sub-Sekunden-Anteil der aktuellen Zeit abziehen
-    long long msNow   = duration_cast<milliseconds>(
+    long long   msNow    = duration_cast<milliseconds>(
                           now.time_since_epoch()).count() % 1000LL;
-    long long totalMs = totalSec * 1000LL - msNow;
+    long double totalMsLD = totalSecLD * 1000.0L - static_cast<long double>(msNow);
 
-    if (totalMs <= 0) return 0;
-    return clampMs(static_cast<long double>(totalMs));
+    if (totalMsLD <= 0.0L) return 0;
+    return clampMs(totalMsLD);
 }
 
 // Berechnet Millisekunden bis zur nächsten angegebenen Uhrzeit
@@ -335,7 +350,14 @@ long long millisecondsUntilTime(int hour, int minute, int second = 0) {
 
 
 // Berechnet Millisekunden bis zu einem bestimmten Datum und Uhrzeit
-long long millisecondsUntilDateTime(int year, int month, int day,
+// 'year' als long long: erlaubt Zielangaben im Milliarden-Jahre-Bereich (siehe
+// toJulianDayNumber / millisecondsUntilDateTimeFar). Die Zuweisung an das klassische
+// "struct tm"-Feld tm_year (stets int) weiter unten schmaelert dies bewusst NICHT:
+// mktime() scheitert ohnehin fuer alle Jahre jenseits von rund 3000 (siehe Kommentar
+// unten) und wirft in diesen Faellen sofort auf den JDN-Fallback zurueck, dem die
+// ungekuerzte, korrekte 'year'-Variable direkt uebergeben wird – nicht der
+// schmalstellenbehaftete tm_year-Wert.
+long long millisecondsUntilDateTime(long long year, int month, int day,
                                     int hour, int minute, int second)
 {
     using namespace chrono;
@@ -343,7 +365,7 @@ long long millisecondsUntilDateTime(int year, int month, int day,
     auto now = system_clock::now();
 
     tm target_tm{};
-    target_tm.tm_year = year - 1900;
+    target_tm.tm_year = static_cast<int>(year - 1900); // s. Kommentar oben: Kuerzung unschaedlich
     target_tm.tm_mon  = month - 1;
     target_tm.tm_mday = day;
     target_tm.tm_hour = hour;
@@ -674,6 +696,62 @@ string formatVerbleibend(long long totalSec) {
         }
     }
 
+    return ss.str();
+}
+
+// Wie formatVerbleibend(), jedoch fuer weit-zukuenftige --at-Ziele (jenseits WALL_SAFE_MS):
+// rechnet unmittelbar mit der Tagesdifferenz (long long, ueberlaufsicher bis rund 25
+// Billiarden Jahre – siehe toJulianDayNumber), statt ueber die millisekundengenaue,
+// bei MAX_MS gedeckelte Zaehlung zu gehen. So zeigt die laufende Anzeige die tatsaechliche
+// Entfernung zum Ziel, nicht einen kuenstlich gekappten Ersatzwert. Dieselbe 365-Tage-Jahr-
+// und 30-Tage-Monat-Konvention wie formatVerbleibend(), zwecks einheitlicher Anzeige.
+string formatVerbleibendFar(long long year, int month, int day,
+                            int hour, int minute, int second) {
+    using namespace chrono;
+    auto   now  = system_clock::now();
+    time_t tnow = system_clock::to_time_t(now);
+    tm     local{};
+    if (localtime_s(&local, &tnow) != 0) return "?";
+
+    long long jdnNow    = toJulianDayNumber(local.tm_year + 1900, local.tm_mon + 1, local.tm_mday);
+    long long jdnTarget = toJulianDayNumber(year, month, day);
+    long long dayDiff   = jdnTarget - jdnNow;
+
+    long long secNow    = (long long)local.tm_hour * 3600LL + (long long)local.tm_min * 60LL + (long long)local.tm_sec;
+    long long secTarget = (long long)hour * 3600LL + (long long)minute * 60LL + (long long)second;
+    long long secDiff   = secTarget - secNow; // stets im Bereich -86400..+86400, nie ueberlaufgefaehrdet
+
+    if (secDiff < 0) { secDiff += 86400LL; dayDiff -= 1LL; } // Tagesanteil ausgleichen
+    if (dayDiff < 0) dayDiff = 0;
+
+    long long years  = dayDiff / 365LL; long long remDays = dayDiff % 365LL;
+    long long months = remDays / 30LL;  remDays %= 30LL;
+    long long days   = remDays;
+
+    long long hours   = secDiff / 3600LL; secDiff %= 3600LL;
+    long long minutes = secDiff / 60LL;   secDiff %= 60LL;
+    long long seconds = secDiff;
+
+    struct UnitVal { long long val; const char* unit; };
+    UnitVal parts[] = {
+        {years, "y"}, {months, "mo"}, {days, "d"},
+        {hours, "h"}, {minutes, "m"}, {seconds, "s"}
+    };
+    int last = -1;
+    for (int i = 5; i >= 0; --i) {
+        if (parts[i].val > 0) { last = i; break; }
+    }
+    if (last == -1) return "0s";
+
+    stringstream ss;
+    bool found = false;
+    for (int i = 0; i <= last; ++i) {
+        if (parts[i].val > 0 || found) {
+            if (found) ss << " ";
+            ss << parts[i].val << parts[i].unit;
+            found = true;
+        }
+    }
     return ss.str();
 }
 
@@ -1217,7 +1295,8 @@ struct TimerConfig {
     long long ms            = 0;
     bool      useAtTime     = false;
     bool      useAtDateTime = false;
-    int       atYear = 0, atMonth = 0, atDay = 0;
+    long long atYear = 0; // long long: sonst verfaelscht sscanf Jahreszahlen jenseits ~2,147 Mrd. lautlos
+    int       atMonth = 0, atDay = 0;
     int       atHour = 0, atMinute = 0, atSecond = 0;
 
     // Schleife
@@ -1529,10 +1608,11 @@ static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
 
         } else if ((arg == "--at" || arg == "-a" || arg == "--until") && i + 1 < nArgs) {
             string first = args[++i];
-            int year, month, day;
+            long long year; // long long: %d/int wuerde Jahreszahlen jenseits ~2,147 Mrd. lautlos verfaelschen
+            int month, day;
             int hour = 0, minute = 0, second = 0;
 
-            if (sscanf(first.c_str(), "%d-%d-%d", &year, &month, &day) == 3) {
+            if (sscanf(first.c_str(), "%lld-%d-%d", &year, &month, &day) == 3) {
                 // Fall 1: Datum erkannt – optionale Uhrzeit prüfen
                 if (i + 1 < nArgs && args[i + 1][0] != '-') {
                     int parsed = sscanf(args[i + 1].c_str(), "%d:%d:%d", &hour, &minute, &second);
@@ -2069,7 +2149,7 @@ static int runTimerLoop(TimerConfig& cfg) {
                     if (!cfg.useAtDateTime) {
                         msToNext = millisecondsUntilTime(cfg.atHour, cfg.atMinute, cfg.atSecond);
                     } else {
-                        int peekYear = cfg.atYear + (cfg.loopCount > 0 ? 1 : 0);
+                        long long peekYear = cfg.atYear + (cfg.loopCount > 0 ? 1 : 0);
                         msToNext = millisecondsUntilDateTime(peekYear, cfg.atMonth, cfg.atDay,
                                                              cfg.atHour, cfg.atMinute, cfg.atSecond);
                     }
@@ -2193,7 +2273,11 @@ static int runTimerLoop(TimerConfig& cfg) {
 
             long long verbleibendSec = (verbleibendMs + 999) / 1000;
 
-            if (verbleibendSec != lastVerbleibendSec) {
+            // farAtMode: verbleibendSec bleibt wegen der MAX_MS-Deckelung praktisch konstant
+            // (siehe millisecondsUntilDateTimeFar) und wuerde die Anzeige sonst nach dem ersten
+            // Tick einfrieren lassen. Daher hier ungebremst jede Sekunde neu zeichnen – die
+            // tatsaechliche Aenderung liefert formatVerbleibendFar() weiter unten ohnehin frisch.
+            if (farAtMode || verbleibendSec != lastVerbleibendSec) {
                 lastVerbleibendSec = verbleibendSec;
 
                 // BT-Vorwärmung kurz vor Ablauf (nur ohne Voralarm).
@@ -2235,7 +2319,10 @@ static int runTimerLoop(TimerConfig& cfg) {
                 if (fraction < 0.0L) fraction = 0.0L;
                 if (fraction > 1.0L) fraction = 1.0L;
 
-                string verbleibendStr = formatVerbleibend(verbleibendSec);
+                string verbleibendStr = farAtMode
+                                            ? formatVerbleibendFar(cfg.atYear, cfg.atMonth, cfg.atDay,
+                                                                   cfg.atHour, cfg.atMinute, cfg.atSecond)
+                                            : formatVerbleibend(verbleibendSec);
                 string prefix         = buildBarPrefix(cfg.loop, cfg.loopCount,
                                                verbleibendStr, wallTargetT);
                 // Fenstertitel einmal pro Sekunde
