@@ -223,6 +223,62 @@ bool isStandaloneUnit(const string& arg) {
     return false;
 }
 
+// Prüft, ob ein Argument VOLLSTÄNDIG aus gültigen Zahl+Einheit-Segmenten besteht
+// (z. B. "1h30m", "90s", "5"), ohne die eigentliche Umrechnung durchzuführen und
+// ohne Fehlermeldungen für unbekannte Einheiten auszugeben (im Unterschied zu
+// parseTime/unitToMilliseconds, die bei Aufruf sofort auf stdout schreiben).
+// Notwendig, seit ein unbenanntes Argument entweder Zeit oder Notiztext sein kann:
+// eine Notiz, die zufällig mit einer Ziffer beginnt (z. B. "3 Tassen Tee"), darf
+// nicht teilweise als Zeit verschluckt werden, und ihr Rest darf nicht verloren gehen.
+// Nur der reine Zahl-Teil einer Notiz wie "3 Tassen Tee" würde parseTime() sonst
+// unbemerkt als 3 Sekunden fehldeuten und den Rest der Notiz stillschweigend verwerfen.
+bool isValidTimeExpression(const string& arg) {
+    size_t i = 0;
+    const size_t n = arg.size();
+    if (n == 0) return false;
+    bool anySegment = false;
+
+    while (i < n) {
+        while (i < n && isspace(static_cast<unsigned char>(arg[i]))) ++i;
+        if (i >= n) break;
+
+        size_t start = i;
+        bool dot = false;
+        while (i < n && (isdigit(static_cast<unsigned char>(arg[i])) || (!dot && arg[i] == '.'))) {
+            if (arg[i] == '.') dot = true;
+            ++i;
+        }
+        if (start == i) return false; // Zeichen, wo eine Zahl erwartet wird -> keine reine Zeitangabe
+
+        size_t unitStart = i;
+        while (i < n && isalpha(static_cast<unsigned char>(arg[i]))) ++i;
+        string unit = arg.substr(unitStart, i - unitStart);
+        if (!unit.empty() && !isStandaloneUnit(unit)) return false; // unbekannte Einheit -> kein Zeitausdruck
+
+        anySegment = true;
+    }
+
+    return anySegment && i == n;
+}
+
+// Prüft, ob ein Argument eine "nackte" Zahl ohne jede Einheit ist (z. B. "3", "12.5"),
+// im Unterschied zu einer Zeitangabe mit angehaengter Einheit (z. B. "3s", "1h30m").
+// Dient dazu, eine zweite nackte Zahl NICHT mehr automatisch als weitere Zeit zu
+// summieren, wenn bereits eine erste Zeitangabe erkannt wurde (siehe Verwendung in
+// parseArguments): "teefax 3 3" soll als 3-Sekunden-Timer MIT Notiz "3" gelten, nicht
+// als 6 Sekunden ohne Notiz. Zeitangaben MIT Einheit (z. B. "teefax 1h 30m") bleiben
+// davon unberuehrt und summieren sich weiterhin wie gewohnt, da nur eine EINHEITSLOSE
+// Zahl nach bereits gesetzter Zeit umgedeutet wird.
+bool isBareNumber(const string& arg) {
+    if (arg.empty()) return false;
+    bool dot = false;
+    for (char c : arg) {
+        if (c == '.' && !dot) { dot = true; continue; }
+        if (!isdigit(static_cast<unsigned char>(c))) return false;
+    }
+    return true;
+}
+
 // Hilfsfunktion: std::string -> std::wstring (mit Fehlerprüfung), weil Windows wstring für .WAV-Wiedergabe braucht
 // cp = Codepage (CP_UTF8 für Literal-Strings aus t(); CP_ACP für argv-Werte auf Windows)
 wstring toWide(const string& str, UINT cp = CP_UTF8) {
@@ -1061,7 +1117,7 @@ static unordered_map<string,string> loadMacros() {
 // Reservierte Namen: alle bekannten Flags und Kurzformen
 static bool isMacroNameReserved(const string& name) {
     static const vector<string> reserved = {
-        "--mute","-m","--loop","-l","--nomsg","--msg","--alarm-repeat","-ar",
+        "--mute","-m","--loop","-l","--nomsg","--sound","-s","--alarm-repeat","-ar",
         "--alarm-interval","-ai","--async","-as","--at","-a","--until",
         "--open","-o","--cmd","-c","--focus","-f","--prealarm","-pa",
         "--time","-t","--stopwatch","-sw","--daily","-d","--every","-e",
@@ -1442,7 +1498,7 @@ static int handleMacroCommands(vector<string>& args) {
             // Alle verbleibenden Token als Makro-Body zusammenfügen.
             // Quoting-Regeln: Token mit Leerzeichen oder nach einem Wert-Flag -> quoten.
             static const vector<string> valueFlags = {
-                "--focus", "-f", "--msg", "--open", "-o", "--cmd", "-c",
+                "--focus", "-f", "--sound", "-s", "--open", "-o", "--cmd", "-c",
                 "--at", "-a", "--until", "--lang", "-la",
                 "--alarm-repeat", "-ar", "--alarm-interval", "-ai",
                 "--prealarm", "-pa", "--loop", "-l",
@@ -1503,7 +1559,7 @@ static void expandMacroInArgs(vector<string>& args, int argc) {
 
     // Flags, deren naechstes Token ein freier Wert ist (kein Makroname)
     static const vector<string> valueFlags = {
-        "--msg",           "--cmd",    "-c",       "--open",   "-o",
+        "--sound",         "-s",       "--cmd",    "-c",       "--open",   "-o",
         "--focus",         "-f",       "--at",     "-a",   "--until",
         "--lang",          "-la",      "--for",
         "--alarm-repeat",  "-ar",      "--alarm-interval", "-ai",
@@ -1556,6 +1612,7 @@ static void setupQuickEdit(const vector<string>& args, int argc) {
 // Rückgabe: -1 = Timer starten; 0 = Exit OK; 1 = Exit Fehler.
 static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
     const int nArgs = static_cast<int>(args.size());
+    bool timeTokenSeen = false; // true, sobald ein Argument als Zeit akzeptiert wurde
 
     for (int i = 0; i < nArgs; ++i) {
         const string& arg = args[i];
@@ -1579,8 +1636,8 @@ static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
         } else if (arg == "--nomsg") {
             cfg.showMessage = false;
 
-        } else if (arg == "--msg" && i + 1 < nArgs) {
-            cfg.customMsg = args[++i];
+        } else if ((arg == "--sound" || arg == "-s") && i + 1 < nArgs) {
+            cfg.soundFile = args[++i];
 
         } else if ((arg == "--alarm-repeat" || arg == "-ar") && i + 1 < nArgs) {
             const string& val = args[++i];
@@ -1723,20 +1780,22 @@ static int parseArguments(const vector<string>& args, TimerConfig& cfg) {
             cout << buf << "\n"; return 1;
 
         } else if (!cfg.useAtTime) {
-            long long possible = parseTime(arg);
-            if (possible > 0) {
+            bool bareAfterTime = timeTokenSeen && isBareNumber(arg);
+            if (isValidTimeExpression(arg) && !bareAfterTime) {
+                long long possible = parseTime(arg);
                 if (cfg.ms > MAX_MS - possible) cfg.ms = MAX_MS;
                 else cfg.ms += possible;
+                timeTokenSeen = true;
             } else if (isStandaloneUnit(arg)) {
                 char buf[256];
                 snprintf(buf, sizeof(buf), t(Str::ERROR_DETACHED_UNIT), arg.c_str());
                 cout << buf << "\n"; return 1;
-            } else if (cfg.soundFile.empty()) {
-                cfg.soundFile = arg;
+            } else if (cfg.customMsg.empty()) {
+                cfg.customMsg = arg;
             }
 
-        } else if (cfg.soundFile.empty()) {
-            cfg.soundFile = arg;
+        } else if (cfg.customMsg.empty()) {
+            cfg.customMsg = arg;
         }
     }
     return -1; // weiter zum Timer

@@ -62,13 +62,28 @@ teefax 2m30s --mute --nomsg
 
 - [ ] Kombination aus Minuten und Sekunden korrekt angezeigt
 
-### 3.4 Fenstertitel mit --msg
+### 3.4 Fenstertitel mit benutzerdefinierter Notiz
 
 ```
-teefax 10s --mute --nomsg --msg "Tee fertig"
+teefax 10s --mute --nomsg "Tee fertig"
 ```
 
 - [ ] Fenstertitel zeigt verbleibende Zeit + Auszug der Notiz
+
+### 3.5 Zweite nackte Zahl als Notiz, nicht als zusätzliche Zeit
+
+```
+teefax 3 3 --mute
+```
+
+- [ ] Timer läuft **3 Sekunden**, nicht 6 Sekunden
+- [ ] Fenstertitel und Benachrichtigungsfenster zeigen die Notiz „3"
+
+```
+teefax 1h 30m --mute --nomsg
+```
+
+- [ ] Timer läuft **90 Minuten** (Zeitangaben mit Einheit summieren sich weiterhin wie gewohnt)
 
 ---
 
@@ -87,7 +102,7 @@ teefax 2s
 ### 4.2 Benutzerdefinierter Ton
 
 ```
-teefax 2s "C:\Windows\Media\chimes.wav"
+teefax 2s --sound "C:\Windows\Media\chimes.wav"
 ```
 
 - [ ] Externe WAV-Datei wird abgespielt
@@ -137,7 +152,7 @@ teefax 2s --mute
 - [ ] Fenster erscheint im Vordergrund
 
 ```
-teefax 2s --mute --msg "Tee ist fertig!"
+teefax 2s --mute "Tee ist fertig!"
 ```
 
 - [ ] Benutzerdefinierter Text erscheint in der MessageBox

@@ -75,7 +75,7 @@ Teefax liest beim Start eine optionale Konfigurationsdatei `teefax.ini` aus dems
 --lang en
 --alarm-repeat 3
 --nomsg
-"C:\Sounds\gong.wav"
+--sound "C:\Sounds\gong.wav"
 ```
 
 Kommandozeilenargumente überschreiben Config-Werte (letzter Wert gewinnt). Eine kommentierte Beispieldatei liegt im Repository unter [`teefax.ini`](teefax.ini).
@@ -88,7 +88,7 @@ Häufig genutzte Befehlskombinationen lassen sich als Makro speichern und danach
 
 ```bash
 # Makro anlegen
-teefax --macro add tee 3m --msg "Tee fertig!"
+teefax --macro add tee 3m "Tee fertig!"
 
 # Makro aufrufen
 teefax tee
@@ -107,7 +107,7 @@ Makros werden als `macro <Name> = <Argumente>`-Zeilen in der `teefax.ini` gespei
 ## Nutzung
 
 ```
-teefax [<Zeit>] [Sounddatei] [Optionen]
+teefax [<Zeit>] [Notiz] [Optionen]
 ```
 
 ### Zeitformate
@@ -142,12 +142,12 @@ Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 3
 | `--alarm-repeat <n>` | `-ar` | Weckton nach Ablauf n-mal wiederholen (Standard: 1) |
 | `--alarm-interval <s>` | `-ai` | Sekunden zwischen den Wiederholungen (Standard: 2) |
 | `--async` | `-as` | Weckton asynchron abspielen (Timer läuft während Wiedergabe weiter) |
+| `--sound <Datei>` | `-s` | Benutzerdefinierte Sounddatei (.WAV) |
 | `--open <Dateipfad>` | `-o` | Datei, Programm oder URL nach Ablauf öffnen |
 | `--cmd <Befehl>` | `-c` | Konsolenbefehl nach Ablauf ausführen |
 | `--focus <Titel>` | `-f` | Fenster nach Ablauf in den Vordergrund holen (Teiltitel, Groß-/Kleinschreibung egal) |
 | `--prealarm <s>` | `-pa` | X Sekunden vor Ablauf sekündlich piepsen |
 | `--nomsg` | | Benachrichtigungsfenster unterdrücken |
-| `--msg <Text>` | | Eigene Notiz im Benachrichtigungsfenster |
 | `--time` | `-t` | Direktanzeige von Datum und Uhrzeit (Beenden mit Strg+C) |
 | `--nosleep` | `-ns` | Bildschirmschoner und Standby unterdrücken |
 | `--eco` | | Energiesparmodus: kein `timeBeginPeriod`, normale Threadpriorität. Empfohlen für Akkubetrieb und älteres Windows |
@@ -156,6 +156,12 @@ Kombiniertes Beispiel: `teefax 1h30m` oder `teefax 1h 30m` zählt 1 Stunde und 3
 | `--help` | `-h` | Hilfe anzeigen |
 | `--stopwatch`| `-sw` | Stoppuhr starten (`Leertaste` oder `P`: Pause/Weiter, `Strg+C`: Beenden) |
 | `--macro <list\|add\|remove>` | | Makros verwalten (siehe [Makros](#makros)) |
+
+Ein Text ohne Parametername wird als Notiz übernommen und erscheint sowohl im Fenstertitel als auch (sofern nicht durch `--nomsg` unterdrückt) im Benachrichtigungsfenster:
+
+```bash
+teefax 5m "Tee fertig!"
+```
 
 ---
 
@@ -178,7 +184,7 @@ teefax --at 2030-12-31 20:00
 teefax --daily 8:00 13:00 18:00
 
 # Eigener Weckton
-teefax 5m "C:\Klänge\gong.wav"
+teefax 5m --sound "C:\Klänge\gong.wav"
 
 # Schleifen
 teefax 10s --loop           # unbegrenzt wiederholen
@@ -189,7 +195,7 @@ teefax 10s --loop --for 2m  # wiederholen, bis 2 Minuten Gesamtlaufzeit erreicht
 teefax 20s --mute --nomsg
 
 # Eigene Notiz im Benachrichtigungsfenster
-teefax 5m --msg "Tee fertig!"
+teefax 5m "Tee fertig!"
 
 # Datei nach Ablauf öffnen
 teefax 5m --open "C:\Notizen\todo.txt"
@@ -216,7 +222,7 @@ teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"
 teefax 5m --lang de
 
 # Makro anlegen und aufrufen
-teefax --macro add tee 3m --msg "Tee fertig!"
+teefax --macro add tee 3m "Tee fertig!"
 teefax tee
 ```
 

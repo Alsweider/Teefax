@@ -148,8 +148,12 @@ set T=--eco (Energiesparmodus, Exit 0)
 "%EXE%" 1s --mute --nomsg --eco >nul 2>&1
 call :chk %errorlevel% 0
 
-set T=--msg mit Text
-"%EXE%" 1s --mute --nomsg --msg "Testnotiz OK" >nul 2>&1
+set T=--sound mit Datei
+"%EXE%" 1s --mute --nomsg --sound "C:\Windows\Media\chimes.wav" >nul 2>&1
+call :chk %errorlevel% 0
+
+set T=Notiz ohne Parametername
+"%EXE%" 1s --mute --nomsg "Testnotiz OK" >nul 2>&1
 call :chk %errorlevel% 0
 
 set T=--async (Ton spielt kurz, unhoerbar)
@@ -230,9 +234,9 @@ set T=--macro remove loescht Makro (Exit 0)
 "%EXE%" --macro remove ttest >nul 2>&1
 call :chk %errorlevel% 0
 
-set T=--msg-Wert wird nicht als Makro expandiert (Exit 1 bei Expansion)
+set T=--sound-Wert wird nicht als Makro expandiert (Exit 1 bei Expansion)
 "%EXE%" --macro add ttest dummy --xyzunknown >nul 2>&1
-"%EXE%" 1s --mute --msg ttest --nomsg >nul 2>&1
+"%EXE%" 1s --mute --nomsg --sound ttest >nul 2>&1
 call :chk %errorlevel% 0
 "%EXE%" --macro remove ttest >nul 2>&1
 

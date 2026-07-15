@@ -77,7 +77,7 @@ On startup, Teefax reads an optional `teefax.ini` file from the same directory a
 --lang en
 --alarm-repeat 3
 --nomsg
-"C:\Sounds\gong.wav"
+--sound "C:\Sounds\gong.wav"
 ```
 
 Command-line arguments override config values (last value wins). A commented example file is available in the repository as [`teefax.ini`](teefax.ini).
@@ -90,7 +90,7 @@ Frequently used argument combinations can be saved as a macro and called by a sh
 
 ```bash
 # Save a macro
-teefax --macro add tea 3m --msg "Tea is ready!"
+teefax --macro add tea 3m "Tea is ready!"
 
 # Run the macro
 teefax tea
@@ -109,7 +109,7 @@ Macros are stored as `macro <name> = <arguments>` lines in `teefax.ini`. Names m
 ## Usage
 
 ```
-teefax [<time>] [soundfile] [options]
+teefax [<time>] [note] [options]
 ```
 
 ### Time formats
@@ -144,12 +144,12 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--alarm-repeat <n>` | `-ar` | Repeat the alarm sound n times after the timer ends |
 | `--alarm-interval <s>` | `-ai` | Seconds between repeated alarms (default: 2) |
 | `--async` | `-as` | Play alarm sound asynchronously (timer keeps running during playback) |
+| `--sound <filepath>` | `-s` | Custom alarm sound (.WAV) |
 | `--open <filepath>` | `-o` | Open a file, programme or URL when the timer ends |
 | `--cmd <command>` | `-c` | Run a console command when the timer ends |
 | `--focus <title>` | `-f` | Bring a window to the foreground when the timer ends (partial title match, case-insensitive) |
 | `--prealarm <s>` | `-pa` | Beep every second during the last X seconds |
 | `--nomsg` | | Suppress the notification popup |
-| `--msg <text>` | | Add a custom note to the notification popup |
 | `--time` | `-t` | Live date & time display (clock mode, exit with Ctrl+C) |
 | `--nosleep` | `-ns` | Prevent screensaver and standby |
 | `--eco` | | Power-saving mode: no `timeBeginPeriod`, normal thread priority. Recommended on battery or older Windows |
@@ -158,6 +158,12 @@ Combined example: `teefax 1h30m` or `teefax 1h 30m` counts down 1 hour and 30 mi
 | `--help` | `-h` | Show help |
 | `--stopwatch`| `-sw` | `Space` or `P`: Pause/Resume, `Ctrl+C`: Exit |
 | `--macro <list\|add\|remove>` | | Manage macros (see [Macros](#macros)) |
+
+A piece of text with no option name at all is taken as a custom note and appears both in the window title and (unless suppressed with `--nomsg`) in the notification popup:
+
+```bash
+teefax 5m "Tea is ready!"
+```
 
 ---
 
@@ -180,7 +186,7 @@ teefax --at 2030-12-31 20:00
 teefax --daily 8:00 13:00 18:00
 
 # Custom alarm sound
-teefax 5m "C:\Sounds\gong.wav"
+teefax 5m --sound "C:\Sounds\gong.wav"
 
 # Loop
 teefax 10s --loop           # repeat forever
@@ -191,7 +197,7 @@ teefax 10s --loop --for 2m  # repeat until 2 minutes total have elapsed
 teefax 20s --mute --nomsg
 
 # Custom note in the notification popup
-teefax 5m --msg "Tea is ready!"
+teefax 5m "Tea is ready!"
 
 # Open a file when done
 teefax 5m --open "C:\Notes\todo.txt"
@@ -218,7 +224,7 @@ teefax 5s --prealarm 5 --nomsg --cmd "start teefax 20s --prealarm 5"
 teefax 5m --lang en
 
 # Save a macro and run it
-teefax --macro add tea 3m --msg "Tea is ready!"
+teefax --macro add tea 3m "Tea is ready!"
 teefax tea
 ```
 
