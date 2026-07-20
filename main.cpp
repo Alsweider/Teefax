@@ -1496,13 +1496,25 @@ static int handleMacroCommands(vector<string>& args) {
             if (i + 3 >= n) { cout << t(Str::MACRO_MISSING_ARGS) << "\n"; return 1; }
 
             // Alle verbleibenden Token als Makro-Body zusammenfügen.
-            // Quoting-Regeln: Token mit Leerzeichen oder nach einem Wert-Flag -> quoten.
+            // Quoting-Regeln: Token mit Leerzeichen -> quoten (schuetzt mehrwortige Werte
+            // beim spaeteren Wiedereinlesen durch tokenizeConfigLine). Zusaetzlich wird der
+            // Wert eines Freitext-Schalters vorsorglich quotiert, selbst ohne Leerzeichen,
+            // damit ein Wert, der zufaellig mit '-' beginnt, beim Wiedereinlesen nicht als
+            // eigener Schalter fehlgedeutet wird.
+            //
+            // Absichtlich NUR die vier echten Freitext-Schalter, deren Wert grundsaetzlich
+            // beliebigen Text enthalten kann (Fensertitel, Dateipfad, Konsolenbefehl):
+            // --focus, --sound, --open, --cmd. Alle uebrigen Wert-Schalter (--at, --daily,
+            // --every, --alarm-repeat, --alarm-interval, --prealarm, --lang, --loop) nehmen
+            // ausschliesslich strukturierte Werte entgegen - Zahlen, Uhrzeiten, Datumsangaben,
+            // Sprachcodes -, die niemals ein Leerzeichen enthalten und daher nie eine
+            // Quotierung benoetigen. Wuerden sie dennoch in diese Liste aufgenommen, entstuende
+            // derselbe Fehler wie zuvor bei --loop: Schalter mit MEHREREN nachfolgenden Werten
+            // (--daily nimmt beliebig viele Uhrzeiten, --every und --at je bis zu zwei) erhielten
+            // nur beim ERSTEN Wert faelschlich Anfuehrungszeichen, waehrend die uebrigen
+            // unquotiert blieben - ein irrefuehrendes, asymmetrisches Bild in der teefax.ini.
             static const vector<string> valueFlags = {
                 "--focus", "-f", "--sound", "-s", "--open", "-o", "--cmd", "-c",
-                "--at", "-a", "--until", "--lang", "-la",
-                "--alarm-repeat", "-ar", "--alarm-interval", "-ai",
-                "--prealarm", "-pa", "--loop", "-l",
-                "--every", "-e", "--daily", "-d",
             };
             string macroArgs;
             bool nextNeedsQuotes = false;

@@ -246,6 +246,26 @@ set T=-c-Wert wird nicht als Makro expandiert (Exit 1 bei Expansion)
 call :chk %errorlevel% 0
 "%EXE%" --macro remove ttest >nul 2>&1
 
+set T=--loop ohne Zaehlwert: nachfolgender Schalter bleibt unquotiert
+"%EXE%" --macro add ttest 1s -l -f "Notepad" --mute --nomsg >nul 2>&1
+"%EXE%" --macro list 2>nul | findstr /c:"-l -f " >nul
+call :chk %errorlevel% 0
+
+set T=--loop ohne Zaehlwert: nachfolgender Schalter wird nicht in Anfuehrungszeichen gesetzt
+"%EXE%" --macro list 2>nul | findstr /c:"\"-f\"" >nul
+call :chk %errorlevel% 1
+"%EXE%" --macro remove ttest >nul 2>&1
+
+set T=--daily mit mehreren Uhrzeiten: keine der Uhrzeiten wird quotiert
+"%EXE%" --macro add ttest -d 4:00 10:00 16:00 22:00 -pa 5 "LotGD" >nul 2>&1
+"%EXE%" --macro list 2>nul | findstr /c:"-d 4:00 10:00 16:00 22:00" >nul
+call :chk %errorlevel% 0
+
+set T=--prealarm-Sekundenwert bleibt unquotiert (reine Zahl)
+"%EXE%" --macro list 2>nul | findstr /c:"-pa 5 " >nul
+call :chk %errorlevel% 0
+"%EXE%" --macro remove ttest >nul 2>&1
+
 set T=--macro remove nicht-vorhandenes Makro gibt Exit 1
 "%EXE%" --macro remove ttest_nx >nul 2>&1
 call :chk %errorlevel% 1
