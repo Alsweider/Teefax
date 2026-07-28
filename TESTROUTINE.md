@@ -536,6 +536,7 @@ teefax 5s --loop --mute --nomsg --cmd "teefax 2s --mute --nomsg"
 ```
 
 - [ ] Mausklick friert den äußeren Timer **nicht** ein (QuickEdit bleibt auch im Loop+Cmd-Fall deaktiviert)
+- [ ] Insbesondere: mehrfach genau im Augenblick des Übergangs klicken, also kurz bevor bzw. während „Befehl gestartet: ..." erscheint (Regressionstest: das QuickEdit-Zeitfenster ist seit v0.31.2 auf die reine Aufrufdauer von `CreateProcessW` begrenzt, nicht mehr auf die vorangehende Zeichenkettenverarbeitung und Bildschirmausgabe). Da es sich um ein Zeitfenster von wenigen Millisekunden handelt, lässt sich ein Fehlschlag hierbei nie mit letzter Sicherheit ausschließen; mehrere Versuche erhöhen die Aussagekraft
 
 ```
 teefax 5s --mute --nomsg

@@ -508,6 +508,12 @@ bool openFileAfterTimer(const string& filePath) {
     return true;
 }
 
+// Vorwaertsdeklaration: Definitionen folgen weiter unten im Abschnitt
+// "Konsolenmodus-Helfer". runConsoleCommand() benoetigt beide Funktionen
+// bereits vor deren eigentlicher Definition (siehe dortiger Aufruf).
+static void disableQuickEdit();
+static void restoreConsoleMode();
+
 // CMD_STARTED wird vor dem Start ausgegeben, damit die Ausgabe des Prozesses
 // geordnet darunter erscheint. WaitForSingleObject stellt sicher, dass der
 // Kindprozess fertig ist, bevor die naechste Schleifenrunde oder TIMER_ENDED
@@ -544,11 +550,31 @@ void runConsoleCommand(const string& command) {
 
     wstring fullCmd = L"cmd.exe /C " + wcommand;
 
+    // Konsolenmodus ERST HIER, unmittelbar vor CreateProcessW, auf den wahren
+    // Originalzustand zuruecksetzen - nicht schon frueher (z. B. am Kopf von
+    // runPostActions() bzw. runTimerLoop()). Grund: ein verschachteltes teefax
+    // erfasst beim eigenen Start (setupQuickEdit) den zu diesem Zeitpunkt
+    // herrschenden Konsolenmodus als seinen "Originalzustand". Geschaehe die
+    // Wiederherstellung frueher, laege zwischen ihr und CreateProcessW noch die
+    // String-Konvertierung und die CMD_STARTED-Ausgabe - ein Mausklick in dieses
+    // (wenn auch kurze) Zeitfenster faengt QuickEdit erneut ein und friert die
+    // Konsole ein. So bleibt das Fenster auf die reine Aufrufdauer von
+    // CreateProcessW selbst begrenzt.
+    restoreConsoleMode();
+
     BOOL success = CreateProcessW(
         NULL, &fullCmd[0],
         NULL, NULL, TRUE, 0,
         NULL, NULL, &si, &pi
         );
+
+    // QuickEdit sofort wieder deaktivieren - unabhaengig vom Erfolg von
+    // CreateProcessW, damit das oben beschriebene Zeitfenster in jedem Fall
+    // so rasch wie moeglich schliesst, auch wenn der Prozessstart scheitert.
+    // Das Kind (falls erfolgreich gestartet) hat den originalen Konsolenmodus
+    // bereits geerbt; der Elternprozess braucht QuickEdit nicht: ein Mausklick
+    // waehrend WaitForSingleObject wuerde den Timer einfrieren.
+    disableQuickEdit();
 
     if (!success) {
         DWORD err = GetLastError();
@@ -556,25 +582,6 @@ void runConsoleCommand(const string& command) {
         snprintf(buf, sizeof(buf), t(Str::CMD_ERROR), (int)err, display.c_str());
         cout << buf << "\n";
         return;
-    }
-
-    // QuickEdit sofort nach Prozessstart im Elternprozess neu deaktivieren.
-    // Das Kind hat den originalen Konsolenmodus bereits geerbt; der Elternprozess
-    // braucht QuickEdit nicht: ein Mausklick waehrend WaitForSingleObject wuerde
-    // den Timer einfrieren. Das nachgelagerte if(loop)-Abschnitt in main() bleibt
-    // weiterhin zustaendig fuer den Fall, dass das Kind den Modus beim Beenden
-    // wiederhergestellt hat (z. B. verschachteltes teefax).
-    // g_consoleModeChanged wird auf true gesetzt, damit der ConsoleHandler bei
-    // Strg+C den Originalmodus (QuickEdit an) korrekt wiederherstellt.
-    {
-        HANDLE hIn = GetStdHandle(STD_INPUT_HANDLE);
-        DWORD  mode = 0;
-        if (GetConsoleMode(hIn, &mode)) {
-            mode &= ~ENABLE_QUICK_EDIT_MODE;
-            mode |=  ENABLE_EXTENDED_FLAGS;
-            SetConsoleMode(hIn, mode);
-            g_consoleModeChanged = true;
-        }
     }
 
     // Warten bis Prozess beendet: verhindert Ausgabe-Interleaving mit dem
@@ -2125,6 +2132,15 @@ static void playAlarmSound(const TimerConfig& cfg) {
 // eine Fehlermeldung erscheint aber erst beim letzten Durchlauf, um die Ausgabe
 // nicht zu zerstueckeln. --cmd ist ausgenommen: dessen Ausgabe erscheint stets.
 static void runPostActions(const TimerConfig& cfg, bool warnOnFail) {
+    // Konsolenmodus hier wiederherstellen - AUSSER wenn --cmd gesetzt ist: in
+    // diesem Fall uebernimmt runConsoleCommand() dies selbst, unmittelbar vor
+    // CreateProcessW, um das QuickEdit-Zeitfenster so kurz wie moeglich zu
+    // halten (siehe dortiger Kommentar). --open und --focus starten keinen
+    // Kindprozess, der den Konsolenmodus erbt; hier bleibt die bisherige,
+    // unkritische Stelle unveraendert richtig.
+    if (cfg.cmdArg.empty())
+        restoreConsoleMode();
+
     if (!cfg.cmdArg.empty())
         runConsoleCommand(cfg.cmdArg);
 
@@ -2465,14 +2481,19 @@ static int runTimerLoop(TimerConfig& cfg) {
 
         if (!cfg.mute) playAlarmSound(cfg);
 
-        // Konsolenmodus wiederherstellen, damit Kindprozesse den Originalzustand erben.
-        restoreConsoleMode();
-
+        // Die Wiederherstellung des Konsolenmodus geschieht nun innerhalb von
+        // runPostActions() bzw. (fuer --cmd) unmittelbar vor CreateProcessW in
+        // runConsoleCommand() selbst - nicht mehr pauschal schon hier davor.
+        // Das verkuerzt bei --cmd das Zeitfenster, in dem ein Mausklick QuickEdit
+        // erneut aktivieren und die Konsole einfrieren lassen koennte, auf die
+        // reine Prozessstart-Dauer, statt es ueber String-Verarbeitung und
+        // CMD_STARTED-Ausgabe hinweg offenzuhalten.
         runPostActions(cfg, isLastIteration);
 
-        // QuickEdit für den nächsten Durchlauf neu deaktivieren.
-        // --cmd-Kindprozesse und restoreConsoleMode() schalten QuickEdit zurück;
-        // bei --daily/--every ohne --cmd tut restoreConsoleMode() dasselbe.
+        // QuickEdit für den nächsten Durchlauf neu deaktivieren. runPostActions()
+        // (bzw. runConsoleCommand() im --cmd-Fall) hat den Modus zwischenzeitlich
+        // auf den wahren Originalzustand zurueckgesetzt; hier wird er fuer die
+        // naechste Runde wieder abgeschaltet.
         if (cfg.loop) disableQuickEdit();
 
         // Fenstertitel zurücksetzen, bevor die Benachrichtigung den Thread blockiert.
